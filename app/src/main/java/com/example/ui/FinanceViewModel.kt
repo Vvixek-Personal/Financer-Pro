@@ -1361,14 +1361,10 @@ class FinanceViewModel(
         appSettingsManager.dispatch(AppSettingsIntent.UpdateCurrency(code, symbol, name, convertExisting))
         if (convertExisting && oldCode != code) {
             viewModelScope.launch {
-                val currentList = expenses.value
                 val rates = CurrencyManager.getRatesMap()
-                currentList.forEach { exp ->
-                    val convertedMinor = Money.convert(exp.amountMinor, exp.currencyCode, code, rates)
-                    repository.updateExpense(exp.copy(amountMinor = convertedMinor, currencyCode = code))
-                }
+                repository.convertAllEntitiesToCurrency(code, rates)
             }
-            _toastMessage.value = "Currency changed to $code ($symbol) and existing transactions converted using exchange rates"
+            _toastMessage.value = "Currency changed to $code ($symbol) and all records converted safely using verified exchange rates"
         } else {
             _toastMessage.value = "Default currency updated to $code ($symbol)"
         }
