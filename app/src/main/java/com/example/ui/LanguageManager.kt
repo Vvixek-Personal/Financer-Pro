@@ -1,5 +1,6 @@
 package com.example.ui
 
+import com.example.ui.theme.*
 import android.content.Context
 import android.content.res.Configuration
 import java.util.Locale

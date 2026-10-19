@@ -1,5 +1,6 @@
 package com.example.ui
 
+import com.example.ui.theme.*
 import android.app.Application
 import android.content.Context
 import android.net.Uri
