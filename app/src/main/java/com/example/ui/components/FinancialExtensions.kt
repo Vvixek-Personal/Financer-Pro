@@ -15,7 +15,11 @@ import com.example.data.SavingsGoal
 fun Iterable<Expense>.realIncomeMinor(targetCurrencyCode: String): Long {
     var sum = 0L
     for (expense in this) {
-        if (expense.kind != "SAVINGS_LOCK" && expense.kind != "SAVINGS_RELEASE") {
+        val isSavings = expense.kind == "SAVINGS_LOCK" || expense.kind == "SAVINGS_RELEASE"
+        val isTransfer = expense.category.equals("Transfer", ignoreCase = true) ||
+                expense.kind == "TRANSFER" || expense.kind == "TRANSFER_OUT" || expense.kind == "TRANSFER_IN" ||
+                expense.type == "TRANSFER"
+        if (!isSavings && !isTransfer) {
             val isIncome = expense.type == "INCOME" || expense.kind == "INCOME"
             if (isIncome) {
                 val converted = Money.convert(expense.amountMinor, expense.currencyCode, targetCurrencyCode)
@@ -34,7 +38,11 @@ fun Iterable<Expense>.realIncome(targetCurrencyCode: String): Double {
 fun Iterable<Expense>.realExpenseMinor(targetCurrencyCode: String): Long {
     var sum = 0L
     for (expense in this) {
-        if (expense.kind != "SAVINGS_LOCK" && expense.kind != "SAVINGS_RELEASE") {
+        val isSavings = expense.kind == "SAVINGS_LOCK" || expense.kind == "SAVINGS_RELEASE"
+        val isTransfer = expense.category.equals("Transfer", ignoreCase = true) ||
+                expense.kind == "TRANSFER" || expense.kind == "TRANSFER_OUT" || expense.kind == "TRANSFER_IN" ||
+                expense.type == "TRANSFER"
+        if (!isSavings && !isTransfer) {
             val isExpense = expense.type != "INCOME" && expense.kind != "INCOME"
             if (isExpense) {
                 val converted = Money.convert(expense.amountMinor, expense.currencyCode, targetCurrencyCode)
@@ -54,12 +62,17 @@ fun Iterable<Expense>.availableCashMinor(targetCurrencyCode: String): Long {
     var totalIn = 0L
     var totalOut = 0L
     for (expense in this) {
-        val converted = Money.convert(expense.amountMinor, expense.currencyCode, targetCurrencyCode)
-        val isIncome = expense.type == "INCOME" || expense.kind == "INCOME" || expense.kind == "SAVINGS_RELEASE"
-        if (isIncome) {
-            totalIn = Money.add(totalIn, converted)
-        } else {
-            totalOut = Money.add(totalOut, converted)
+        val isTransfer = expense.category.equals("Transfer", ignoreCase = true) ||
+                expense.kind == "TRANSFER" || expense.kind == "TRANSFER_OUT" || expense.kind == "TRANSFER_IN" ||
+                expense.type == "TRANSFER"
+        if (!isTransfer) {
+            val converted = Money.convert(expense.amountMinor, expense.currencyCode, targetCurrencyCode)
+            val isIncome = expense.type == "INCOME" || expense.kind == "INCOME" || expense.kind == "SAVINGS_RELEASE"
+            if (isIncome) {
+                totalIn = Money.add(totalIn, converted)
+            } else {
+                totalOut = Money.add(totalOut, converted)
+            }
         }
     }
     return Money.subtract(totalIn, totalOut)

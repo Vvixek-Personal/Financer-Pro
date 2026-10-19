@@ -893,6 +893,15 @@ class FinanceViewModel(
     private val _toastMessage = MutableStateFlow<String?>(null)
     val toastMessage: StateFlow<String?> = _toastMessage.asStateFlow()
 
+    private val _lastDeletedExpenses = MutableStateFlow<List<Expense>>(emptyList())
+    val lastDeletedExpenses: StateFlow<List<Expense>> = _lastDeletedExpenses.asStateFlow()
+
+    private val _undoDeleteVisible = MutableStateFlow(false)
+    val undoDeleteVisible: StateFlow<Boolean> = _undoDeleteVisible.asStateFlow()
+
+    private val _undoDeleteMessage = MutableStateFlow("")
+    val undoDeleteMessage: StateFlow<String> = _undoDeleteMessage.asStateFlow()
+
     fun clearToastMessage() {
         _toastMessage.value = null
     }
@@ -1993,18 +2002,147 @@ class FinanceViewModel(
     fun deleteExpense(expense: Expense) {
         viewModelScope.launch {
             repository.deleteExpense(expense)
+            _lastDeletedExpenses.value = listOf(expense)
+            _undoDeleteMessage.value = "Deleted ${expense.category} (${_selectedCurrencySymbol.value}${String.format(Locale.getDefault(), "%,.2f", expense.amount)})"
+            _undoDeleteVisible.value = true
         }
     }
 
     fun deleteExpenseById(id: Long) {
         viewModelScope.launch {
+            val exp = repository.getExpenseById(id)
             repository.deleteExpenseById(id)
+            if (exp != null) {
+                _lastDeletedExpenses.value = listOf(exp)
+                _undoDeleteMessage.value = "Deleted ${exp.category} (${_selectedCurrencySymbol.value}${String.format(Locale.getDefault(), "%,.2f", exp.amount)})"
+                _undoDeleteVisible.value = true
+            }
         }
     }
 
     fun deleteExpenses(expensesList: List<Expense>) {
+        if (expensesList.isEmpty()) return
         viewModelScope.launch {
             expensesList.forEach { repository.deleteExpense(it) }
+            _lastDeletedExpenses.value = expensesList
+            _undoDeleteMessage.value = "Deleted ${expensesList.size} transactions"
+            _undoDeleteVisible.value = true
+        }
+    }
+
+    fun undoDeleteExpense() {
+        val toRestore = _lastDeletedExpenses.value
+        if (toRestore.isEmpty()) return
+        viewModelScope.launch {
+            toRestore.forEach { expense ->
+                repository.insertExpense(expense)
+            }
+            _lastDeletedExpenses.value = emptyList()
+            _undoDeleteVisible.value = false
+            _toastMessage.value = if (toRestore.size == 1) "Transaction restored" else "${toRestore.size} transactions restored"
+            recordDailyTransactionActivity()
+        }
+    }
+
+    fun dismissUndoDelete() {
+        _undoDeleteVisible.value = false
+        _lastDeletedExpenses.value = emptyList()
+    }
+
+    fun transferFunds(
+        fromAccountId: Long,
+        toAccountId: Long,
+        amount: Double,
+        note: String?,
+        date: Long = System.currentTimeMillis(),
+        onResult: ((Boolean, String) -> Unit)? = null
+    ) {
+        if (fromAccountId == toAccountId) {
+            onResult?.invoke(false, "Source and destination accounts must be different.")
+            _toastMessage.value = "Please select two different accounts."
+            return
+        }
+        if (amount <= 0.0) {
+            onResult?.invoke(false, "Transfer amount must be greater than zero.")
+            _toastMessage.value = "Please enter an amount greater than 0."
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val cur = _selectedCurrencyCode.value
+                val (outId, inId) = repository.transferBetweenAccounts(
+                    fromAccountId = fromAccountId,
+                    toAccountId = toAccountId,
+                    amount = amount,
+                    date = date,
+                    note = note,
+                    currencyCode = cur
+                )
+                recordDailyTransactionActivity()
+                val symbol = _selectedCurrencySymbol.value
+                val msg = "Transferred %s%,.2f successfully".format(symbol, amount)
+                _toastMessage.value = msg
+                onResult?.invoke(true, msg)
+            } catch (e: Exception) {
+                val err = e.localizedMessage ?: "Failed to process transfer."
+                _toastMessage.value = err
+                onResult?.invoke(false, err)
+            }
+        }
+    }
+
+    fun importTransactions(
+        transactions: List<Expense>,
+        targetAccountId: Long? = null,
+        skipDuplicates: Boolean = true,
+        onComplete: ((importedCount: Int, skippedCount: Int) -> Unit)? = null
+    ) {
+        if (transactions.isEmpty()) {
+            onComplete?.invoke(0, 0)
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val existing = repository.allExpenses.firstOrNull() ?: emptyList()
+                val defaultAccId = targetAccountId ?: (repository.getAccountsSnapshot().firstOrNull()?.id ?: 1L)
+
+                var imported = 0
+                var skipped = 0
+
+                transactions.forEach { tx ->
+                    val isDuplicate = skipDuplicates && existing.any { ex ->
+                        ex.type == tx.type &&
+                        Math.abs(ex.amount - tx.amount) < 0.001 &&
+                        ex.category.equals(tx.category, ignoreCase = true) &&
+                        Math.abs(ex.date - tx.date) < 86400000L // same day
+                    }
+
+                    if (isDuplicate) {
+                        skipped++
+                    } else {
+                        val toInsert = tx.copy(
+                            id = 0,
+                            accountId = targetAccountId ?: if (tx.accountId > 0) tx.accountId else defaultAccId
+                        )
+                        repository.insertExpense(toInsert)
+                        imported++
+                    }
+                }
+
+                if (imported > 0) {
+                    recordDailyTransactionActivity()
+                    repository.syncAllAccountBalances()
+                }
+
+                val msg = "Imported $imported transactions" + if (skipped > 0) " ($skipped duplicates skipped)" else ""
+                _toastMessage.value = msg
+                onComplete?.invoke(imported, skipped)
+            } catch (e: Exception) {
+                _toastMessage.value = "Import failed: ${e.localizedMessage}"
+                onComplete?.invoke(0, 0)
+            }
         }
     }
 
@@ -2090,9 +2228,7 @@ class FinanceViewModel(
     }
 
     fun deleteTransaction(expense: Expense) {
-        viewModelScope.launch {
-            repository.deleteExpense(expense)
-        }
+        deleteExpense(expense)
     }
 
     fun addBudget(category: String, amountLimit: Double) {

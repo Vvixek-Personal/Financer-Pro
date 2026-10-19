@@ -52,6 +52,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.example.ui.components.DataImporter
+import com.example.ui.components.ImportParseResult
 
 enum class SettingsSubScreen {
     PersonalData,
@@ -3387,8 +3389,31 @@ fun DataManagementScreen(
     val cloudSyncStatus by viewModel.cloudSyncStatus.collectAsStateWithLifecycle()
     val lastCloudSync by viewModel.lastCloudSyncTimestamp.collectAsStateWithLifecycle()
     val isCloudSyncing by viewModel.isCloudSyncing.collectAsStateWithLifecycle()
+    val accounts by viewModel.accounts.collectAsStateWithLifecycle()
+    val currencyCode by viewModel.selectedCurrencyCode.collectAsStateWithLifecycle()
+    val currencySymbol by viewModel.selectedCurrencySymbol.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showResetDialog by remember { mutableStateOf(false) }
+
+    var showImportDialog by remember { mutableStateOf(false) }
+    var importResult by remember { mutableStateOf<ImportParseResult?>(null) }
+    var selectedImportAccountId by remember(accounts) { mutableStateOf(accounts.firstOrNull()?.id ?: 1L) }
+    var skipDuplicates by remember { mutableStateOf(true) }
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val res = DataImporter.parseFile(context, uri, currencyCode, selectedImportAccountId)
+            if (res.transactions.isNotEmpty()) {
+                importResult = res
+                showImportDialog = true
+            } else {
+                val err = res.errors.firstOrNull() ?: "No valid transactions found in selected file."
+                Toast.makeText(context, err, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -3426,6 +3451,61 @@ fun DataManagementScreen(
                         Icon(AppIcons.Restore, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Open Local Recovery", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // 📥 IMPORT TRANSACTIONS (CSV / JSON) CARD
+            Card(
+                colors = CardDefaults.cardColors(containerColor = SleekSurface),
+                border = BorderStroke(1.dp, SleekBorder),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF0284C7).copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = AppIcons.FileDownload,
+                                contentDescription = null,
+                                tint = Color(0xFF0284C7),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Text("IMPORT TRANSACTIONS (CSV / JSON)", fontWeight = FontWeight.Bold, color = SleekTextPrimary)
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Import bank statements, spreadsheets, or backup ledgers directly into SQLite database. Supports standard CSV, Excel exports, and JSON formats.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = SleekTextSecondary
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Button(
+                        onClick = {
+                            filePickerLauncher.launch(arrayOf("text/*", "application/json", "*/*"))
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+                    ) {
+                        Icon(AppIcons.CloudUpload, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Choose CSV or JSON File", fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -3606,6 +3686,147 @@ fun DataManagementScreen(
             },
             dismissButton = {
                 OutlinedButton(onClick = { showResetDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    val currentImport = importResult
+    if (showImportDialog && currentImport != null) {
+        val totalImportAmount = currentImport.transactions.sumOf { it.amount }
+        val incomeCount = currentImport.transactions.count { it.type == "INCOME" }
+        val expenseCount = currentImport.transactions.count { it.type == "EXPENSE" }
+
+        AlertDialog(
+            onDismissRequest = {
+                showImportDialog = false
+                importResult = null
+            },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(AppIcons.FileDownload, contentDescription = null, tint = Color(0xFF0284C7))
+                    Text("Import ${currentImport.format} Data")
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "Found ${currentImport.transactions.size} transactions ($expenseCount expenses, $incomeCount income).",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = SleekTextPrimary
+                    )
+                    Text(
+                        text = "Total volume: $currencySymbol%,.2f".format(totalImportAmount),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = SleekPrimary
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = "TARGET ACCOUNT",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = SleekTextSecondary
+                    )
+
+                    // Account selector row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        accounts.forEach { acc ->
+                            val isSelected = acc.id == selectedImportAccountId
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isSelected) Color(0xFF0284C7) else SleekSurface,
+                                border = BorderStroke(1.dp, if (isSelected) Color(0xFF0284C7) else SleekBorder),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { selectedImportAccountId = acc.id }
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(vertical = 6.dp, horizontal = 4.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = acc.name,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isSelected) Color.White else SleekTextPrimary,
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = "$currencySymbol%,.0f".format(acc.balance),
+                                        fontSize = 9.sp,
+                                        color = if (isSelected) Color.White.copy(alpha = 0.8f) else SleekTextSecondary
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Skip existing duplicates", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = SleekTextPrimary)
+                            Text("Prevents adding identical entries on same date", fontSize = 10.sp, color = SleekTextSecondary)
+                        }
+                        Switch(
+                            checked = skipDuplicates,
+                            onCheckedChange = { skipDuplicates = it },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = Color(0xFF0284C7)
+                            )
+                        )
+                    }
+
+                    if (currentImport.errors.isNotEmpty()) {
+                        Text(
+                            text = "${currentImport.errors.size} row(s) skipped due to format issues.",
+                            fontSize = 10.sp,
+                            color = Color(0xFFEF5350)
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.importTransactions(
+                            transactions = currentImport.transactions,
+                            targetAccountId = selectedImportAccountId,
+                            skipDuplicates = skipDuplicates
+                        ) { imported, skipped ->
+                            Toast.makeText(
+                                context,
+                                "Successfully imported $imported transactions" + if (skipped > 0) " ($skipped duplicates skipped)" else "",
+                                Toast.LENGTH_LONG
+                            ).show()
+                            showImportDialog = false
+                            importResult = null
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+                ) {
+                    Text("Import Now", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = {
+                        showImportDialog = false
+                        importResult = null
+                    }
+                ) {
+                    Text("Cancel")
+                }
             }
         )
     }

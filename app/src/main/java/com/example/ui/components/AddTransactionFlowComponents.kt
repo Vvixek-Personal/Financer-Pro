@@ -79,27 +79,34 @@ fun AddExpenseDialog(
     monthlySafeAmount: Double = 0.0,
     currencySymbol: String = "₹",
     currencyCode: String = "INR",
+    accounts: List<com.example.data.Account> = emptyList(),
     onAddCategory: (name: String, categoryType: String) -> Unit = { name, _ -> },
     onDeleteCategory: (String) -> Unit = {},
     onEditCategory: (String, String) -> Unit = { _, _ -> },
     onDismiss: () -> Unit,
+    onConfirmTransfer: ((fromAccountId: Long, toAccountId: Long, amount: Double, note: String, date: Long) -> Unit)? = null,
     onConfirm: (amount: Double, category: String, date: Long, note: String, imagePath: String?, type: String) -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
     var step by rememberSaveable { mutableIntStateOf(1) } // 1: Main Add Screen, 2: Add Description Screen
     var showCategorySheet by remember { mutableStateOf(false) }
 
-    var type by rememberSaveable { mutableStateOf(defaultTxType) } // "EXPENSE" or "INCOME"
+    var type by rememberSaveable { mutableStateOf(defaultTxType) } // "EXPENSE", "INCOME", "TRANSFER"
     var amountStr by rememberSaveable { mutableStateOf("") }
     var category by rememberSaveable {
-        val initialCategory = if (type == "INCOME") {
-            (if (rememberLastCategory) lastUsedIncomeCategory else null)
+        val initialCategory = when (type) {
+            "INCOME" -> (if (rememberLastCategory) lastUsedIncomeCategory else null)
                 ?: incomeCategories.firstOrNull() ?: "Salary"
-        } else {
-            (if (rememberLastCategory) lastUsedExpenseCategory else null)
+            "TRANSFER" -> "Transfer"
+            else -> (if (rememberLastCategory) lastUsedExpenseCategory else null)
                 ?: expenseCategories.firstOrNull() ?: categories.firstOrNull() ?: "Food"
         }
         mutableStateOf(initialCategory)
+    }
+    var fromAccountId by rememberSaveable(accounts) { mutableStateOf(accounts.firstOrNull()?.id ?: 1L) }
+    var toAccountId by rememberSaveable(accounts) {
+        val second = accounts.getOrNull(1)?.id
+        mutableStateOf(if (second != null && second != fromAccountId) second else fromAccountId)
     }
     var note by rememberSaveable { mutableStateOf("") }
 
@@ -170,8 +177,16 @@ fun AddExpenseDialog(
         }
     }
 
-    val activeColor = if (type == "INCOME") IncomeGreen else ExpenseRed
-    val activeSoftBg = if (type == "INCOME") IncomeGreenBg else ExpenseRedBg
+    val activeColor = when (type) {
+        "INCOME" -> IncomeGreen
+        "TRANSFER" -> Color(0xFF0284C7)
+        else -> ExpenseRed
+    }
+    val activeSoftBg = when (type) {
+        "INCOME" -> IncomeGreenBg
+        "TRANSFER" -> Color(0xFF0284C7).copy(alpha = 0.15f)
+        else -> ExpenseRedBg
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -209,7 +224,7 @@ fun AddExpenseDialog(
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                text = "Record incoming or outgoing funds",
+                                text = "Record incoming, outgoing or account transfer",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = SleekTextSecondary,
                                 fontSize = 12.sp
@@ -230,7 +245,7 @@ fun AddExpenseDialog(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Type Switcher: Expense / Income
+                    // Type Switcher: Expense / Income / Transfer
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -257,17 +272,17 @@ fun AddExpenseDialog(
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 Icon(
                                     imageVector = AppIcons.ArrowDownward,
                                     contentDescription = null,
                                     tint = if (isExpenseActive) ExpenseRed else SleekTextSecondary,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(14.dp)
                                 )
                                 Text(
                                     text = "Expense",
-                                    fontSize = 14.sp,
+                                    fontSize = 13.sp,
                                     fontWeight = if (isExpenseActive) FontWeight.SemiBold else FontWeight.Normal,
                                     color = if (isExpenseActive) ExpenseRed else SleekTextSecondary
                                 )
@@ -291,19 +306,52 @@ fun AddExpenseDialog(
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 Icon(
                                     imageVector = AppIcons.ArrowUpward,
                                     contentDescription = null,
                                     tint = if (isIncomeActive) IncomeGreen else SleekTextSecondary,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(14.dp)
                                 )
                                 Text(
                                     text = "Income",
-                                    fontSize = 14.sp,
+                                    fontSize = 13.sp,
                                     fontWeight = if (isIncomeActive) FontWeight.SemiBold else FontWeight.Normal,
                                     color = if (isIncomeActive) IncomeGreen else SleekTextSecondary
+                                )
+                            }
+                        }
+
+                        val isTransferActive = type == "TRANSFER"
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(SleekShapes.chip)
+                                .background(if (isTransferActive) Color(0xFF0284C7).copy(alpha = 0.15f) else Color.Transparent)
+                                .clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    type = "TRANSFER"
+                                    category = "Transfer"
+                                }
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = AppIcons.Sync,
+                                    contentDescription = null,
+                                    tint = if (isTransferActive) Color(0xFF0284C7) else SleekTextSecondary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = "Transfer",
+                                    fontSize = 13.sp,
+                                    fontWeight = if (isTransferActive) FontWeight.SemiBold else FontWeight.Normal,
+                                    color = if (isTransferActive) Color(0xFF0284C7) else SleekTextSecondary
                                 )
                             }
                         }
@@ -419,69 +467,91 @@ fun AddExpenseDialog(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // 4. Category Selector Card
-                    val categoryEmoji = getCategoryEmoji(category, categoryIcons)
-                    Card(
-                        shape = SleekShapes.card,
-                        colors = CardDefaults.cardColors(containerColor = SleekBg),
-                        border = BorderStroke(1.dp, SleekBorder),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                showCategorySheet = true
+                    // 4. Category Selector or Account Transfer Selector Card
+                    if (type == "TRANSFER") {
+                        TransferAccountSelectorCard(
+                            accounts = accounts,
+                            fromAccountId = fromAccountId,
+                            toAccountId = toAccountId,
+                            currencySymbol = currencySymbol,
+                            onFromAccountSelected = { fromAccountId = it },
+                            onToAccountSelected = { toAccountId = it },
+                            onSwapAccounts = {
+                                val temp = fromAccountId
+                                fromAccountId = toAccountId
+                                toAccountId = temp
                             }
-                    ) {
-                        Row(
+                        )
+                    } else {
+                        val categoryEmoji = getCategoryEmoji(category, categoryIcons)
+                        Card(
+                            shape = SleekShapes.card,
+                            colors = CardDefaults.cardColors(containerColor = SleekBg),
+                            border = BorderStroke(1.dp, SleekBorder),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                                .clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    showCategorySheet = true
+                                }
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(SleekShapes.chip)
-                                        .background(activeSoftBg),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = AppIcons.Category,
-                                        contentDescription = null,
-                                        tint = activeColor,
-                                        modifier = Modifier.size(18.dp)
-                                    )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .clip(SleekShapes.chip)
+                                            .background(activeSoftBg),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = AppIcons.Category,
+                                            contentDescription = null,
+                                            tint = activeColor,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text(
+                                            text = "Category",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = SleekTextSecondary,
+                                            fontSize = 12.sp
+                                        )
+                                        Text(
+                                            text = category.ifBlank { "Select a category" },
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = SleekTextPrimary,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
                                 }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Text(
-                                        text = "Category",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = SleekTextSecondary,
-                                        fontSize = 12.sp
-                                    )
-                                    Text(
-                                        text = category.ifBlank { "Select a category" },
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = SleekTextPrimary,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                            }
 
-                            Icon(
-                                imageVector = AppIcons.ChevronRight,
-                                contentDescription = "Select category",
-                                tint = SleekTextSecondary
-                            )
+                                Icon(
+                                    imageVector = AppIcons.ChevronRight,
+                                    contentDescription = "Select category",
+                                    tint = SleekTextSecondary
+                                )
+                            }
                         }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // 5. Confirm Button
+                    val isConfirmEnabled = if (type == "TRANSFER") {
+                        enteredAmount > 0 && fromAccountId != toAccountId
+                    } else {
+                        enteredAmount > 0 && !isExceedingIncome
+                    }
+
                     Button(
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -491,7 +561,7 @@ fun AddExpenseDialog(
                                 isAmountEditing = true
                             }
                         },
-                        enabled = enteredAmount > 0 && !isExceedingIncome,
+                        enabled = isConfirmEnabled,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = activeColor,
                             disabledContainerColor = activeColor.copy(alpha = 0.3f)
@@ -541,7 +611,10 @@ fun AddExpenseDialog(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Category Icon Badge & Amount Display
+                    val fromAccName = accounts.find { it.id == fromAccountId }?.name ?: "Source"
+                    val toAccName = accounts.find { it.id == toAccountId }?.name ?: "Destination"
+
+                    // Category / Transfer Icon Badge & Amount Display
                     Box(
                         modifier = Modifier
                             .size(56.dp)
@@ -550,7 +623,7 @@ fun AddExpenseDialog(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = AppIcons.Category,
+                            imageVector = if (type == "TRANSFER") AppIcons.Sync else AppIcons.Category,
                             contentDescription = null,
                             tint = activeColor,
                             modifier = Modifier.size(24.dp)
@@ -567,7 +640,7 @@ fun AddExpenseDialog(
                     )
 
                     Text(
-                        text = "${if (type == "INCOME") "Income" else "Expense"} • $category",
+                        text = if (type == "TRANSFER") "Transfer: $fromAccName ➔ $toAccName" else "${if (type == "INCOME") "Income" else "Expense"} • $category",
                         fontSize = 12.sp,
                         color = SleekTextSecondary,
                         fontWeight = FontWeight.Normal
@@ -733,18 +806,31 @@ fun AddExpenseDialog(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // Final Save Button
-                    val finalNote = if (note.trim().isBlank()) category else note.trim()
+                    val finalNote = if (note.trim().isBlank()) {
+                        if (type == "TRANSFER") "Transfer from $fromAccName to $toAccName" else category
+                    } else note.trim()
+
                     Button(
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onConfirm(
-                                enteredAmount,
-                                category,
-                                prefilledDate ?: System.currentTimeMillis(),
-                                finalNote,
-                                attachedImagePath,
-                                type
-                            )
+                            if (type == "TRANSFER") {
+                                onConfirmTransfer?.invoke(
+                                    fromAccountId,
+                                    toAccountId,
+                                    enteredAmount,
+                                    finalNote,
+                                    prefilledDate ?: System.currentTimeMillis()
+                                )
+                            } else {
+                                onConfirm(
+                                    enteredAmount,
+                                    category,
+                                    prefilledDate ?: System.currentTimeMillis(),
+                                    finalNote,
+                                    attachedImagePath,
+                                    type
+                                )
+                            }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = activeColor),
                         shape = SleekShapes.chip,
@@ -754,7 +840,11 @@ fun AddExpenseDialog(
                             .testTag("save_expense_btn")
                     ) {
                         Text(
-                            text = if (type == "INCOME") "Save income" else "Save expense",
+                            text = when (type) {
+                                "INCOME" -> "Save income"
+                                "TRANSFER" -> "Transfer Funds"
+                                else -> "Save expense"
+                            },
                             color = Color.White,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold
@@ -1090,3 +1180,165 @@ fun CategoryGridSection(
         }
     }
 }
+
+@Composable
+fun TransferAccountSelectorCard(
+    accounts: List<com.example.data.Account>,
+    fromAccountId: Long,
+    toAccountId: Long,
+    currencySymbol: String,
+    onFromAccountSelected: (Long) -> Unit,
+    onToAccountSelected: (Long) -> Unit,
+    onSwapAccounts: () -> Unit
+) {
+    Card(
+        shape = SleekShapes.card,
+        colors = CardDefaults.cardColors(containerColor = SleekBg),
+        border = BorderStroke(1.dp, SleekBorder),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "FROM ACCOUNT",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = SleekTextSecondary
+                )
+                if (accounts.size >= 2) {
+                    IconButton(
+                        onClick = onSwapAccounts,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = AppIcons.Sync,
+                            contentDescription = "Swap accounts",
+                            tint = Color(0xFF0284C7),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // From Account list
+            if (accounts.isEmpty()) {
+                Text(
+                    text = "No accounts available",
+                    fontSize = 12.sp,
+                    color = SleekTextSecondary
+                )
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    accounts.forEach { acc ->
+                        val isSelected = acc.id == fromAccountId
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (isSelected) Color(0xFF0284C7) else SleekSurface,
+                            border = BorderStroke(1.dp, if (isSelected) Color(0xFF0284C7) else SleekBorder),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { onFromAccountSelected(acc.id) }
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(vertical = 8.dp, horizontal = 6.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = acc.name,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) Color.White else SleekTextPrimary,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    text = "$currencySymbol%,.0f".format(acc.balance),
+                                    fontSize = 10.sp,
+                                    color = if (isSelected) Color.White.copy(alpha = 0.85f) else SleekTextSecondary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "TO ACCOUNT",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = SleekTextSecondary
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // To Account list
+            if (accounts.isEmpty()) {
+                Text(
+                    text = "No accounts available",
+                    fontSize = 12.sp,
+                    color = SleekTextSecondary
+                )
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    accounts.forEach { acc ->
+                        val isSelected = acc.id == toAccountId
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (isSelected) Color(0xFF10B981) else SleekSurface,
+                            border = BorderStroke(1.dp, if (isSelected) Color(0xFF10B981) else SleekBorder),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { onToAccountSelected(acc.id) }
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(vertical = 8.dp, horizontal = 6.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = acc.name,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) Color.White else SleekTextPrimary,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    text = "$currencySymbol%,.0f".format(acc.balance),
+                                    fontSize = 10.sp,
+                                    color = if (isSelected) Color.White.copy(alpha = 0.85f) else SleekTextSecondary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (fromAccountId == toAccountId) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Source and destination accounts must be different.",
+                    fontSize = 11.sp,
+                    color = Color(0xFFEF5350),
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+    }
+}
+

@@ -13,8 +13,23 @@ class FinanceRepository(private val dao: FinanceDao, private val database: Finan
 
     suspend fun ensureDefaultAccountCreated(defaultCurrency: String = "INR"): Long {
         val existing = dao.getAccountsSnapshot()
-        if (existing.isNotEmpty()) return existing.first().id
-        return dao.insertAccount(
+        if (existing.isNotEmpty()) {
+            if (existing.size == 1 && existing.first().name.equals("Cash", ignoreCase = true)) {
+                dao.insertAccount(
+                    Account(
+                        name = "Bank Account",
+                        type = "BANK",
+                        currencyCode = defaultCurrency,
+                        openingBalance = 0.0,
+                        balance = 0.0,
+                        openingBalanceMinor = 0L,
+                        balanceMinor = 0L
+                    )
+                )
+            }
+            return existing.first().id
+        }
+        val cashId = dao.insertAccount(
             Account(
                 name = "Cash",
                 type = "CASH",
@@ -25,6 +40,18 @@ class FinanceRepository(private val dao: FinanceDao, private val database: Finan
                 balanceMinor = 0L
             )
         )
+        dao.insertAccount(
+            Account(
+                name = "Bank Account",
+                type = "BANK",
+                currencyCode = defaultCurrency,
+                openingBalance = 0.0,
+                balance = 0.0,
+                openingBalanceMinor = 0L,
+                balanceMinor = 0L
+            )
+        )
+        return cashId
     }
 
     suspend fun insertExpense(expense: Expense): Long {
@@ -38,23 +65,53 @@ class FinanceRepository(private val dao: FinanceDao, private val database: Finan
         }
 
         val toInsert = syncExpenseAmounts(expense.copy(accountId = targetAccountId))
-        return dao.insertExpense(toInsert)
+        val id = dao.insertExpense(toInsert)
+        syncAccountBalance(targetAccountId)
+        return id
     }
 
-    suspend fun updateExpense(expense: Expense) = dao.updateExpense(syncExpenseAmounts(expense))
-    suspend fun deleteExpense(expense: Expense) = dao.deleteExpense(expense)
-    suspend fun deleteExpenseById(id: Long) = dao.deleteExpenseById(id)
-    suspend fun deleteAllExpenses() = dao.deleteAllExpenses()
+    suspend fun updateExpense(expense: Expense) {
+        val old = dao.getExpenseById(expense.id)
+        val synced = syncExpenseAmounts(expense)
+        dao.updateExpense(synced)
+        if (old != null && old.accountId != synced.accountId) {
+            syncAccountBalance(old.accountId)
+        }
+        syncAccountBalance(synced.accountId)
+    }
+
+    suspend fun deleteExpense(expense: Expense) {
+        dao.deleteExpense(expense)
+        syncAccountBalance(expense.accountId)
+    }
+
+    suspend fun deleteExpenseById(id: Long) {
+        val expense = dao.getExpenseById(id)
+        dao.deleteExpenseById(id)
+        if (expense != null) {
+            syncAccountBalance(expense.accountId)
+        }
+    }
+
+    suspend fun deleteAllExpenses() {
+        dao.deleteAllExpenses()
+        syncAllAccountBalances()
+    }
 
     suspend fun insertAccount(account: Account): Long {
-        return dao.insertAccount(syncAccountAmounts(account))
+        val id = dao.insertAccount(syncAccountAmounts(account))
+        syncAccountBalance(id)
+        return id
     }
 
     suspend fun updateAccount(account: Account) = dao.updateAccount(syncAccountAmounts(account))
     suspend fun deleteAccount(account: Account) = dao.deleteAccount(account)
     suspend fun getExpensesCountForAccount(accountId: Long): Int = dao.getExpensesCountForAccount(accountId)
-    suspend fun reassignExpensesAccount(sourceAccountId: Long, targetAccountId: Long) =
+    suspend fun reassignExpensesAccount(sourceAccountId: Long, targetAccountId: Long) {
         dao.reassignExpensesAccount(sourceAccountId, targetAccountId)
+        syncAccountBalance(sourceAccountId)
+        syncAccountBalance(targetAccountId)
+    }
     suspend fun getAccountsSnapshot(): List<Account> = dao.getAccountsSnapshot()
     suspend fun getAccountById(id: Long) = dao.getAccountById(id)
 
@@ -64,7 +121,8 @@ class FinanceRepository(private val dao: FinanceDao, private val database: Finan
         val account = dao.getAccountById(accountId) ?: return 0L
         val expenses = dao.getExpensesSnapshot().filter { it.accountId == accountId }
         val netChange = expenses.sumOf { exp ->
-            val sign = if (exp.type == "INCOME") 1L else -1L
+            val isIncome = exp.type == "INCOME" || exp.kind == "TRANSFER_IN"
+            val sign = if (isIncome) 1L else -1L
             val amountInAccountCurrencyMinor = if (exp.currencyCode == account.currencyCode) {
                 exp.amountMinor
             } else {
@@ -73,6 +131,75 @@ class FinanceRepository(private val dao: FinanceDao, private val database: Finan
             sign * amountInAccountCurrencyMinor
         }
         return account.openingBalanceMinor + netChange
+    }
+
+    suspend fun syncAccountBalance(accountId: Long) {
+        val account = dao.getAccountById(accountId) ?: return
+        val newBalanceMinor = computeAccountBalanceMinor(accountId)
+        val updated = account.copy(
+            balanceMinor = newBalanceMinor,
+            balance = Money.toDouble(newBalanceMinor, account.currencyCode)
+        )
+        dao.updateAccount(updated)
+    }
+
+    suspend fun syncAllAccountBalances() {
+        val accounts = dao.getAccountsSnapshot()
+        accounts.forEach { acc ->
+            syncAccountBalance(acc.id)
+        }
+    }
+
+    suspend fun transferBetweenAccounts(
+        fromAccountId: Long,
+        toAccountId: Long,
+        amount: Double,
+        date: Long,
+        note: String?,
+        currencyCode: String
+    ): Pair<Long, Long> {
+        require(fromAccountId != toAccountId) { "Source and destination accounts must be different." }
+        require(amount > 0.0) { "Transfer amount must be greater than zero." }
+
+        val fromAccount = dao.getAccountById(fromAccountId)
+            ?: throw IllegalArgumentException("Source account not found.")
+        val toAccount = dao.getAccountById(toAccountId)
+            ?: throw IllegalArgumentException("Destination account not found.")
+
+        val amountMinor = Money.fromDouble(amount, currencyCode)
+        val cleanNote = note?.trim()
+
+        val outExpense = Expense(
+            amount = amount,
+            amountMinor = amountMinor,
+            category = "Transfer",
+            date = date,
+            note = if (cleanNote.isNullOrEmpty()) "Transfer to ${toAccount.name}" else "$cleanNote (➔ ${toAccount.name})",
+            type = "EXPENSE",
+            currencyCode = currencyCode,
+            accountId = fromAccountId,
+            kind = "TRANSFER_OUT"
+        )
+
+        val inExpense = Expense(
+            amount = amount,
+            amountMinor = amountMinor,
+            category = "Transfer",
+            date = date,
+            note = if (cleanNote.isNullOrEmpty()) "Transfer from ${fromAccount.name}" else "$cleanNote (⬅ ${fromAccount.name})",
+            type = "INCOME",
+            currencyCode = currencyCode,
+            accountId = toAccountId,
+            kind = "TRANSFER_IN"
+        )
+
+        return database.withTransaction {
+            val outId = dao.insertExpense(outExpense)
+            val inId = dao.insertExpense(inExpense)
+            syncAccountBalance(fromAccountId)
+            syncAccountBalance(toAccountId)
+            Pair(outId, inId)
+        }
     }
 
     suspend fun insertBudget(budget: Budget): Long {

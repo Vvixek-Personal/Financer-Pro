@@ -340,15 +340,19 @@ object DataExporter {
         expenses: List<Expense>,
         dateRangeStr: String,
         typeFilterStr: String,
-        categoryFilterStr: String
+        categoryFilterStr: String,
+        accountsMap: Map<Long, String> = emptyMap()
     ) {
         val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-        val csvHeader = "ID,Date,Category,Amount,Currency,Type,Note\n"
+        val csvHeader = "ID,Date,Category,Amount,Currency,Type,Account,Tags,Note\n"
         val csvRows = expenses.joinToString("\n") { expense ->
             val dateFormatted = sdf.format(Date(expense.date))
             val noteEscaped = (expense.note ?: "").replace("\"", "\"\"")
             val amountPlain = Money.formatPlain(expense.amountMinor, expense.currencyCode)
-            "${expense.id},\"$dateFormatted\",\"${expense.category}\",$amountPlain,\"${expense.currencyCode}\",\"${expense.type}\",\"$noteEscaped\""
+            val accName = accountsMap[expense.accountId] ?: if (expense.accountId > 0) "Account #${expense.accountId}" else "Default"
+            val tags = Regex("#[a-zA-Z0-9_]+").findAll(expense.note ?: "").map { it.value }.joinToString(";")
+            val tagsEscaped = tags.replace("\"", "\"\"")
+            "${expense.id},\"$dateFormatted\",\"${expense.category}\",$amountPlain,\"${expense.currencyCode}\",\"${expense.type}\",\"$accName\",\"$tagsEscaped\",\"$noteEscaped\""
         }
         val csvContent = csvHeader + csvRows
 

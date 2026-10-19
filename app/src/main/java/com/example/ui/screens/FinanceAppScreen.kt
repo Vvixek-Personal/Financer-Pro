@@ -221,6 +221,7 @@ fun FinanceAppScreen(viewModel: FinanceViewModel) {
     val categoryIcons by viewModel.categoryIcons.collectAsStateWithLifecycle()
     val currencySymbol by viewModel.selectedCurrencySymbol.collectAsStateWithLifecycle()
     val selectedCurrencyCode by viewModel.selectedCurrencyCode.collectAsStateWithLifecycle()
+    val accounts by viewModel.accounts.collectAsStateWithLifecycle()
 
     val globalLoadingMessage by viewModel.appLoadingMessage.collectAsStateWithLifecycle()
     var isInitialAppLoading by remember { mutableStateOf(true) }
@@ -579,12 +580,27 @@ fun FinanceAppScreen(viewModel: FinanceViewModel) {
                     monthlySafeAmount = if (isMonthlySafeEnabledForDialog) monthlySafeAmountForDialog else 0.0,
                     currencySymbol = currencySymbol,
                     currencyCode = selectedCurrencyCode,
+                    accounts = accounts,
                     onAddCategory = { name, catType -> viewModel.addCustomCategory(name, catType) },
                     onDeleteCategory = { viewModel.deleteCustomCategory(it) },
                     onEditCategory = { old, new -> viewModel.renameCustomCategory(old, new) },
                     onDismiss = {
                         showAddExpenseDialog = false
                         customTxTypeForAddDialog = null
+                    },
+                    onConfirmTransfer = { fromAccId, toAccId, amount, note, date ->
+                        viewModel.transferFunds(fromAccId, toAccId, amount, note, date)
+                        viewModel.refreshUsageData()
+                        showAddExpenseDialog = false
+                        customTxTypeForAddDialog = null
+                        val fromName = accounts.find { it.id == fromAccId }?.name ?: "Source"
+                        val toName = accounts.find { it.id == toAccId }?.name ?: "Destination"
+                        recordedTransactionInfo = RecordedTransactionInfo(
+                            amount = amount,
+                            category = "Transfer",
+                            type = "TRANSFER",
+                            note = "$fromName ➔ $toName${if (note.isNotBlank()) " • $note" else ""}"
+                        )
                     },
                     onConfirm = { amount, category, date, note, imagePath, type ->
                         viewModel.addExpense(amount, category, date, note, imagePath, type, selectedCurrencyCode)
@@ -653,6 +669,26 @@ fun FinanceAppScreen(viewModel: FinanceViewModel) {
                     }
                 )
             }
+
+            val undoVisible by viewModel.undoDeleteVisible.collectAsStateWithLifecycle()
+            val undoMessage by viewModel.undoDeleteMessage.collectAsStateWithLifecycle()
+
+            LaunchedEffect(undoVisible) {
+                if (undoVisible) {
+                    kotlinx.coroutines.delay(5000)
+                    viewModel.dismissUndoDelete()
+                }
+            }
+
+            ExpenseUndoSnackbar(
+                visible = undoVisible,
+                message = undoMessage,
+                onUndo = { viewModel.undoDeleteExpense() },
+                onDismiss = { viewModel.dismissUndoDelete() },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 90.dp)
+            )
         }
     } // End ModalNavigationDrawer
 
@@ -4921,7 +4957,12 @@ fun TransactionSuccessDialog(
                             modifier = Modifier.padding(24.dp)
                         ) {
                             val isIncome = info.type.equals("INCOME", ignoreCase = true)
-                            val accentColor = if (isIncome) Color(0xFF10B981) else Color(0xFFEF4444)
+                            val isTransfer = info.type.equals("TRANSFER", ignoreCase = true)
+                            val accentColor = when {
+                                isTransfer -> Color(0xFF0284C7)
+                                isIncome -> Color(0xFF10B981)
+                                else -> Color(0xFFEF4444)
+                            }
 
                             Box(
                                 modifier = Modifier
@@ -4930,7 +4971,11 @@ fun TransactionSuccessDialog(
                                     .padding(horizontal = 12.dp, vertical = 4.dp)
                             ) {
                                 Text(
-                                    text = if (isIncome) "INCOME RECORDED" else "EXPENSE RECORDED",
+                                    text = when {
+                                        isTransfer -> "TRANSFER COMPLETED"
+                                        isIncome -> "INCOME RECORDED"
+                                        else -> "EXPENSE RECORDED"
+                                    },
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = accentColor,

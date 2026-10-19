@@ -391,8 +391,20 @@ fun Image1TransactionRow(
     onLongClick: () -> Unit,
     onClick: () -> Unit
 ) {
-    val isIncome = expense.type == "INCOME"
+    val isTransfer = expense.category.equals("Transfer", ignoreCase = true) || expense.kind.startsWith("TRANSFER") || expense.type == "TRANSFER"
+    val isIncome = !isTransfer && expense.type == "INCOME"
     val displayName = expense.note?.takeIf { it.isNotBlank() } ?: expense.category
+
+    val accentColor = when {
+        isTransfer -> Color(0xFF0284C7)
+        isIncome -> IncomeGreen
+        else -> ExpenseRed
+    }
+    val accentBg = when {
+        isTransfer -> Color(0xFF0284C7).copy(alpha = 0.15f)
+        isIncome -> IncomeGreenBg
+        else -> SleekBg
+    }
 
     Card(
         colors = CardDefaults.cardColors(
@@ -418,29 +430,36 @@ fun Image1TransactionRow(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(
-                        if (isIncome) IncomeGreenBg else SleekBg
-                    ),
+                    .background(accentBg),
                 contentAlignment = Alignment.Center
             ) {
-                val firstChar = displayName.trim().firstOrNull()?.uppercaseChar() ?: 'T'
-                if (displayName.contains("Eva", ignoreCase = true) ||
-                    displayName.contains("Henrik", ignoreCase = true) ||
-                    displayName.contains("Matteo", ignoreCase = true) ||
-                    displayName.contains("Emilia", ignoreCase = true)) {
-                    Text(
-                        text = firstChar.toString(),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = IncomeGreen
-                    )
-                } else {
+                if (isTransfer) {
                     Icon(
-                        imageVector = getCategoryIcon(expense.category, categoryIcons),
-                        contentDescription = expense.category,
-                        tint = if (isIncome) IncomeGreen else SleekTextPrimary,
+                        imageVector = AppIcons.Sync,
+                        contentDescription = "Transfer",
+                        tint = accentColor,
                         modifier = Modifier.size(20.dp)
                     )
+                } else {
+                    val firstChar = displayName.trim().firstOrNull()?.uppercaseChar() ?: 'T'
+                    if (displayName.contains("Eva", ignoreCase = true) ||
+                        displayName.contains("Henrik", ignoreCase = true) ||
+                        displayName.contains("Matteo", ignoreCase = true) ||
+                        displayName.contains("Emilia", ignoreCase = true)) {
+                        Text(
+                            text = firstChar.toString(),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = IncomeGreen
+                        )
+                    } else {
+                        Icon(
+                            imageVector = getCategoryIcon(expense.category, categoryIcons),
+                            contentDescription = expense.category,
+                            tint = if (isIncome) IncomeGreen else SleekTextPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
 
@@ -459,7 +478,11 @@ fun Image1TransactionRow(
                 Spacer(modifier = Modifier.height(2.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = if (isIncome) "Received" else "Paid",
+                        text = when {
+                            isTransfer -> "Transfer"
+                            isIncome -> "Received"
+                            else -> "Paid"
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = SleekTextSecondary,
                         fontSize = 12.sp,
@@ -475,11 +498,16 @@ fun Image1TransactionRow(
                 }
             }
 
+            val sign = when {
+                isTransfer -> if (expense.kind == "TRANSFER_IN") "+" else "-"
+                isIncome -> "+"
+                else -> "-"
+            }
             Text(
-                text = String.format("%s%s%,.2f", if (isIncome) "+" else "-", currencySymbol, expense.amount),
+                text = String.format("%s%s%,.2f", sign, currencySymbol, expense.amount),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = if (isIncome) IncomeGreen else ExpenseRed
+                color = accentColor
             )
         }
     }
