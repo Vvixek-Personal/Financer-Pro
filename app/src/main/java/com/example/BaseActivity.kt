@@ -2,10 +2,10 @@ package com.example
 
 import android.content.Context
 import android.content.res.Configuration
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import com.example.data.AppSettingsManager
 
-open class BaseActivity : ComponentActivity() {
+open class BaseActivity : FragmentActivity() {
 
     override fun attachBaseContext(newBase: Context) {
         val prefs = newBase.getSharedPreferences(AppSettingsManager.PREFS_NAME, Context.MODE_PRIVATE)

@@ -3926,13 +3926,26 @@ fun SecuritySettingsScreen(
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = SleekBorder)
 
-                    val canUseBiometric = remember(context) {
+                    val biometricManager = remember(context) { androidx.biometric.BiometricManager.from(context) }
+                    val authenticators = remember {
+                        androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG or androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
+                    }
+                    val biometricAuthStatus = remember(biometricManager) {
                         try {
-                            androidx.biometric.BiometricManager.from(context)
-                                .canAuthenticate(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG) == androidx.biometric.BiometricManager.BIOMETRIC_SUCCESS
+                            biometricManager.canAuthenticate(authenticators)
                         } catch (_: Exception) {
-                            false
+                            androidx.biometric.BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE
                         }
+                    }
+                    val canUseBiometric = biometricAuthStatus == androidx.biometric.BiometricManager.BIOMETRIC_SUCCESS
+                    val isBiometricNotEnrolled = biometricAuthStatus == androidx.biometric.BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED
+                    val hasBiometricHardware = canUseBiometric || isBiometricNotEnrolled
+
+                    val biometricSubtitle = when {
+                        canUseBiometric -> "Unlock financial data with fingerprint or face recognition"
+                        isBiometricNotEnrolled -> "Sensor detected. Please enroll fingerprint in Android Settings to use."
+                        biometricAuthStatus == androidx.biometric.BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> "No biometric sensor detected on this device"
+                        else -> "Biometric authentication currently unavailable on device"
                     }
 
                     Row(
@@ -3941,17 +3954,31 @@ fun SecuritySettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                            Text("Biometric / Fingerprint Unlock", fontWeight = FontWeight.Bold, color = if (canUseBiometric) SleekTextPrimary else SleekTextSecondary)
                             Text(
-                                if (!canUseBiometric) "No strong biometric enrolled or supported on device" else "Use system biometric authentication",
+                                "Biometric / Fingerprint Unlock",
+                                fontWeight = FontWeight.Bold,
+                                color = if (hasBiometricHardware) SleekTextPrimary else SleekTextSecondary
+                            )
+                            Text(
+                                biometricSubtitle,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = SleekTextSecondary
+                                color = if (isBiometricNotEnrolled) Color(0xFFF59E0B) else SleekTextSecondary
                             )
                         }
                         Switch(
-                            checked = biometricEnabled && canUseBiometric,
-                            enabled = canUseBiometric && !appPin.isNullOrBlank(),
-                            onCheckedChange = { viewModel.toggleBiometricEnabled(it) }
+                            checked = biometricEnabled,
+                            enabled = hasBiometricHardware,
+                            onCheckedChange = { enable ->
+                                if (enable && appPin.isNullOrBlank()) {
+                                    Toast.makeText(context, "Please set a 4-digit PIN first as a secure backup.", Toast.LENGTH_LONG).show()
+                                    showPinDialog = true
+                                } else if (enable && isBiometricNotEnrolled) {
+                                    viewModel.toggleBiometricEnabled(true)
+                                    Toast.makeText(context, "Biometric enabled. Please enroll fingerprint in device settings.", Toast.LENGTH_LONG).show()
+                                } else {
+                                    viewModel.toggleBiometricEnabled(enable)
+                                }
+                            }
                         )
                     }
 

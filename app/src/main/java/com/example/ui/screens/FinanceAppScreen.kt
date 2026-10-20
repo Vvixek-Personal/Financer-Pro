@@ -232,6 +232,7 @@ fun FinanceAppScreen(viewModel: FinanceViewModel) {
 
     val appPin by viewModel.appPin.collectAsStateWithLifecycle()
     val isAppLocked by viewModel.isAppLocked.collectAsStateWithLifecycle()
+    val biometricEnabled by viewModel.biometricEnabled.collectAsStateWithLifecycle()
     val hasPromptedFirstRunPin by viewModel.hasPromptedFirstRunPin.collectAsStateWithLifecycle()
 
     var showChangePinDialog by remember { mutableStateOf(false) }
@@ -263,16 +264,19 @@ fun FinanceAppScreen(viewModel: FinanceViewModel) {
         }
     }
 
+    val isSecurityLockEnabled = !appPin.isNullOrBlank() || biometricEnabled
+    val locked = isAppLocked && isSecurityLockEnabled
+
     // Close drawer automatically if app gets locked
-    LaunchedEffect(isAppLocked, appPin) {
-        if (isAppLocked && !appPin.isNullOrBlank()) {
+    LaunchedEffect(isAppLocked, appPin, biometricEnabled) {
+        if (locked) {
             drawerState.close()
         }
     }
 
     // Re-lock app according to Inactivity Auto-Lock duration when foregrounded
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner, appPin) {
+    DisposableEffect(lifecycleOwner, appPin, biometricEnabled) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             when (event) {
                 androidx.lifecycle.Lifecycle.Event.ON_STOP -> {
@@ -291,12 +295,12 @@ fun FinanceAppScreen(viewModel: FinanceViewModel) {
     }
 
     // Intercept back button when locked
-    BackHandler(enabled = isAppLocked && !appPin.isNullOrBlank()) {
+    BackHandler(enabled = locked) {
         // Do nothing on back button during lock screen
     }
 
     // SYSTEM BACK BUTTON HANDLER (Pops navigation stack, closes drawer/settings/dialogs)
-    val canHandleBack = (!isAppLocked || appPin.isNullOrBlank()) && (
+    val canHandleBack = (!locked) && (
             drawerFullscreen ||
             drawerState.isOpen ||
             activeSettingsSubScreen != null ||
@@ -306,8 +310,6 @@ fun FinanceAppScreen(viewModel: FinanceViewModel) {
             backStack.size > 1 ||
             currentScreen != Screen.Dashboard
     )
-
-    val locked = isAppLocked && !appPin.isNullOrBlank()
 
     BackHandler(enabled = canHandleBack) {
         when {
@@ -448,7 +450,7 @@ fun FinanceAppScreen(viewModel: FinanceViewModel) {
                 translationX = drawerParallaxProgress * 24.dp.toPx()
             },
         bottomBar = {
-            if (!isAppLocked || appPin.isNullOrBlank()) {
+            if (!locked) {
                 FloatingDockBar(
                     currentScreen = currentScreen,
                     onScreenSelected = { selected -> navigateToScreen(selected) },
@@ -945,7 +947,8 @@ fun DashboardTab(
     val showStreakDialog by viewModel.showStreakDialog.collectAsStateWithLifecycle()
     val isAppLocked by viewModel.isAppLocked.collectAsStateWithLifecycle()
     val appPin by viewModel.appPin.collectAsStateWithLifecycle()
-    val isLocked = isAppLocked && !appPin.isNullOrBlank()
+    val biometricEnabled by viewModel.biometricEnabled.collectAsStateWithLifecycle()
+    val isLocked = isAppLocked && (!appPin.isNullOrBlank() || biometricEnabled)
     val isPrivacyMode by viewModel.privacyModeEnabled.collectAsStateWithLifecycle()
     val isPrivacyRevealed by viewModel.privacyRevealOverride.collectAsStateWithLifecycle()
     val shouldHideBalance = isPrivacyMode && !isPrivacyRevealed

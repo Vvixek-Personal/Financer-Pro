@@ -40,16 +40,27 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.biometric.BiometricPrompt
 import androidx.biometric.BiometricManager
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import android.content.ContextWrapper
 import androidx.compose.material.icons.filled.Fingerprint
 import com.example.data.AppSettingsManager
 import com.example.data.PinSecurityUtils
 
 private const val TAG = "PinSecurityComponents"
+
+fun Context.findFragmentActivity(): FragmentActivity? {
+    var ctx = this
+    while (ctx is ContextWrapper) {
+        if (ctx is FragmentActivity) return ctx
+        ctx = ctx.baseContext
+    }
+    return null
+}
 
 /**
  * Full Screen 4-Digit PIN Lock Screen.
@@ -88,61 +99,26 @@ fun PinLockScreen(
         }
     }
 
-    val activity = context as? FragmentActivity
-    val executor = ContextCompat.getMainExecutor(context)
-    val biometricManager = remember { BiometricManager.from(context) }
-    val canAuthenticateBiometric = remember(biometricManager) {
+    val activity = remember(context) { context.findFragmentActivity() }
+    val executor = remember(context) { ContextCompat.getMainExecutor(context) }
+    val biometricManager = remember(context) { BiometricManager.from(context) }
+    val authenticators = remember {
+        BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.BIOMETRIC_WEAK
+    }
+    val biometricStatus = remember(biometricManager) {
         try {
-            biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS
+            biometricManager.canAuthenticate(authenticators)
         } catch (_: Exception) {
-            false
+            BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE
         }
     }
+    val canAuthenticateBiometric = biometricStatus == BiometricManager.BIOMETRIC_SUCCESS
+    val isBiometricNotEnrolled = biometricStatus == BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED
+    val hasBiometricHardware = canAuthenticateBiometric || isBiometricNotEnrolled
 
     var enteredPin by remember { mutableStateOf("") }
     var isErrorState by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
-
-    val biometricPrompt = remember {
-        activity?.let { act ->
-            BiometricPrompt(act, executor, object : BiometricPrompt.AuthenticationCallback() {
-                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                    super.onAuthenticationSucceeded(result)
-                    viewModel.unlockWithBiometrics()
-                }
-
-                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                    super.onAuthenticationError(errorCode, errString)
-                    android.util.Log.w("BiometricAuth", "Biometric error ($errorCode): $errString")
-                    if (errorCode != BiometricPrompt.ERROR_USER_CANCELED &&
-                        errorCode != BiometricPrompt.ERROR_NEGATIVE_BUTTON &&
-                        errorCode != BiometricPrompt.ERROR_CANCELED) {
-                        errorMessage = errString.toString()
-                        isErrorState = true
-                    }
-                }
-            })
-        }
-    }
-
-    val promptInfo = remember {
-        BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Unlock Finance App")
-            .setSubtitle("Authenticate to access your financial data")
-            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
-            .setNegativeButtonText("Use PIN")
-            .build()
-    }
-
-    LaunchedEffect(Unit) {
-        if (appSettingsState.biometricEnabled && canAuthenticateBiometric && !isLockedOut) {
-            try {
-                biometricPrompt?.authenticate(promptInfo)
-            } catch (e: Exception) {
-                android.util.Log.e("BiometricAuth", "Failed to launch BiometricPrompt", e)
-            }
-        }
-    }
 
     val vibrateOnError = {
         try {
@@ -161,6 +137,64 @@ fun PinLockScreen(
             Log.w(TAG, "Failed to vibrate device on PIN error", e)
         }
     }
+
+    val biometricPrompt = remember(activity) {
+        activity?.let { act ->
+            BiometricPrompt(act, executor, object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    super.onAuthenticationSucceeded(result)
+                    isErrorState = false
+                    errorMessage = ""
+                    viewModel.unlockWithBiometrics()
+                }
+
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    super.onAuthenticationError(errorCode, errString)
+                    android.util.Log.w("BiometricAuth", "Biometric error ($errorCode): $errString")
+                    if (errorCode != BiometricPrompt.ERROR_USER_CANCELED &&
+                        errorCode != BiometricPrompt.ERROR_NEGATIVE_BUTTON &&
+                        errorCode != BiometricPrompt.ERROR_CANCELED) {
+                        errorMessage = errString.toString()
+                        isErrorState = true
+                    }
+                }
+
+                override fun onAuthenticationFailed() {
+                    super.onAuthenticationFailed()
+                    vibrateOnError()
+                    errorMessage = "Biometric not recognized. Try again or enter PIN."
+                    isErrorState = true
+                }
+            })
+        }
+    }
+
+    val promptInfo = remember(appSettingsState.appPin) {
+        val builder = BiometricPrompt.PromptInfo.Builder()
+            .setTitle("Unlock Financer")
+            .setSubtitle("Authenticate to access your financial data")
+            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.BIOMETRIC_WEAK)
+        if (!appSettingsState.appPin.isNullOrBlank()) {
+            builder.setNegativeButtonText("Use PIN")
+        } else {
+            builder.setNegativeButtonText("Cancel")
+        }
+        builder.build()
+    }
+
+    var hasAutoPrompted by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(biometricPrompt, canAuthenticateBiometric, isLockedOut) {
+        if (appSettingsState.biometricEnabled && canAuthenticateBiometric && !isLockedOut && !hasAutoPrompted) {
+            hasAutoPrompted = true
+            try {
+                biometricPrompt?.authenticate(promptInfo)
+            } catch (e: Exception) {
+                android.util.Log.e("BiometricAuth", "Failed to launch BiometricPrompt", e)
+            }
+        }
+    }
+
 
     LaunchedEffect(enteredPin) {
         if (!isLockedOut && enteredPin.length == 4) {
@@ -273,11 +307,17 @@ fun PinLockScreen(
                     overflow = TextOverflow.Ellipsis
                 )
 
+                val defaultPromptText = when {
+                    !appSettingsState.appPin.isNullOrBlank() && appSettingsState.biometricEnabled -> "Enter 4-digit PIN code or touch fingerprint sensor"
+                    !appSettingsState.appPin.isNullOrBlank() -> "Enter 4-digit PIN code to unlock"
+                    else -> "Touch fingerprint sensor to unlock financial data"
+                }
+
                 Text(
                     text = when {
                         isLockedOut -> "Too many incorrect attempts. Try again in ${remainingSecs}s."
                         isErrorState -> errorMessage
-                        else -> "Enter 4-digit PIN code to unlock"
+                        else -> defaultPromptText
                     },
                     fontSize = SleekSizes.textBody,
                     fontWeight = FontWeight.Medium,
@@ -287,87 +327,140 @@ fun PinLockScreen(
                     overflow = TextOverflow.Ellipsis
                 )
 
-                // 4 PIN Dots
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(20.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(top = 12.dp)
-                ) {
-                    repeat(4) { index ->
-                        val isFilled = index < enteredPin.length
-                        val dotScale by animateFloatAsState(
-                            targetValue = if (isFilled) 1.25f else 1.0f,
-                            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-                            label = "dotScale"
-                        )
+                if (!appSettingsState.appPin.isNullOrBlank()) {
+                    // 4 PIN Dots
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(20.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(top = 12.dp)
+                    ) {
+                        repeat(4) { index ->
+                            val isFilled = index < enteredPin.length
+                            val dotScale by animateFloatAsState(
+                                targetValue = if (isFilled) 1.25f else 1.0f,
+                                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                                label = "dotScale"
+                            )
 
-                        Box(
-                            modifier = Modifier
-                                .scale(dotScale)
-                                .size(18.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    when {
-                                        isErrorState -> Color(0xFFEF4444)
-                                        isFilled -> SleekPrimary
-                                        else -> Color.Transparent
-                                    }
-                                )
-                                .border(
-                                    width = 2.dp,
-                                    color = when {
-                                        isErrorState -> Color(0xFFEF4444)
-                                        isFilled -> SleekPrimary
-                                        else -> Color.Gray.copy(alpha = 0.5f)
-                                    },
-                                    shape = CircleShape
-                                )
-                        )
+                            Box(
+                                modifier = Modifier
+                                    .scale(dotScale)
+                                    .size(18.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        when {
+                                            isErrorState -> Color(0xFFEF4444)
+                                            isFilled -> SleekPrimary
+                                            else -> Color.Transparent
+                                        }
+                                    )
+                                    .border(
+                                        width = 2.dp,
+                                        color = when {
+                                            isErrorState -> Color(0xFFEF4444)
+                                            isFilled -> SleekPrimary
+                                            else -> Color.Gray.copy(alpha = 0.5f)
+                                        },
+                                        shape = CircleShape
+                                    )
+                            )
+                        }
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Numeric Keypad
-            PinKeypad(
-                onDigitClick = { digit ->
-                    if (!isLockedOut && enteredPin.length < 4) {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        enteredPin += digit
-                    }
-                },
-                onBackspaceClick = {
-                    if (!isLockedOut && enteredPin.isNotEmpty()) {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        enteredPin = enteredPin.dropLast(1)
-                    }
-                },
-                onClearClick = {
-                    if (!isLockedOut) {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        enteredPin = ""
-                    }
-                }
-            )
-
-            if (appSettingsState.biometricEnabled && canAuthenticateBiometric && !isLockedOut) {
-                Spacer(modifier = Modifier.height(8.dp))
-                IconButton(
-                    onClick = {
-                        try {
-                            biometricPrompt?.authenticate(promptInfo)
-                        } catch (e: Exception) {
-                            android.util.Log.e("BiometricAuth", "Failed to launch BiometricPrompt", e)
+            if (!appSettingsState.appPin.isNullOrBlank()) {
+                // Numeric Keypad
+                PinKeypad(
+                    onDigitClick = { digit ->
+                        if (!isLockedOut && enteredPin.length < 4) {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            enteredPin += digit
                         }
                     },
-                    modifier = Modifier.size(48.dp)
+                    onBackspaceClick = {
+                        if (!isLockedOut && enteredPin.isNotEmpty()) {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            enteredPin = enteredPin.dropLast(1)
+                        }
+                    },
+                    onClearClick = {
+                        if (!isLockedOut) {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            enteredPin = ""
+                        }
+                    }
+                )
+
+                if ((appSettingsState.biometricEnabled || canAuthenticateBiometric) && hasBiometricHardware && !isLockedOut) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    IconButton(
+                        onClick = {
+                            if (canAuthenticateBiometric) {
+                                try {
+                                    isErrorState = false
+                                    errorMessage = ""
+                                    biometricPrompt?.authenticate(promptInfo)
+                                } catch (e: Exception) {
+                                    android.util.Log.e("BiometricAuth", "Failed to launch BiometricPrompt", e)
+                                    errorMessage = "Biometric prompt error: ${e.message}"
+                                    isErrorState = true
+                                }
+                            } else if (isBiometricNotEnrolled) {
+                                Toast.makeText(context, "No fingerprint enrolled on device. Please enroll in Android Settings.", Toast.LENGTH_LONG).show()
+                            }
+                        },
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = AppIcons.Fingerprint,
+                            contentDescription = "Unlock with Biometrics",
+                            tint = if (canAuthenticateBiometric) SleekPrimary else SleekTextSecondary,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                }
+            } else {
+                // Standalone Biometric Prompt UI
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.padding(vertical = 24.dp)
                 ) {
-                    Icon(
-                        imageVector = AppIcons.Fingerprint,
-                        contentDescription = "Unlock with Biometrics",
-                        tint = SleekPrimary,
-                        modifier = Modifier.size(32.dp)
+                    FilledIconButton(
+                        onClick = {
+                            if (canAuthenticateBiometric) {
+                                try {
+                                    isErrorState = false
+                                    errorMessage = ""
+                                    biometricPrompt?.authenticate(promptInfo)
+                                } catch (e: Exception) {
+                                    errorMessage = e.message ?: "Failed to authenticate"
+                                    isErrorState = true
+                                }
+                            } else if (isBiometricNotEnrolled) {
+                                Toast.makeText(context, "No fingerprint enrolled on device. Please enroll in Android Settings.", Toast.LENGTH_LONG).show()
+                            }
+                        },
+                        modifier = Modifier.size(96.dp),
+                        shape = CircleShape,
+                        colors = IconButtonDefaults.filledIconButtonColors(containerColor = SleekPrimary.copy(alpha = 0.15f))
+                    ) {
+                        Icon(
+                            imageVector = AppIcons.Fingerprint,
+                            contentDescription = "Unlock with Biometrics",
+                            tint = SleekPrimary,
+                            modifier = Modifier.size(54.dp)
+                        )
+                    }
+
+                    Text(
+                        text = "Touch Fingerprint Sensor to Unlock",
+                        fontWeight = FontWeight.SemiBold,
+                        color = SleekTextPrimary,
+                        fontSize = 15.sp
                     )
                 }
             }

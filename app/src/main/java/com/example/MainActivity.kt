@@ -37,9 +37,10 @@ class MainActivity : BaseActivity() {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 combine(
                     viewModel.screenshotProtection,
-                    viewModel.appPin
-                ) { isProtected, pin ->
-                    isProtected || !pin.isNullOrBlank()
+                    viewModel.appPin,
+                    viewModel.biometricEnabled
+                ) { isProtected, pin, biometric ->
+                    isProtected || !pin.isNullOrBlank() || biometric
                 }.collect { shouldProtect ->
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         setRecentsScreenshotEnabled(!shouldProtect)
@@ -68,7 +69,7 @@ class MainActivity : BaseActivity() {
     override fun onStop() {
         super.onStop()
         viewModel.onAppBackgrounded()
-        if (!viewModel.appPin.value.isNullOrBlank()) {
+        if (!viewModel.appPin.value.isNullOrBlank() || viewModel.biometricEnabled.value) {
             window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         }
     }

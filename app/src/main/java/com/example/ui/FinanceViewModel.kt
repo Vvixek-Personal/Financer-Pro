@@ -469,7 +469,9 @@ class FinanceViewModel(
     }
 
     fun lockApp() {
-        if (!appSettingsManager.state.value.appPin.isNullOrBlank()) {
+        val hasPin = !appSettingsManager.state.value.appPin.isNullOrBlank()
+        val isBiometric = appSettingsManager.state.value.biometricEnabled
+        if (hasPin || isBiometric) {
             _isAppLocked.value = true
         }
     }
@@ -495,13 +497,15 @@ class FinanceViewModel(
 
         val nowElapsed = android.os.SystemClock.elapsedRealtime()
         val hasPin = !appSettingsManager.state.value.appPin.isNullOrBlank()
+        val isBiometric = appSettingsManager.state.value.biometricEnabled
+        val hasLock = hasPin || isBiometric
         val duration = com.example.data.AutoLockDuration.fromString(appSettingsManager.state.value.autoLockDuration)
 
         if (com.example.data.PinSecurityUtils.shouldLock(
                 durationMillis = duration.millis,
                 backgroundedAtElapsed = backgroundedAtElapsed,
                 nowElapsed = nowElapsed,
-                hasPin = hasPin,
+                hasPin = hasLock,
                 wasProcessRestarted = false
             )
         ) {
@@ -1110,7 +1114,8 @@ class FinanceViewModel(
         val savedPin = appSettingsManager.state.value.appPin ?: sharedPrefs.getString("app_pin", null)
         _appPin.value = savedPin
         _hasPromptedFirstRunPin.value = sharedPrefs.getBoolean("pin_prompted_first_run", false)
-        if (!savedPin.isNullOrBlank()) {
+        val isBiometric = appSettingsManager.state.value.biometricEnabled || sharedPrefs.getBoolean("biometric_enabled", false)
+        if (!savedPin.isNullOrBlank() || isBiometric) {
             _isAppLocked.value = true
         }
         com.example.ui.theme.updateThemeColors(_themeIndex.value, _customThemeHue.value)
