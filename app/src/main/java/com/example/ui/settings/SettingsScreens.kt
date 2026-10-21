@@ -3849,6 +3849,7 @@ fun SecuritySettingsScreen(
 
     var showPinDialog by remember { mutableStateOf(false) }
     var pinInput by remember { mutableStateOf("") }
+    var pendingBiometricEnable by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     Column(
@@ -3926,17 +3927,7 @@ fun SecuritySettingsScreen(
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = SleekBorder)
 
-                    val biometricManager = remember(context) { androidx.biometric.BiometricManager.from(context) }
-                    val authenticators = remember {
-                        androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG or androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
-                    }
-                    val biometricAuthStatus = remember(biometricManager) {
-                        try {
-                            biometricManager.canAuthenticate(authenticators)
-                        } catch (_: Exception) {
-                            androidx.biometric.BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE
-                        }
-                    }
+                    val biometricAuthStatus = rememberBiometricStatus()
                     val canUseBiometric = biometricAuthStatus == androidx.biometric.BiometricManager.BIOMETRIC_SUCCESS
                     val isBiometricNotEnrolled = biometricAuthStatus == androidx.biometric.BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED
                     val hasBiometricHardware = canUseBiometric || isBiometricNotEnrolled
@@ -3971,6 +3962,7 @@ fun SecuritySettingsScreen(
                             onCheckedChange = { enable ->
                                 if (enable && appPin.isNullOrBlank()) {
                                     Toast.makeText(context, "Please set a 4-digit PIN first as a secure backup.", Toast.LENGTH_LONG).show()
+                                    pendingBiometricEnable = true
                                     showPinDialog = true
                                 } else if (enable && isBiometricNotEnrolled) {
                                     viewModel.toggleBiometricEnabled(true)
@@ -4044,7 +4036,10 @@ fun SecuritySettingsScreen(
 
     if (showPinDialog) {
         AlertDialog(
-            onDismissRequest = { showPinDialog = false },
+            onDismissRequest = {
+                showPinDialog = false
+                pendingBiometricEnable = false
+            },
             title = { Text("Set 4-Digit Security PIN") },
             text = {
                 OutlinedTextField(
@@ -4059,15 +4054,26 @@ fun SecuritySettingsScreen(
                 Button(onClick = {
                     if (pinInput.length == 4) {
                         viewModel.setAppPin(pinInput)
+                        if (pendingBiometricEnable) {
+                            viewModel.toggleBiometricEnabled(true)
+                            pendingBiometricEnable = false
+                            Toast.makeText(context, "PIN set & Biometric unlock enabled!", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(context, "PIN Passcode set successfully!", Toast.LENGTH_SHORT).show()
+                        }
                         showPinDialog = false
                         pinInput = ""
-                        Toast.makeText(context, "PIN Passcode set successfully!", Toast.LENGTH_SHORT).show()
                     } else {
                         Toast.makeText(context, "Please enter exactly 4 digits", Toast.LENGTH_SHORT).show()
                     }
                 }) { Text("Save PIN") }
             },
-            dismissButton = { OutlinedButton(onClick = { showPinDialog = false }) { Text("Cancel") } }
+            dismissButton = {
+                OutlinedButton(onClick = {
+                    showPinDialog = false
+                    pendingBiometricEnable = false
+                }) { Text("Cancel") }
+            }
         )
     }
 }

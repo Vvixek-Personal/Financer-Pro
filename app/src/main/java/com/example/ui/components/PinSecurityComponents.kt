@@ -47,6 +47,10 @@ import androidx.biometric.BiometricManager
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import android.content.ContextWrapper
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.material.icons.filled.Fingerprint
 import com.example.data.AppSettingsManager
 import com.example.data.PinSecurityUtils
@@ -60,6 +64,34 @@ fun Context.findFragmentActivity(): FragmentActivity? {
         ctx = ctx.baseContext
     }
     return null
+}
+
+/**
+ * Live biometric availability. Re-queried on every ON_RESUME so that enrolling a
+ * fingerprint in Android Settings and coming back is picked up immediately
+ * (previously the value was cached forever with remember(), so the app kept saying
+ * "not enrolled" / the prompt never fired until the process was killed).
+ */
+@Composable
+fun rememberBiometricStatus(): Int {
+    val context = LocalContext.current
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    val authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG or
+        BiometricManager.Authenticators.BIOMETRIC_WEAK
+    fun query(): Int = try {
+        BiometricManager.from(context).canAuthenticate(authenticators)
+    } catch (_: Exception) {
+        BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE
+    }
+    var status by remember { mutableStateOf(query()) }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) status = query()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    return status
 }
 
 /**
@@ -101,20 +133,12 @@ fun PinLockScreen(
 
     val activity = remember(context) { context.findFragmentActivity() }
     val executor = remember(context) { ContextCompat.getMainExecutor(context) }
-    val biometricManager = remember(context) { BiometricManager.from(context) }
-    val authenticators = remember {
-        BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.BIOMETRIC_WEAK
-    }
-    val biometricStatus = remember(biometricManager) {
-        try {
-            biometricManager.canAuthenticate(authenticators)
-        } catch (_: Exception) {
-            BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE
-        }
-    }
+    val biometricStatus = rememberBiometricStatus()
     val canAuthenticateBiometric = biometricStatus == BiometricManager.BIOMETRIC_SUCCESS
     val isBiometricNotEnrolled = biometricStatus == BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED
     val hasBiometricHardware = canAuthenticateBiometric || isBiometricNotEnrolled
+
+    var isPrompting by remember { mutableStateOf(false) }
 
     var enteredPin by remember { mutableStateOf("") }
     var isErrorState by remember { mutableStateOf(false) }
@@ -143,6 +167,7 @@ fun PinLockScreen(
             BiometricPrompt(act, executor, object : BiometricPrompt.AuthenticationCallback() {
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                     super.onAuthenticationSucceeded(result)
+                    isPrompting = false
                     isErrorState = false
                     errorMessage = ""
                     viewModel.unlockWithBiometrics()
@@ -151,6 +176,7 @@ fun PinLockScreen(
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
                     super.onAuthenticationError(errorCode, errString)
                     android.util.Log.w("BiometricAuth", "Biometric error ($errorCode): $errString")
+                    isPrompting = false
                     if (errorCode != BiometricPrompt.ERROR_USER_CANCELED &&
                         errorCode != BiometricPrompt.ERROR_NEGATIVE_BUTTON &&
                         errorCode != BiometricPrompt.ERROR_CANCELED) {
@@ -161,6 +187,7 @@ fun PinLockScreen(
 
                 override fun onAuthenticationFailed() {
                     super.onAuthenticationFailed()
+                    isPrompting = false
                     vibrateOnError()
                     errorMessage = "Biometric not recognized. Try again or enter PIN."
                     isErrorState = true
@@ -182,15 +209,22 @@ fun PinLockScreen(
         builder.build()
     }
 
-    var hasAutoPrompted by rememberSaveable { mutableStateOf(false) }
-
-    LaunchedEffect(biometricPrompt, canAuthenticateBiometric, isLockedOut) {
-        if (appSettingsState.biometricEnabled && canAuthenticateBiometric && !isLockedOut && !hasAutoPrompted) {
-            hasAutoPrompted = true
-            try {
-                biometricPrompt?.authenticate(promptInfo)
-            } catch (e: Exception) {
-                android.util.Log.e("BiometricAuth", "Failed to launch BiometricPrompt", e)
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    // Prompt only once the activity is really RESUMED (calling authenticate() during
+    // cold start, before the window has focus, makes the system cancel it silently),
+    // and prompt again every time the app comes back to the lock screen.
+    LaunchedEffect(biometricPrompt, canAuthenticateBiometric, isLockedOut, appSettingsState.biometricEnabled) {
+        if (!appSettingsState.biometricEnabled || !canAuthenticateBiometric || isLockedOut) return@LaunchedEffect
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            kotlinx.coroutines.delay(350L)
+            if (!isPrompting) {
+                isPrompting = true
+                try {
+                    biometricPrompt?.authenticate(promptInfo)
+                } catch (e: Exception) {
+                    isPrompting = false
+                    android.util.Log.e("BiometricAuth", "Failed to launch BiometricPrompt", e)
+                }
             }
         }
     }
@@ -402,8 +436,10 @@ fun PinLockScreen(
                                 try {
                                     isErrorState = false
                                     errorMessage = ""
+                                    isPrompting = true
                                     biometricPrompt?.authenticate(promptInfo)
                                 } catch (e: Exception) {
+                                    isPrompting = false
                                     android.util.Log.e("BiometricAuth", "Failed to launch BiometricPrompt", e)
                                     errorMessage = "Biometric prompt error: ${e.message}"
                                     isErrorState = true
@@ -435,8 +471,10 @@ fun PinLockScreen(
                                 try {
                                     isErrorState = false
                                     errorMessage = ""
+                                    isPrompting = true
                                     biometricPrompt?.authenticate(promptInfo)
                                 } catch (e: Exception) {
+                                    isPrompting = false
                                     errorMessage = e.message ?: "Failed to authenticate"
                                     isErrorState = true
                                 }
