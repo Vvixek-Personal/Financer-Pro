@@ -2326,7 +2326,7 @@ class FinanceViewModel(
         }
     }
 
-    fun quickDepositToGoal(goal: SavingsGoal, amount: Double) {
+    fun quickDepositToGoal(goal: SavingsGoal, amount: Double, fromAccountId: Long? = null) {
         if (amount <= 0) return
         val available = getAvailableNetBalance()
         if (amount > available) {
@@ -2357,22 +2357,22 @@ class FinanceViewModel(
                 )
             )
 
-            val primaryAccount = accounts.value.firstOrNull()
-            if (primaryAccount != null) {
-                val accDepositMinor = Money.convert(depositMinor, goal.currencyCode, primaryAccount.currencyCode)
-                val newBalMinor = (primaryAccount.openingBalanceMinor - accDepositMinor).coerceAtLeast(0L)
-                val updatedAcc = primaryAccount.copy(
+            val targetAccount = if (fromAccountId != null) accounts.value.find { it.id == fromAccountId } else accounts.value.firstOrNull()
+            if (targetAccount != null) {
+                val accDepositMinor = Money.convert(depositMinor, goal.currencyCode, targetAccount.currencyCode)
+                val newBalMinor = (targetAccount.openingBalanceMinor - accDepositMinor).coerceAtLeast(0L)
+                val updatedAcc = targetAccount.copy(
                     openingBalanceMinor = newBalMinor,
-                    openingBalance = Money.toDouble(newBalMinor, primaryAccount.currencyCode),
+                    openingBalance = Money.toDouble(newBalMinor, targetAccount.currencyCode),
                     balanceMinor = newBalMinor,
-                    balance = Money.toDouble(newBalMinor, primaryAccount.currencyCode)
+                    balance = Money.toDouble(newBalMinor, targetAccount.currencyCode)
                 )
                 repository.updateAccount(updatedAcc)
             }
         }
     }
 
-    fun quickDeductFromGoal(goal: SavingsGoal, amount: Double) {
+    fun quickDeductFromGoal(goal: SavingsGoal, amount: Double, toAccountId: Long? = null) {
         if (amount <= 0 || goal.currentAmountMinor <= 0L) return
         val reqMinor = Money.fromDouble(amount, goal.currencyCode)
         val deductMinor = reqMinor.coerceAtMost(goal.currentAmountMinor)
@@ -2399,18 +2399,74 @@ class FinanceViewModel(
                 )
             )
 
-            val primaryAccount = accounts.value.firstOrNull()
-            if (primaryAccount != null) {
-                val accDeductMinor = Money.convert(deductMinor, goal.currencyCode, primaryAccount.currencyCode)
-                val newBalMinor = primaryAccount.openingBalanceMinor + accDeductMinor
-                val updatedAcc = primaryAccount.copy(
+            val targetAccount = if (toAccountId != null) accounts.value.find { it.id == toAccountId } else accounts.value.firstOrNull()
+            if (targetAccount != null) {
+                val accDeductMinor = Money.convert(deductMinor, goal.currencyCode, targetAccount.currencyCode)
+                val newBalMinor = targetAccount.openingBalanceMinor + accDeductMinor
+                val updatedAcc = targetAccount.copy(
                     openingBalanceMinor = newBalMinor,
-                    openingBalance = Money.toDouble(newBalMinor, primaryAccount.currencyCode),
+                    openingBalance = Money.toDouble(newBalMinor, targetAccount.currencyCode),
                     balanceMinor = newBalMinor,
-                    balance = Money.toDouble(newBalMinor, primaryAccount.currencyCode)
+                    balance = Money.toDouble(newBalMinor, targetAccount.currencyCode)
                 )
                 repository.updateAccount(updatedAcc)
             }
+        }
+    }
+
+    fun allocateFundsToGoals(allocations: Map<Long, Double>, fromAccountId: Long? = null) {
+        val totalToAllocate = allocations.values.sum()
+        if (totalToAllocate <= 0) return
+        val available = getAvailableNetBalance()
+        if (totalToAllocate > available) {
+            val symbol = _selectedCurrencySymbol.value
+            _toastMessage.value = "🔒 Goal Allocation Locked: Cannot allocate %s%,.2f! Exceeds available net balance (%s%,.2f)".format(symbol, totalToAllocate, symbol, available.coerceAtLeast(0.0))
+            return
+        }
+        viewModelScope.launch {
+            val cur = _selectedCurrencyCode.value
+            val currentGoals = savingsGoals.value
+            allocations.forEach { (goalId, amount) ->
+                if (amount > 0) {
+                    val goal = currentGoals.find { it.id == goalId }
+                    if (goal != null) {
+                        val depositMinor = Money.fromDouble(amount, goal.currencyCode)
+                        val newCurrMinor = goal.currentAmountMinor + depositMinor
+                        val updated = goal.copy(
+                            currentAmountMinor = newCurrMinor,
+                            currentAmount = Money.toDouble(newCurrMinor, goal.currencyCode)
+                        )
+                        repository.updateSavingsGoal(updated)
+                        repository.insertExpense(
+                            Expense(
+                                amount = amount,
+                                amountMinor = Money.fromDouble(amount, cur),
+                                category = "Locked Savings",
+                                date = System.currentTimeMillis(),
+                                note = "🔒 Allocated savings to ${goal.name}",
+                                type = "EXPENSE",
+                                currencyCode = cur
+                            )
+                        )
+                    }
+                }
+            }
+
+            val targetAccount = if (fromAccountId != null) accounts.value.find { it.id == fromAccountId } else accounts.value.firstOrNull()
+            if (targetAccount != null) {
+                val totalMinor = Money.fromDouble(totalToAllocate, cur)
+                val accDepositMinor = Money.convert(totalMinor, cur, targetAccount.currencyCode)
+                val newBalMinor = (targetAccount.openingBalanceMinor - accDepositMinor).coerceAtLeast(0L)
+                val updatedAcc = targetAccount.copy(
+                    openingBalanceMinor = newBalMinor,
+                    openingBalance = Money.toDouble(newBalMinor, targetAccount.currencyCode),
+                    balanceMinor = newBalMinor,
+                    balance = Money.toDouble(newBalMinor, targetAccount.currencyCode)
+                )
+                repository.updateAccount(updatedAcc)
+            }
+            val symbol = _selectedCurrencySymbol.value
+            _toastMessage.value = "🎯 Successfully allocated %s%,.2f across %d goal(s)".format(symbol, totalToAllocate, allocations.count { it.value > 0 })
         }
     }
 

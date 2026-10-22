@@ -1340,7 +1340,62 @@ fun SavingsGoalsMiniCarouselWidget(
     onViewAllGoals: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    if (goals.isEmpty()) return
+    if (goals.isEmpty()) {
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = SleekSurface),
+            border = BorderStroke(1.dp, SleekBorder),
+            modifier = modifier
+                .fillMaxWidth()
+                .clickable { onViewAllGoals() }
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f, fill = false),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFF59E0B).copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("🎯", fontSize = 22.sp)
+                    }
+                    Column {
+                        Text(
+                            text = "Set Financial Goals",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = SleekTextPrimary
+                        )
+                        Text(
+                            text = "Track targets, deadlines & allocations",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = SleekTextSecondary
+                        )
+                    }
+                }
+                Button(
+                    onClick = onViewAllGoals,
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B)),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text("+ Create", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+        return
+    }
 
     Column(
         modifier = modifier.fillMaxWidth(),

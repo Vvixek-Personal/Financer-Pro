@@ -69,9 +69,13 @@ fun SavingGoalsFullScreen(
     val accounts by viewModel.accounts.collectAsStateWithLifecycle()
     val selectedLanguage by viewModel.selectedLanguage.collectAsStateWithLifecycle()
     val goalCategoriesList by viewModel.goalCategories.collectAsStateWithLifecycle()
+    val currencySymbol by viewModel.selectedCurrencySymbol.collectAsStateWithLifecycle()
+    val selectedCurrencyCode by viewModel.selectedCurrencyCode.collectAsStateWithLifecycle()
 
     var selectedCategoryFilter by remember { mutableStateOf("All") }
+    var statusFilter by remember { mutableStateOf("All") } // "All", "Active", "Completed"
     var showAddDialog by remember { mutableStateOf(false) }
+    var showMultiGoalAllocatorDialog by remember { mutableStateOf(false) }
     var editingGoal by remember { mutableStateOf<SavingsGoal?>(null) }
     var selectedGoalForDeposit by remember { mutableStateOf<SavingsGoal?>(null) }
     var showCreateCategoryDialog by remember { mutableStateOf(false) }
@@ -92,12 +96,16 @@ fun SavingGoalsFullScreen(
         (base + goalCategoriesList + customFromGoals).distinct()
     }
 
-    // Filtered goals grid
-    val filteredGoals: List<SavingsGoal> = remember(savingsGoals, selectedCategoryFilter) {
-        if (selectedCategoryFilter == "All") {
-            savingsGoals
-        } else {
-            savingsGoals.filter { g: SavingsGoal -> g.category.equals(selectedCategoryFilter, ignoreCase = true) }
+    // Filtered goals grid (supports both category and completion status filters)
+    val filteredGoals: List<SavingsGoal> = remember(savingsGoals, selectedCategoryFilter, statusFilter) {
+        savingsGoals.filter { g: SavingsGoal ->
+            val matchCategory = if (selectedCategoryFilter == "All") true else g.category.equals(selectedCategoryFilter, ignoreCase = true)
+            val matchStatus = when (statusFilter) {
+                "Active" -> g.currentAmount < g.targetAmount || g.targetAmount <= 0
+                "Completed" -> g.targetAmount > 0 && g.currentAmount >= g.targetAmount
+                else -> true
+            }
+            matchCategory && matchStatus
         }
     }
 
@@ -262,9 +270,9 @@ fun SavingGoalsFullScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Big Amount Display in INR
+                    // Big Amount Display with selected currency
                     Text(
-                        text = "₹%,.2f".format(totalSaving),
+                        text = "%s%,.2f".format(currencySymbol, totalSaving),
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Black,
                         color = Color.White,
@@ -282,7 +290,7 @@ fun SavingGoalsFullScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Target: ₹%,.0f".format(totalTargetAll),
+                            text = "Target: %s%,.0f".format(currencySymbol, totalTargetAll),
                             fontSize = SleekSizes.textBodySmall,
                             color = Color.White.copy(alpha = 0.8f),
                             fontWeight = FontWeight.Medium,
@@ -324,46 +332,106 @@ fun SavingGoalsFullScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            // 3. Section Title "My Saving" & "+ Add New" Button
+            // 3. Section Title "Financial Goals" & Action Buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "My Saving",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = SleekTextPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                OutlinedButton(
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        showAddDialog = true
-                    },
-                    shape = SleekShapes.pill,
-                    border = BorderStroke(1.dp, SleekPrimary),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
-                ) {
-                    Icon(
-                        imageVector = AppIcons.Add,
-                        contentDescription = null,
-                        tint = SleekPrimary,
-                        modifier = Modifier.size(SleekSizes.iconMicro)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
+                Column {
                     Text(
-                        text = "Add New",
-                        color = SleekPrimary,
-                        fontSize = SleekSizes.textBodyMedium,
+                        text = "Financial Goals",
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
+                        color = SleekTextPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = "${filteredGoals.size} active goal(s)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = SleekTextSecondary
+                    )
+                }
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (savingsGoals.isNotEmpty()) {
+                        FilledTonalButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                showMultiGoalAllocatorDialog = true
+                            },
+                            shape = SleekShapes.pill,
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Icon(
+                                imageVector = AppIcons.AccountBalanceWallet,
+                                contentDescription = null,
+                                tint = SleekPrimary,
+                                modifier = Modifier.size(SleekSizes.iconMicro)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Allocate",
+                                color = SleekPrimary,
+                                fontSize = SleekSizes.textBodyMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Button(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            showAddDialog = true
+                        },
+                        shape = SleekShapes.pill,
+                        colors = ButtonDefaults.buttonColors(containerColor = SleekPrimary),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                    ) {
+                        Icon(
+                            imageVector = AppIcons.Add,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(SleekSizes.iconMicro)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "New Goal",
+                            color = Color.White,
+                            fontSize = SleekSizes.textBodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Status Filter Chips: All, In Progress, Completed
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                listOf("All" to "All", "Active" to "🎯 In Progress", "Completed" to "🏆 Completed").forEach { (filterKey, label) ->
+                    val isSel = statusFilter == filterKey
+                    FilterChip(
+                        selected = isSel,
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            statusFilter = filterKey
+                        },
+                        label = { Text(label, fontSize = 11.sp, fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal) },
+                        shape = SleekShapes.pill,
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = SleekPrimaryContainer,
+                            selectedLabelColor = SleekPrimary
+                        )
                     )
                 }
             }
@@ -528,6 +596,10 @@ fun SavingGoalsFullScreen(
                     items(filteredGoals, key = { goal: SavingsGoal -> goal.id }) { goal: SavingsGoal ->
                         SavingGoalCardItem(
                             goal = goal,
+                            currencySymbol = currencySymbol,
+                            onQuickDeposit = {
+                                selectedGoalForDeposit = goal
+                            },
                             onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 selectedGoalForDeposit = goal
@@ -545,30 +617,34 @@ fun SavingGoalsFullScreen(
             AddEditSavingsGoalDialog(
                 goalToEdit = editingGoal,
                 viewModel = viewModel,
+                currencySymbol = currencySymbol,
                 onDismiss = {
                     showAddDialog = false
                     editingGoal = null
                 },
-                onSave = { title, target, category, imageUri, targetDate ->
+                onSave = { title, target, initialAmount, category, imageUri, targetDate, iconTag ->
                     val goalToEdit = editingGoal
                     if (goalToEdit != null) {
                         viewModel.updateSavingsGoal(
                             goalToEdit.copy(
                                 name = title,
                                 targetAmountMinor = Money.fromDouble(target, goalToEdit.currencyCode),
+                                targetAmount = target,
                                 category = category,
                                 imageUri = imageUri,
-                                targetDate = targetDate
+                                targetDate = targetDate,
+                                iconTag = iconTag
                             )
                         )
                     } else {
                         viewModel.addSavingsGoal(
                             name = title,
                             targetAmount = target,
-                            initialAmount = 0.0,
+                            initialAmount = initialAmount,
                             targetDate = targetDate,
                             category = category,
-                            imageUri = imageUri
+                            imageUri = imageUri,
+                            iconTag = iconTag
                         )
                     }
                     showAddDialog = false
@@ -657,15 +733,17 @@ fun SavingGoalsFullScreen(
             GoalDepositDetailBottomSheet(
                 goal = goal,
                 availableNetBalance = availableNetBalance,
+                currencySymbol = currencySymbol,
+                accounts = accounts,
                 onDismiss = { selectedGoalForDeposit = null },
-                onDeposit = { amount ->
-                    viewModel.quickDepositToGoal(goal, amount)
+                onDeposit = { amount, accountId ->
+                    viewModel.quickDepositToGoal(goal, amount, accountId)
                     selectedGoalForDeposit = null
                     // Trigger coin rolling animation!
                     activeDepositAnimationInfo = Pair(amount, goal.name)
                 },
-                onDeduct = { amount ->
-                    viewModel.quickDeductFromGoal(goal, amount)
+                onDeduct = { amount, accountId ->
+                    viewModel.quickDeductFromGoal(goal, amount, accountId)
                     selectedGoalForDeposit = null
                 },
                 onEdit = {
@@ -675,6 +753,21 @@ fun SavingGoalsFullScreen(
                 onDelete = {
                     viewModel.deleteSavingsGoal(goal)
                     selectedGoalForDeposit = null
+                }
+            )
+        }
+
+        // Smart Multi-Goal Fund Allocator Dialog
+        if (showMultiGoalAllocatorDialog && savingsGoals.isNotEmpty()) {
+            SmartFundAllocatorDialog(
+                goals = savingsGoals,
+                accounts = accounts,
+                availableNetBalance = availableNetBalance,
+                currencySymbol = currencySymbol,
+                onDismiss = { showMultiGoalAllocatorDialog = false },
+                onAllocate = { allocations, accountId ->
+                    viewModel.allocateFundsToGoals(allocations, accountId)
+                    showMultiGoalAllocatorDialog = false
                 }
             )
         }
@@ -696,6 +789,8 @@ fun SavingGoalsFullScreen(
 @Composable
 fun SavingGoalCardItem(
     goal: SavingsGoal,
+    currencySymbol: String = "₹",
+    onQuickDeposit: (() -> Unit)? = null,
     onClick: () -> Unit
 ) {
     val progressRatio = if (goal.targetAmount > 0) (goal.currentAmount / goal.targetAmount).toFloat() else 0f
@@ -709,11 +804,30 @@ fun SavingGoalCardItem(
         if (goal.targetDate > 0) {
             SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(goal.targetDate))
         } else {
-            "Undefined / Open Goal"
+            "Open Goal"
+        }
+    }
+
+    val isCompleted = goal.targetAmount > 0 && goal.currentAmount >= goal.targetAmount
+    val now = System.currentTimeMillis()
+    val (deadlineBadgeText, deadlineBadgeColor) = remember(goal.targetDate, isCompleted) {
+        if (isCompleted) {
+            "🏆 Done" to Color(0xFF10B981)
+        } else if (goal.targetDate > 0) {
+            val diffDays = ((goal.targetDate - now) / (1000 * 60 * 60 * 24)).toInt()
+            when {
+                diffDays < 0 -> "⚠️ Overdue (${-diffDays}d)" to Color(0xFFEF4444)
+                diffDays == 0 -> "⚡ Due today" to Color(0xFFF59E0B)
+                diffDays < 30 -> "$diffDays d left" to Color(0xFFF59E0B)
+                else -> "${diffDays / 30} mos left" to Color(0xFF6366F1)
+            }
+        } else {
+            "Open" to SleekTextSecondary
         }
     }
 
     val primaryAccent = getCategoryAccentColor(goal.category)
+    val pct = (progressRatio.coerceIn(0f, 1f) * 100).toInt()
 
     Card(
         shape = SleekShapes.xl,
@@ -726,56 +840,93 @@ fun SavingGoalCardItem(
             .testTag("savings_goal_item_${goal.id}")
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Circular Avatar Badge with surrounding Progress Ring Arc and Celebration Pulse
-            SavingsGoalCelebrationPulse(
-                isCompleted = progressRatio >= 1f,
-                accentColor = primaryAccent
+            // Header Row: Avatar/Emoji + Percentage Badge
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier.size(52.dp),
-                    contentAlignment = Alignment.Center
+                // Circular Avatar Badge with surrounding Progress Ring Arc
+                SavingsGoalCelebrationPulse(
+                    isCompleted = isCompleted,
+                    accentColor = primaryAccent
                 ) {
-                    // Background Track Ring
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        drawCircle(
-                            color = primaryAccent.copy(alpha = 0.15f),
-                            style = Stroke(width = 4.dp.toPx())
-                        )
-                        drawArc(
+                    Box(
+                        modifier = Modifier.size(50.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            drawCircle(
+                                color = primaryAccent.copy(alpha = 0.15f),
+                                style = Stroke(width = 3.5.dp.toPx())
+                            )
+                            drawArc(
+                                color = primaryAccent,
+                                startAngle = -90f,
+                                sweepAngle = 360f * animatedProgress,
+                                useCenter = false,
+                                style = Stroke(width = 3.5.dp.toPx(), cap = StrokeCap.Round)
+                            )
+                        }
+
+                        // Inner Avatar or Emoji
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(primaryAccent.copy(alpha = 0.12f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (!goal.iconTag.isNullOrBlank()) {
+                                Text(text = goal.iconTag, fontSize = 20.sp)
+                            } else if (!goal.imageUri.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = goal.imageUri,
+                                    contentDescription = goal.name,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = getCategoryVectorIcon(goal.category, goal.name),
+                                    contentDescription = goal.category,
+                                    tint = primaryAccent,
+                                    modifier = Modifier.size(SleekSizes.iconMedium)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Percentage Badge & Deadline Chip
+                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Surface(
+                        shape = CircleShape,
+                        color = primaryAccent.copy(alpha = 0.15f)
+                    ) {
+                        Text(
+                            text = "$pct%",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
                             color = primaryAccent,
-                            startAngle = -90f,
-                            sweepAngle = 360f * animatedProgress,
-                            useCenter = false,
-                            style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round)
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                         )
                     }
 
-                    // Inner Avatar Image or Category Icon
-                    Box(
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clip(CircleShape)
-                            .background(primaryAccent.copy(alpha = 0.12f)),
-                        contentAlignment = Alignment.Center
+                    Surface(
+                        shape = CircleShape,
+                        color = deadlineBadgeColor.copy(alpha = 0.12f)
                     ) {
-                        if (!goal.imageUri.isNullOrBlank()) {
-                            AsyncImage(
-                                model = goal.imageUri,
-                                contentDescription = goal.name,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        } else {
-                            Icon(
-                                imageVector = getCategoryVectorIcon(goal.category, goal.name),
-                                contentDescription = goal.category,
-                                tint = primaryAccent,
-                                modifier = Modifier.size(SleekSizes.iconMedium)
-                            )
-                        }
+                        Text(
+                            text = deadlineBadgeText,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = deadlineBadgeColor,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
                     }
                 }
             }
@@ -783,43 +934,65 @@ fun SavingGoalCardItem(
             // Goal Title
             Text(
                 text = goal.name,
-                fontSize = SleekSizes.textBodyLarge,
+                fontSize = SleekSizes.textBody,
                 fontWeight = FontWeight.Bold,
                 color = SleekTextPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
 
-            // Target Date Subtitle
-            Text(
-                text = formattedDate,
-                fontSize = SleekSizes.textCaption,
-                color = SleekTextSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+            // Progress Bar
+            LinearProgressIndicator(
+                progress = { animatedProgress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(5.dp)
+                    .clip(CircleShape),
+                color = primaryAccent,
+                trackColor = SleekBorder.copy(alpha = 0.5f)
             )
 
-            // Goal Saved vs Target Amount Row
+            // Saved vs Target Amount Row
             Row(
                 verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    text = "₹%,.0f".format(goal.currentAmount),
-                    fontSize = SleekSizes.textBody,
-                    fontWeight = FontWeight.Bold,
-                    color = primaryAccent,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = " of ₹%,.0f".format(goal.targetAmount),
-                    fontSize = SleekSizes.textCaption,
-                    color = SleekTextSecondary,
-                    fontWeight = FontWeight.Normal,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Column(modifier = Modifier.weight(1f, fill = false)) {
+                    Text(
+                        text = "%s%,.0f".format(currencySymbol, goal.currentAmount),
+                        fontSize = SleekSizes.textBodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = primaryAccent,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = "of %s%,.0f".format(currencySymbol, goal.targetAmount),
+                        fontSize = SleekSizes.textMicro,
+                        color = SleekTextSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                if (onQuickDeposit != null && !isCompleted) {
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(primaryAccent.copy(alpha = 0.15f))
+                            .clickable { onQuickDeposit() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = AppIcons.Add,
+                            contentDescription = "Quick Deposit",
+                            tint = primaryAccent,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
             }
         }
     }
@@ -1053,24 +1226,40 @@ fun CoinDepositAnimationDialog(
 fun AddEditSavingsGoalDialog(
     goalToEdit: SavingsGoal? = null,
     viewModel: FinanceViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
+    currencySymbol: String = "₹",
     onDismiss: () -> Unit,
-    onSave: (name: String, target: Double, category: String, imageUri: String?, targetDate: Long) -> Unit
+    onSave: (name: String, target: Double, initialAmount: Double, category: String, imageUri: String?, targetDate: Long, iconTag: String) -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
     val context = LocalContext.current
     val goalCategoriesList by viewModel.goalCategories.collectAsStateWithLifecycle()
 
     var name by remember { mutableStateOf(goalToEdit?.name ?: "") }
-    var targetStr by remember { mutableStateOf(goalToEdit?.targetAmount?.takeIf { it > 0 }?.toString() ?: "") }
+    var targetStr by remember { mutableStateOf(goalToEdit?.targetAmount?.takeIf { it > 0 }?.let { "%.0f".format(it) } ?: "") }
+    var initialStr by remember { mutableStateOf(goalToEdit?.currentAmount?.takeIf { it > 0 }?.let { "%.0f".format(it) } ?: "") }
     var category by remember { mutableStateOf(goalToEdit?.category ?: "Saving") }
     var imageUriStr by remember { mutableStateOf<String?>(goalToEdit?.imageUri) }
+    var selectedIconTag by remember { mutableStateOf(goalToEdit?.iconTag?.ifBlank { "🎯" } ?: "🎯") }
 
+    // Deadline handling: -1 = Custom, 0 = Open, 1, 3, 6, 12 = Months
     var selectedPresetMonths by remember {
-        mutableIntStateOf(if (goalToEdit != null && goalToEdit.targetDate <= 0L) 0 else 6)
+        mutableIntStateOf(
+            if (goalToEdit != null) {
+                if (goalToEdit.targetDate <= 0L) 0 else -1
+            } else 6
+        )
     }
+    var customDeadlineMs by remember {
+        mutableStateOf(goalToEdit?.targetDate?.takeIf { it > 0 })
+    }
+
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showInlineAddCategory by remember { mutableStateOf(false) }
     var inlineCategoryName by remember { mutableStateOf("") }
+
+    val popularEmojis = remember {
+        listOf("🎯", "🏠", "🚗", "✈️", "💻", "🎓", "💍", "🏖️", "🛡️", "💰", "🚲", "👶")
+    }
 
     // Custom Image Launcher
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -1087,27 +1276,98 @@ fun AddEditSavingsGoalDialog(
         }
     }
 
+    // Calculate effective target date
+    val effectiveTargetDate = remember(selectedPresetMonths, customDeadlineMs) {
+        when {
+            selectedPresetMonths == 0 -> 0L
+            selectedPresetMonths == -1 -> customDeadlineMs ?: 0L
+            else -> {
+                val cal = Calendar.getInstance()
+                cal.add(Calendar.MONTH, selectedPresetMonths)
+                cal.timeInMillis
+            }
+        }
+    }
+
+    // Live savings plan calculation
+    val planCalculation = remember(targetStr, initialStr, effectiveTargetDate) {
+        val target = targetStr.toDoubleOrNull() ?: 0.0
+        val initial = initialStr.toDoubleOrNull() ?: 0.0
+        val remaining = (target - initial).coerceAtLeast(0.0)
+
+        if (target <= 0.0 || effectiveTargetDate <= System.currentTimeMillis()) {
+            null
+        } else {
+            val diffMs = effectiveTargetDate - System.currentTimeMillis()
+            val diffDays = (diffMs / (1000 * 60 * 60 * 24)).coerceAtLeast(1)
+            val diffMonths = (diffDays / 30.417).coerceAtLeast(0.1)
+            val diffWeeks = (diffDays / 7.0).coerceAtLeast(1.0)
+
+            val perMonth = remaining / diffMonths
+            val perWeek = remaining / diffWeeks
+
+            Triple(remaining, perMonth, perWeek)
+        }
+    }
+
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = SleekShapes.xxl,
             colors = CardDefaults.cardColors(containerColor = SleekSurface),
             border = BorderStroke(1.dp, SleekBorder),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp),
+                    .padding(20.dp)
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text(
-                    text = if (goalToEdit == null) "Add New Saving Goal" else "Edit Saving Goal",
+                    text = if (goalToEdit == null) "Set Financial Goal" else "Edit Goal",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = SleekTextPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    color = SleekTextPrimary
                 )
+
+                // Emoji Icon Selector Row
+                Text(
+                    text = "Goal Icon / Emoji",
+                    fontSize = SleekSizes.textBodySmall,
+                    fontWeight = FontWeight.Bold,
+                    color = SleekTextSecondary
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    popularEmojis.forEach { emoji ->
+                        val isSel = selectedIconTag == emoji
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isSel) SleekPrimary.copy(alpha = 0.25f) else SleekBg)
+                                .border(
+                                    width = if (isSel) 2.dp else 1.dp,
+                                    color = if (isSel) SleekPrimary else SleekBorder,
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    selectedIconTag = emoji
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = emoji, fontSize = 20.sp)
+                        }
+                    }
+                }
 
                 // Goal Name Input
                 OutlinedTextField(
@@ -1116,7 +1376,7 @@ fun AddEditSavingsGoalDialog(
                         name = it
                         errorMessage = null
                     },
-                    label = { Text("Goal Name (e.g. Holiday, Laptop)", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    label = { Text("Goal Name (e.g. Dream Trip, Emergency Fund)") },
                     singleLine = true,
                     shape = SleekShapes.md,
                     colors = OutlinedTextFieldDefaults.colors(
@@ -1128,15 +1388,15 @@ fun AddEditSavingsGoalDialog(
                         .testTag("goal_name_input")
                 )
 
-                // Target Amount Input in INR (₹)
+                // Target Amount Input
                 OutlinedTextField(
                     value = targetStr,
                     onValueChange = {
                         targetStr = it
                         errorMessage = null
                     },
-                    label = { Text("Total Target Money (INR ₹)", maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                    prefix = { Text("₹ ", fontWeight = FontWeight.Bold, color = SleekPrimary) },
+                    label = { Text("Target Amount") },
+                    prefix = { Text("$currencySymbol ", fontWeight = FontWeight.Bold, color = SleekPrimary) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                     shape = SleekShapes.md,
@@ -1149,14 +1409,31 @@ fun AddEditSavingsGoalDialog(
                         .testTag("goal_target_input")
                 )
 
+                // Initial Starting Funds Input (Only for new goals)
+                if (goalToEdit == null) {
+                    OutlinedTextField(
+                        value = initialStr,
+                        onValueChange = { initialStr = it },
+                        label = { Text("Initial Saved Amount (Optional)") },
+                        prefix = { Text("$currencySymbol ", fontWeight = FontWeight.Bold, color = SleekTextSecondary) },
+                        placeholder = { Text("0") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        shape = SleekShapes.md,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = SleekPrimary,
+                            unfocusedBorderColor = SleekBorder
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
                 // Category Selection
                 Text(
-                    text = "Select Category",
+                    text = "Category",
                     fontSize = SleekSizes.textBodySmall,
                     fontWeight = FontWeight.Bold,
-                    color = SleekTextSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    color = SleekTextSecondary
                 )
 
                 FlowRow(
@@ -1179,7 +1456,7 @@ fun AddEditSavingsGoalDialog(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
-                                    Text(cat, fontSize = SleekSizes.textBodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(cat, fontSize = SleekSizes.textBodySmall)
                                     if (isDeletable) {
                                         Box(
                                             modifier = Modifier
@@ -1251,14 +1528,12 @@ fun AddEditSavingsGoalDialog(
                     }
                 }
 
-                // Target Timeframe Presets
+                // Target Deadline Presets + Custom Date Picker
                 Text(
-                    text = "Target Timeframe",
+                    text = "Target Deadline",
                     fontSize = SleekSizes.textBodySmall,
                     fontWeight = FontWeight.Bold,
-                    color = SleekTextSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    color = SleekTextSecondary
                 )
 
                 Row(
@@ -1266,11 +1541,11 @@ fun AddEditSavingsGoalDialog(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     listOf(
-                        0 to "Undefined",
+                        0 to "Open",
+                        1 to "1 Mon",
                         3 to "3 Mon",
                         6 to "6 Mon",
-                        12 to "1 Year",
-                        24 to "2 Years"
+                        12 to "1 Year"
                     ).forEach { (months, label) ->
                         val isSel = selectedPresetMonths == months
                         Box(
@@ -1278,7 +1553,10 @@ fun AddEditSavingsGoalDialog(
                                 .weight(1f)
                                 .clip(SleekShapes.md)
                                 .background(if (isSel) SleekPrimary else SleekPrimaryContainer.copy(alpha = 0.2f))
-                                .clickable { selectedPresetMonths = months }
+                                .clickable {
+                                    selectedPresetMonths = months
+                                    customDeadlineMs = null
+                                }
                                 .padding(vertical = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -1286,9 +1564,92 @@ fun AddEditSavingsGoalDialog(
                                 text = label,
                                 fontSize = SleekSizes.textMicro,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isSel) Color.White else SleekTextSecondary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                color = if (isSel) Color.White else SleekTextSecondary
+                            )
+                        }
+                    }
+                }
+
+                // Custom Date Button
+                val customDateText = remember(customDeadlineMs) {
+                    if (customDeadlineMs != null && customDeadlineMs!! > 0L) {
+                        "📅 " + SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(customDeadlineMs!!))
+                    } else {
+                        "📅 Choose Custom Date"
+                    }
+                }
+                val isCustomSelected = selectedPresetMonths == -1
+
+                OutlinedButton(
+                    onClick = {
+                        val cal = Calendar.getInstance()
+                        if (customDeadlineMs != null && customDeadlineMs!! > 0L) {
+                            cal.timeInMillis = customDeadlineMs!!
+                        }
+                        android.app.DatePickerDialog(
+                            context,
+                            { _, year, month, dayOfMonth ->
+                                val selectedCal = Calendar.getInstance()
+                                selectedCal.set(year, month, dayOfMonth, 23, 59, 59)
+                                customDeadlineMs = selectedCal.timeInMillis
+                                selectedPresetMonths = -1
+                            },
+                            cal.get(Calendar.YEAR),
+                            cal.get(Calendar.MONTH),
+                            cal.get(Calendar.DAY_OF_MONTH)
+                        ).show()
+                    },
+                    shape = SleekShapes.md,
+                    border = BorderStroke(1.dp, if (isCustomSelected) SleekPrimary else SleekBorder),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = if (isCustomSelected) SleekPrimary.copy(alpha = 0.1f) else Color.Transparent
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = customDateText,
+                        fontSize = SleekSizes.textBodySmall,
+                        fontWeight = if (isCustomSelected) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isCustomSelected) SleekPrimary else SleekTextPrimary
+                    )
+                }
+
+                // Smart Savings Guidance Card (Live calculation of needed monthly/weekly savings)
+                planCalculation?.let { (remaining, perMonth, perWeek) ->
+                    Surface(
+                        shape = SleekShapes.lg,
+                        color = Color(0xFF10B981).copy(alpha = 0.1f),
+                        border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.3f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = AppIcons.TrendingUp,
+                                    contentDescription = null,
+                                    tint = Color(0xFF059669),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = "Smart Savings Plan",
+                                    fontSize = SleekSizes.textBodySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF065F46)
+                                )
+                            }
+                            Text(
+                                text = "Save %s%,.0f/month (or %s%,.0f/week) to hit your target!".format(
+                                    currencySymbol, perMonth, currencySymbol, perWeek
+                                ),
+                                fontSize = SleekSizes.textCaption,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF047857)
                             )
                         }
                     }
@@ -1296,12 +1657,10 @@ fun AddEditSavingsGoalDialog(
 
                 // Goal Image Option
                 Text(
-                    text = "Goal Image (Optional)",
+                    text = "Goal Cover Image (Optional)",
                     fontSize = SleekSizes.textBodySmall,
                     fontWeight = FontWeight.Bold,
-                    color = SleekTextSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    color = SleekTextSecondary
                 )
 
                 Row(
@@ -1311,7 +1670,7 @@ fun AddEditSavingsGoalDialog(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(54.dp)
+                            .size(50.dp)
                             .clip(CircleShape)
                             .background(SleekPrimary.copy(alpha = 0.12f))
                             .border(1.dp, SleekBorder, CircleShape),
@@ -1325,12 +1684,7 @@ fun AddEditSavingsGoalDialog(
                                 modifier = Modifier.fillMaxSize()
                             )
                         } else {
-                            Icon(
-                                imageVector = getCategoryVectorIcon(category, name),
-                                contentDescription = "Default Category Icon",
-                                tint = SleekPrimary,
-                                modifier = Modifier.size(24.dp)
-                            )
+                            Text(text = selectedIconTag, fontSize = 22.sp)
                         }
                     }
 
@@ -1345,7 +1699,7 @@ fun AddEditSavingsGoalDialog(
                                 shape = SleekShapes.md,
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
                             ) {
-                                Text("Choose Image", fontSize = SleekSizes.textCaption)
+                                Text("Choose Photo", fontSize = SleekSizes.textCaption)
                             }
 
                             if (!imageUriStr.isNullOrBlank()) {
@@ -1356,13 +1710,6 @@ fun AddEditSavingsGoalDialog(
                                 }
                             }
                         }
-                        Text(
-                            text = if (imageUriStr == null) "A category icon avatar will be created automatically" else "Custom image attached",
-                            fontSize = SleekSizes.textMicro,
-                            color = SleekTextSecondary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
                     }
                 }
 
@@ -1383,6 +1730,7 @@ fun AddEditSavingsGoalDialog(
                     Button(
                         onClick = {
                             val targetVal = targetStr.toDoubleOrNull()
+                            val initialVal = initialStr.toDoubleOrNull() ?: 0.0
                             if (name.isBlank()) {
                                 errorMessage = "Please enter a goal name"
                                 return@Button
@@ -1392,21 +1740,13 @@ fun AddEditSavingsGoalDialog(
                                 return@Button
                             }
 
-                            val calcDate = if (selectedPresetMonths == 0) {
-                                0L
-                            } else {
-                                val cal = Calendar.getInstance()
-                                cal.add(Calendar.MONTH, selectedPresetMonths)
-                                cal.timeInMillis
-                            }
-
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onSave(name.trim(), targetVal, category, imageUriStr, calcDate)
+                            onSave(name.trim(), targetVal, initialVal, category, imageUriStr, effectiveTargetDate, selectedIconTag)
                         },
                         shape = SleekShapes.md,
                         colors = ButtonDefaults.buttonColors(containerColor = SleekPrimary)
                     ) {
-                        Text(if (goalToEdit == null) "Save Goal" else "Update", color = Color.White, fontSize = SleekSizes.textBodyMedium)
+                        Text(if (goalToEdit == null) "Create Goal" else "Update Goal", color = Color.White, fontSize = SleekSizes.textBodyMedium)
                     }
                 }
             }
@@ -1421,9 +1761,11 @@ fun AddEditSavingsGoalDialog(
 fun GoalDepositDetailBottomSheet(
     goal: SavingsGoal,
     availableNetBalance: Double = 0.0,
+    currencySymbol: String = "₹",
+    accounts: List<Account> = emptyList(),
     onDismiss: () -> Unit,
-    onDeposit: (Double) -> Unit,
-    onDeduct: (Double) -> Unit,
+    onDeposit: (Double, Long?) -> Unit,
+    onDeduct: (Double, Long?) -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -1431,8 +1773,10 @@ fun GoalDepositDetailBottomSheet(
     var isDepositMode by remember { mutableStateOf(true) } // true: Deposit, false: Withdraw
     var depositInput by remember { mutableStateOf("") }
     var isAmountEditing by remember { mutableStateOf(false) }
+    var selectedAccountId by remember { mutableStateOf<Long?>(accounts.firstOrNull()?.id) }
 
     val remaining = (goal.targetAmount - goal.currentAmount).coerceAtLeast(0.0)
+    val progressRatio = if (goal.targetAmount > 0) (goal.currentAmount / goal.targetAmount).toFloat().coerceIn(0f, 1f) else 0f
     val primaryAccent = getCategoryAccentColor(goal.category)
     val activeColor = if (isDepositMode) Color(0xFF10B981) else Color(0xFFEF4444)
     val activeSoftBg = if (isDepositMode) Color(0xFFDCFCE7) else Color(0xFFFEE2E2)
@@ -1440,19 +1784,31 @@ fun GoalDepositDetailBottomSheet(
     val enteredAmount = depositInput.toDoubleOrNull() ?: 0.0
     val isExceedingNetBalance = isDepositMode && (enteredAmount > availableNetBalance || availableNetBalance <= 0)
 
+    // Deadline pace calculation
+    val deadlinePace = remember(goal.targetDate, goal.targetAmount, goal.currentAmount) {
+        if (goal.targetDate > System.currentTimeMillis() && remaining > 0) {
+            val diffDays = ((goal.targetDate - System.currentTimeMillis()) / (1000 * 60 * 60 * 24)).coerceAtLeast(1)
+            val diffMonths = (diffDays / 30.417).coerceAtLeast(0.1)
+            val perMonth = remaining / diffMonths
+            Pair(diffDays, perMonth)
+        } else null
+    }
+
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = SleekShapes.xxl,
             colors = CardDefaults.cardColors(containerColor = SleekSurface),
             border = BorderStroke(1.dp, SleekBorder),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(22.dp)
+                    .padding(20.dp)
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Top Header Row with Goal Avatar & Controls
@@ -1473,7 +1829,9 @@ fun GoalDepositDetailBottomSheet(
                                 .background(primaryAccent.copy(alpha = 0.15f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            if (!goal.imageUri.isNullOrBlank()) {
+                            if (!goal.iconTag.isNullOrBlank()) {
+                                Text(goal.iconTag, fontSize = 22.sp)
+                            } else if (!goal.imageUri.isNullOrBlank()) {
                                 AsyncImage(
                                     model = goal.imageUri,
                                     contentDescription = goal.name,
@@ -1519,45 +1877,138 @@ fun GoalDepositDetailBottomSheet(
                     }
                 }
 
-                // Goal Status Banner
+                // Goal Status Banner & Progress
                 Surface(
                     shape = SleekShapes.lg,
-                    color = primaryAccent.copy(alpha = 0.12f),
+                    color = primaryAccent.copy(alpha = 0.10f),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(14.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Column(modifier = Modifier.weight(1f, fill = false)) {
-                            Text("Saved so far", fontSize = SleekSizes.textCaption, color = SleekTextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(
-                                "₹%,.2f".format(goal.currentAmount),
-                                fontSize = SleekSizes.textTitle,
-                                fontWeight = FontWeight.Black,
-                                color = primaryAccent,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text("Saved so far", fontSize = SleekSizes.textCaption, color = SleekTextSecondary)
+                                Text(
+                                    "%s%,.2f".format(currencySymbol, goal.currentAmount),
+                                    fontSize = SleekSizes.textTitle,
+                                    fontWeight = FontWeight.Black,
+                                    color = primaryAccent
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text("Target Amount", fontSize = SleekSizes.textCaption, color = SleekTextSecondary)
+                                Text(
+                                    "%s%,.2f".format(currencySymbol, goal.targetAmount),
+                                    fontSize = SleekSizes.textBody,
+                                    fontWeight = FontWeight.Bold,
+                                    color = SleekTextPrimary
+                                )
+                            }
                         }
-                        Column(horizontalAlignment = Alignment.End, modifier = Modifier.weight(1f, fill = false)) {
-                            Text("Target Amount", fontSize = SleekSizes.textCaption, color = SleekTextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+
+                        LinearProgressIndicator(
+                            progress = { progressRatio },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(6.dp)
+                                .clip(CircleShape),
+                            color = primaryAccent,
+                            trackColor = SleekBorder.copy(alpha = 0.5f)
+                        )
+
+                        // Milestone Indicators
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            listOf(25, 50, 75, 100).forEach { ms ->
+                                val reached = (progressRatio * 100) >= ms
+                                Text(
+                                    text = if (reached) "✓ $ms%" else "$ms%",
+                                    fontSize = 10.sp,
+                                    fontWeight = if (reached) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (reached) primaryAccent else SleekTextSecondary
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Deadline & Recommended Monthly Allocation info
+                deadlinePace?.let { (days, perMonth) ->
+                    Surface(
+                        shape = SleekShapes.md,
+                        color = Color(0xFF6366F1).copy(alpha = 0.08f),
+                        border = BorderStroke(1.dp, Color(0xFF6366F1).copy(alpha = 0.25f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = AppIcons.Schedule,
+                                contentDescription = null,
+                                tint = Color(0xFF4F46E5),
+                                modifier = Modifier.size(18.dp)
+                            )
                             Text(
-                                "₹%,.2f".format(goal.targetAmount),
-                                fontSize = SleekSizes.textBody,
-                                fontWeight = FontWeight.Bold,
-                                color = SleekTextPrimary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                text = "%d days left • Need %s%,.0f/mo to complete on time".format(days, currencySymbol, perMonth),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF3730A3)
                             )
                         }
                     }
                 }
 
-                // Circular Transaction Type Switcher (Matching Main Balance Popup Style)
+                // Account Selection
+                if (accounts.isNotEmpty()) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = if (isDepositMode) "Allocate From Account:" else "Refund To Account:",
+                            fontSize = SleekSizes.textCaption,
+                            fontWeight = FontWeight.Bold,
+                            color = SleekTextSecondary
+                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            accounts.forEach { acc ->
+                                val isSel = selectedAccountId == acc.id
+                                FilterChip(
+                                    selected = isSel,
+                                    onClick = { selectedAccountId = acc.id },
+                                    label = {
+                                        Text(
+                                            text = "${acc.name} (${acc.currencyCode})",
+                                            fontSize = 11.sp,
+                                            fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    },
+                                    shape = SleekShapes.pill
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Circular Transaction Type Switcher
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly,
@@ -1577,7 +2028,7 @@ fun GoalDepositDetailBottomSheet(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(60.dp)
+                                .size(56.dp)
                                 .clip(CircleShape)
                                 .background(if (isDep) Color(0xFFDCFCE7) else SleekBg)
                                 .border(
@@ -1591,7 +2042,7 @@ fun GoalDepositDetailBottomSheet(
                                 imageVector = AppIcons.ArrowDownward,
                                 contentDescription = "Deposit to Goal",
                                 tint = if (isDep) Color(0xFF10B981) else SleekTextSecondary,
-                                modifier = Modifier.size(26.dp)
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                         Spacer(modifier = Modifier.height(4.dp))
@@ -1599,9 +2050,7 @@ fun GoalDepositDetailBottomSheet(
                             text = "Deposit",
                             fontSize = SleekSizes.textBodySmall,
                             fontWeight = if (isDep) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isDep) Color(0xFF10B981) else SleekTextSecondary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            color = if (isDep) Color(0xFF10B981) else SleekTextSecondary
                         )
                     }
 
@@ -1619,7 +2068,7 @@ fun GoalDepositDetailBottomSheet(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(60.dp)
+                                .size(56.dp)
                                 .clip(CircleShape)
                                 .background(if (isWith) Color(0xFFFEE2E2) else SleekBg)
                                 .border(
@@ -1633,7 +2082,7 @@ fun GoalDepositDetailBottomSheet(
                                 imageVector = AppIcons.ArrowUpward,
                                 contentDescription = "Withdraw from Goal",
                                 tint = if (isWith) Color(0xFFEF4444) else SleekTextSecondary,
-                                modifier = Modifier.size(26.dp)
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                         Spacer(modifier = Modifier.height(4.dp))
@@ -1641,14 +2090,12 @@ fun GoalDepositDetailBottomSheet(
                             text = "Withdraw",
                             fontSize = SleekSizes.textBodySmall,
                             fontWeight = if (isWith) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isWith) Color(0xFFEF4444) else SleekTextSecondary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            color = if (isWith) Color(0xFFEF4444) else SleekTextSecondary
                         )
                     }
                 }
 
-                // Big Amount Display Box (Circular Dial Style)
+                // Amount Display Box
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1656,7 +2103,7 @@ fun GoalDepositDetailBottomSheet(
                         .background(activeSoftBg)
                         .border(1.dp, activeColor.copy(alpha = 0.4f), SleekShapes.xl)
                         .clickable { isAmountEditing = true }
-                        .padding(16.dp),
+                        .padding(14.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -1682,34 +2129,30 @@ fun GoalDepositDetailBottomSheet(
                                 modifier = Modifier.width(140.dp)
                             )
                         } else {
-                            val formatted = if (enteredAmount > 0) "₹%,.0f".format(enteredAmount) else "₹0"
+                            val formatted = if (enteredAmount > 0) "%s%,.0f".format(currencySymbol, enteredAmount) else "${currencySymbol}0"
                             Text(
                                 text = formatted,
                                 fontSize = SleekSizes.textHeadlineLarge,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = activeColor,
-                                textAlign = TextAlign.Center,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                textAlign = TextAlign.Center
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = if (enteredAmount > 0) "Tap to edit amount" else "Tap to enter transaction amount",
+                                text = if (enteredAmount > 0) "Tap to edit amount" else "Tap to enter allocation amount",
                                 fontSize = SleekSizes.textCaption,
-                                color = SleekTextSecondary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                color = SleekTextSecondary
                             )
                         }
                     }
                 }
 
-                // Preset Chips
+                // Preset Chips & Fill Remaining Button
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    listOf(100.0, 500.0, 1000.0, 2000.0).forEach { preset ->
+                    listOf(50.0, 100.0, 500.0, 1000.0).forEach { preset ->
                         Box(
                             modifier = Modifier
                                 .weight(1f)
@@ -1725,14 +2168,32 @@ fun GoalDepositDetailBottomSheet(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "+₹%,.0f".format(preset),
+                                text = "+%s%,.0f".format(currencySymbol, preset),
                                 fontSize = SleekSizes.textCaption,
                                 fontWeight = FontWeight.Bold,
-                                color = activeColor,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                color = activeColor
                             )
                         }
+                    }
+                }
+
+                // Fill Remaining Goal Button
+                if (isDepositMode && remaining > 0) {
+                    OutlinedButton(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            depositInput = "%.0f".format(remaining)
+                        },
+                        shape = SleekShapes.md,
+                        border = BorderStroke(1.dp, activeColor.copy(alpha = 0.4f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "🎯 Allocate Remaining (%s%,.0f)".format(currencySymbol, remaining),
+                            fontSize = SleekSizes.textBodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = activeColor
+                        )
                     }
                 }
 
@@ -1749,17 +2210,13 @@ fun GoalDepositDetailBottomSheet(
                         Text(
                             text = "Available Net Balance:",
                             fontSize = SleekSizes.textCaption,
-                            color = SleekTextSecondary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            color = SleekTextSecondary
                         )
                         Text(
-                            text = "₹%,.2f".format(availableNetBalance),
+                            text = "%s%,.2f".format(currencySymbol, availableNetBalance),
                             fontSize = SleekSizes.textBodySmall,
                             fontWeight = FontWeight.Bold,
-                            color = if (availableNetBalance > 0) Color(0xFF10B981) else Color(0xFFEF4444),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            color = if (availableNetBalance > 0) Color(0xFF10B981) else Color(0xFFEF4444)
                         )
                     }
 
@@ -1782,7 +2239,7 @@ fun GoalDepositDetailBottomSheet(
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Text(
-                                    text = "🔒 Total Balance Locked: Deposit of ₹%,.2f exceeds available net balance (₹%,.2f). Add Income first!".format(enteredAmount, availableNetBalance),
+                                    text = "🔒 Balance Locked: Allocation of %s%,.2f exceeds available net balance (%s%,.2f). Add Income first!".format(currencySymbol, enteredAmount, currencySymbol, availableNetBalance),
                                     fontSize = SleekSizes.textCaption,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF991B1B)
@@ -1798,12 +2255,12 @@ fun GoalDepositDetailBottomSheet(
                         if (enteredAmount <= 0) return@Button
                         if (isDepositMode) {
                             if (isExceedingNetBalance) return@Button
-                            onDeposit(enteredAmount)
+                            onDeposit(enteredAmount, selectedAccountId)
                         } else {
                             if (enteredAmount > goal.currentAmount) {
-                                onDeduct(goal.currentAmount)
+                                onDeduct(goal.currentAmount, selectedAccountId)
                             } else {
-                                onDeduct(enteredAmount)
+                                onDeduct(enteredAmount, selectedAccountId)
                             }
                         }
                     },
@@ -1819,15 +2276,330 @@ fun GoalDepositDetailBottomSheet(
                 ) {
                     Text(
                         text = if (isDepositMode && isExceedingNetBalance) "🔒 Net Balance Locked"
-                               else if (isDepositMode && enteredAmount > 0) "Confirm Deposit (+₹%,.0f)".format(enteredAmount)
-                               else if (!isDepositMode && enteredAmount > 0) "Confirm Withdrawal (-₹%,.0f)".format(enteredAmount)
+                               else if (isDepositMode && enteredAmount > 0) "Confirm Allocation (+%s%,.0f)".format(currencySymbol, enteredAmount)
+                               else if (!isDepositMode && enteredAmount > 0) "Confirm Withdrawal (-%s%,.0f)".format(currencySymbol, enteredAmount)
                                else "Enter Amount",
                         color = Color.White,
                         fontSize = SleekSizes.textBodyLarge,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        fontWeight = FontWeight.Bold
                     )
+                }
+            }
+        }
+    }
+}
+
+// ==========================================
+// 🚀 SMART MULTI-GOAL FUND ALLOCATOR DIALOG
+// ==========================================
+@Composable
+fun SmartFundAllocatorDialog(
+    goals: List<SavingsGoal>,
+    accounts: List<Account>,
+    availableNetBalance: Double,
+    currencySymbol: String,
+    onDismiss: () -> Unit,
+    onAllocate: (allocations: Map<Long, Double>, accountId: Long?) -> Unit
+) {
+    val haptic = LocalHapticFeedback.current
+    var totalAmountInput by remember { mutableStateOf("") }
+    var selectedStrategy by remember { mutableIntStateOf(0) } // 0: Gap-Proportional, 1: Urgent Deadline, 2: Equal Split
+    var selectedAccountId by remember { mutableStateOf<Long?>(accounts.firstOrNull()?.id) }
+
+    val activeGoals = remember(goals) {
+        goals.filter { it.targetAmount <= 0 || it.currentAmount < it.targetAmount }
+    }
+
+    val totalToDistribute = totalAmountInput.toDoubleOrNull() ?: 0.0
+    val isExceedingBalance = totalToDistribute > availableNetBalance
+
+    // Calculate allocation breakdown based on strategy
+    val computedAllocations = remember(totalToDistribute, selectedStrategy, activeGoals) {
+        if (totalToDistribute <= 0 || activeGoals.isEmpty()) {
+            emptyMap()
+        } else {
+            when (selectedStrategy) {
+                // Strategy 0: Gap-Proportional
+                0 -> {
+                    val totalGap = activeGoals.sumOf { (it.targetAmount - it.currentAmount).coerceAtLeast(10.0) }
+                    activeGoals.associate { g ->
+                        val gap = (g.targetAmount - g.currentAmount).coerceAtLeast(10.0)
+                        val share = (gap / totalGap) * totalToDistribute
+                        g.id to share
+                    }
+                }
+                // Strategy 1: Urgent Deadlines First (closest targetDate gets highest weight)
+                1 -> {
+                    val now = System.currentTimeMillis()
+                    val weights = activeGoals.map { g ->
+                        val days = if (g.targetDate > now) {
+                            ((g.targetDate - now) / (1000 * 60 * 60 * 24)).coerceAtLeast(1)
+                        } else 365
+                        1.0 / days
+                    }
+                    val totalWeight = weights.sum().coerceAtLeast(0.001)
+                    activeGoals.mapIndexed { idx, g ->
+                        val share = (weights[idx] / totalWeight) * totalToDistribute
+                        g.id to share
+                    }.toMap()
+                }
+                // Strategy 2: Equal Split
+                else -> {
+                    val perGoal = totalToDistribute / activeGoals.size
+                    activeGoals.associate { it.id to perGoal }
+                }
+            }
+        }
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = SleekShapes.xxl,
+            colors = CardDefaults.cardColors(containerColor = SleekSurface),
+            border = BorderStroke(1.dp, SleekBorder),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = AppIcons.AccountBalanceWallet,
+                            contentDescription = null,
+                            tint = SleekPrimary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Text(
+                            text = "Smart Fund Allocator",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = SleekTextPrimary
+                        )
+                    }
+                    IconButton(onClick = onDismiss) {
+                        Icon(AppIcons.Close, contentDescription = "Close", tint = SleekTextSecondary)
+                    }
+                }
+
+                Text(
+                    text = "Distribute funds across your active savings goals automatically.",
+                    fontSize = SleekSizes.textBodySmall,
+                    color = SleekTextSecondary
+                )
+
+                // Total Amount to Allocate Field
+                OutlinedTextField(
+                    value = totalAmountInput,
+                    onValueChange = { totalAmountInput = it },
+                    label = { Text("Total Amount to Distribute") },
+                    prefix = { Text("$currencySymbol ", fontWeight = FontWeight.Bold, color = SleekPrimary) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    shape = SleekShapes.md,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = SleekPrimary,
+                        unfocusedBorderColor = SleekBorder
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Preset Chips for allocation
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    listOf(100.0, 250.0, 500.0, 1000.0).forEach { preset ->
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(SleekShapes.md)
+                                .background(SleekPrimaryContainer.copy(alpha = 0.25f))
+                                .border(1.dp, SleekPrimary.copy(alpha = 0.3f), SleekShapes.md)
+                                .clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    totalAmountInput = "%.0f".format(preset)
+                                }
+                                .padding(vertical = 6.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "+%s%,.0f".format(currencySymbol, preset),
+                                fontSize = SleekSizes.textMicro,
+                                fontWeight = FontWeight.Bold,
+                                color = SleekPrimary
+                            )
+                        }
+                    }
+                }
+
+                // Funding Account Selection
+                if (accounts.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = "Funding Account:",
+                            fontSize = SleekSizes.textCaption,
+                            fontWeight = FontWeight.Bold,
+                            color = SleekTextSecondary
+                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            accounts.forEach { acc ->
+                                val isSel = selectedAccountId == acc.id
+                                FilterChip(
+                                    selected = isSel,
+                                    onClick = { selectedAccountId = acc.id },
+                                    label = { Text(acc.name, fontSize = 11.sp) },
+                                    shape = SleekShapes.pill
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Strategy Switcher Tabs
+                Text(
+                    text = "Distribution Strategy",
+                    fontSize = SleekSizes.textBodySmall,
+                    fontWeight = FontWeight.Bold,
+                    color = SleekTextSecondary
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf(
+                        0 to "🎯 Proportional",
+                        1 to "⚡ Nearest Due",
+                        2 to "⚖️ Equal Split"
+                    ).forEach { (stratIdx, label) ->
+                        val isSel = selectedStrategy == stratIdx
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(SleekShapes.md)
+                                .background(if (isSel) SleekPrimary else SleekBg)
+                                .border(1.dp, if (isSel) SleekPrimary else SleekBorder, SleekShapes.md)
+                                .clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    selectedStrategy = stratIdx
+                                }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = label,
+                                fontSize = 10.sp,
+                                fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSel) Color.White else SleekTextPrimary
+                            )
+                        }
+                    }
+                }
+
+                // Live Allocation Preview Breakdown
+                if (computedAllocations.isNotEmpty()) {
+                    Surface(
+                        shape = SleekShapes.lg,
+                        color = SleekBg,
+                        border = BorderStroke(1.dp, SleekBorder),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "Allocation Preview (${activeGoals.size} Goals)",
+                                fontSize = SleekSizes.textCaption,
+                                fontWeight = FontWeight.Bold,
+                                color = SleekTextSecondary
+                            )
+
+                            activeGoals.forEach { g ->
+                                val alloc = computedAllocations[g.id] ?: 0.0
+                                val newTotal = g.currentAmount + alloc
+                                val newPct = if (g.targetAmount > 0) ((newTotal / g.targetAmount) * 100).toInt().coerceIn(0, 100) else 100
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text(g.iconTag.ifBlank { "🎯" }, fontSize = 14.sp)
+                                        Text(
+                                            text = g.name,
+                                            fontSize = SleekSizes.textBodySmall,
+                                            fontWeight = FontWeight.Medium,
+                                            color = SleekTextPrimary
+                                        )
+                                    }
+                                    Text(
+                                        text = "+%s%,.0f  ➔  %d%%".format(currencySymbol, alloc, newPct),
+                                        fontSize = SleekSizes.textBodySmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF10B981)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (isExceedingBalance) {
+                    Text(
+                        text = "🔒 Exceeds available net balance (%s%,.2f)".format(currencySymbol, availableNetBalance),
+                        color = Color(0xFFEF4444),
+                        fontSize = SleekSizes.textCaption,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                // Action Buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel", color = SleekTextSecondary)
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            if (totalToDistribute > 0 && !isExceedingBalance) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onAllocate(computedAllocations, selectedAccountId)
+                            }
+                        },
+                        enabled = totalToDistribute > 0 && !isExceedingBalance,
+                        shape = SleekShapes.md,
+                        colors = ButtonDefaults.buttonColors(containerColor = SleekPrimary)
+                    ) {
+                        Text("Confirm Allocation", color = Color.White)
+                    }
                 }
             }
         }
