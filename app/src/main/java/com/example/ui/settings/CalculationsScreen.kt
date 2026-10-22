@@ -59,7 +59,8 @@ fun CalculationsScreen(
         "Loan & EMI",
         "Wealth & Compound",
         "Emergency Runway",
-        "Inflation Erosion"
+        "Inflation Erosion",
+        "Debt Payoff"
     )
 
     Scaffold(
@@ -112,6 +113,7 @@ fun CalculationsScreen(
                     5 -> WealthCompoundInterestCalculatorTool(viewModel)
                     6 -> EmergencyFundCalculatorTool(viewModel)
                     7 -> InflationCalculatorTool(viewModel)
+                    8 -> DebtPayoffPlannerTool(viewModel)
                 }
             }
         }
@@ -1912,3 +1914,389 @@ fun CurrencyPickerDialog(
         shape = RoundedCornerShape(20.dp)
     )
 }
+
+// ==========================================
+// 💳 DEBT PAYOFF PLANNER (SNOWBALL vs AVALANCHE)
+// ==========================================
+
+data class DebtPlanItem(
+    val id: Long,
+    val name: String,
+    val balance: Double,
+    val apr: Double,
+    val minPayment: Double
+)
+
+data class StrategyResult(
+    val monthsToPayoff: Int,
+    val totalInterestPaid: Double,
+    val totalAmountPaid: Double
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DebtPayoffPlannerTool(viewModel: FinanceViewModel) {
+    val currencySymbol by viewModel.selectedCurrencySymbol.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    var extraPaymentText by remember { mutableStateOf("150") }
+    var selectedStrategy by remember { mutableIntStateOf(0) } // 0: Snowball, 1: Avalanche
+
+    // Sample initial debts so user sees immediate feedback
+    var debts by remember {
+        mutableStateOf(
+            listOf(
+                DebtPlanItem(1L, "Credit Card", 3200.0, 21.5, 95.0),
+                DebtPlanItem(2L, "Personal Loan", 6500.0, 11.0, 160.0),
+                DebtPlanItem(3L, "Auto Loan", 14000.0, 5.8, 310.0)
+            )
+        )
+    }
+
+    var showAddDialog by remember { mutableStateOf(false) }
+    var newDebtName by remember { mutableStateOf("") }
+    var newDebtBalance by remember { mutableStateOf("") }
+    var newDebtApr by remember { mutableStateOf("") }
+    var newDebtMinPay by remember { mutableStateOf("") }
+
+    val extraMonthly = extraPaymentText.toDoubleOrNull() ?: 0.0
+
+    // Simulation Engine for Snowball and Avalanche
+    fun simulate(order: String): StrategyResult {
+        if (debts.isEmpty()) return StrategyResult(0, 0.0, 0.0)
+
+        // Clone debts
+        val active = debts.map { it.copy() }.toMutableList()
+        // Sort order
+        if (order == "SNOWBALL") {
+            active.sortBy { it.balance }
+        } else {
+            active.sortByDescending { it.apr }
+        }
+
+        var months = 0
+        var totalInterest = 0.0
+        val maxMonths = 360 // 30 year cap
+
+        var currentExtra = extraMonthly
+
+        while (active.any { it.balance > 0.01 } && months < maxMonths) {
+            months++
+            var freedPayment = 0.0
+
+            // 1. Accrue monthly interest
+            for (i in active.indices) {
+                if (active[i].balance > 0.01) {
+                    val monthlyRate = (active[i].apr / 100.0) / 12.0
+                    val interest = active[i].balance * monthlyRate
+                    totalInterest += interest
+                    active[i] = active[i].copy(balance = active[i].balance + interest)
+                }
+            }
+
+            // 2. Pay minimums
+            for (i in active.indices) {
+                if (active[i].balance > 0.01) {
+                    val pay = active[i].minPayment.coerceAtMost(active[i].balance)
+                    active[i] = active[i].copy(balance = active[i].balance - pay)
+                    if (active[i].balance <= 0.01) {
+                        freedPayment += active[i].minPayment
+                    }
+                }
+            }
+
+            // 3. Put extra payment + freed snowball payments onto the target debt
+            var extraToApply = currentExtra + freedPayment
+            for (i in active.indices) {
+                if (active[i].balance > 0.01 && extraToApply > 0) {
+                    val payExtra = extraToApply.coerceAtMost(active[i].balance)
+                    active[i] = active[i].copy(balance = active[i].balance - payExtra)
+                    extraToApply -= payExtra
+                }
+            }
+        }
+
+        val totalPrincipal = debts.sumOf { it.balance }
+        return StrategyResult(
+            monthsToPayoff = months,
+            totalInterestPaid = totalInterest,
+            totalAmountPaid = totalPrincipal + totalInterest
+        )
+    }
+
+    val snowballResult = remember(debts, extraMonthly) { simulate("SNOWBALL") }
+    val avalancheResult = remember(debts, extraMonthly) { simulate("AVALANCHE") }
+    val activeResult = if (selectedStrategy == 0) snowballResult else avalancheResult
+    val totalDebt = debts.sumOf { it.balance }
+
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        // Header
+        Text(
+            text = "Debt Snowball & Avalanche Planner",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = SleekTextPrimary
+        )
+        Text(
+            text = "Strategically eliminate multiple debts faster. Compare psychological momentum (Snowball) vs maximum interest savings (Avalanche).",
+            style = MaterialTheme.typography.bodySmall,
+            color = SleekTextSecondary
+        )
+
+        // Summary Card
+        Surface(
+            shape = SleekShapes.xl,
+            color = SleekSurface,
+            border = BorderStroke(1.dp, SleekBorder),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("Total Outstanding Debt", fontSize = 11.sp, color = SleekTextSecondary)
+                        Text(
+                            text = "%s%,.0f".format(currencySymbol, totalDebt),
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color(0xFFEF4444)
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text("Debt-Free Horizon", fontSize = 11.sp, color = SleekTextSecondary)
+                        Text(
+                            text = "${activeResult.monthsToPayoff} months",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = SleekPrimary
+                        )
+                        Text(
+                            text = "(${"%.1f".format(activeResult.monthsToPayoff / 12.0)} yrs)",
+                            fontSize = 11.sp,
+                            color = SleekTextSecondary
+                        )
+                    }
+                }
+
+                HorizontalDivider(color = SleekBorder)
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text("Total Interest Cost", fontSize = 11.sp, color = SleekTextSecondary)
+                        Text(
+                            text = "%s%,.0f".format(currencySymbol, activeResult.totalInterestPaid),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = SleekTextPrimary
+                        )
+                    }
+                    val interestDiff = kotlin.math.abs(snowballResult.totalInterestPaid - avalancheResult.totalInterestPaid)
+                    if (interestDiff > 10.0) {
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text("Avalanche Interest Advantage", fontSize = 11.sp, color = SleekTextSecondary)
+                            Text(
+                                text = "Save %s%,.0f".format(currencySymbol, interestDiff),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF10B981)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Strategy Selector Chips
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterChip(
+                selected = selectedStrategy == 0,
+                onClick = { selectedStrategy = 0 },
+                label = { Text("☃️ Snowball (Smallest First)", fontSize = 12.sp) },
+                shape = SleekShapes.pill,
+                modifier = Modifier.weight(1f)
+            )
+            FilterChip(
+                selected = selectedStrategy == 1,
+                onClick = { selectedStrategy = 1 },
+                label = { Text("⚡ Avalanche (Highest APR)", fontSize = 12.sp) },
+                shape = SleekShapes.pill,
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        // Extra Monthly Payment Field
+        OutlinedTextField(
+            value = extraPaymentText,
+            onValueChange = { extraPaymentText = it },
+            label = { Text("Extra Monthly Accelerate Payment") },
+            prefix = { Text("$currencySymbol ", fontWeight = FontWeight.Bold, color = SleekPrimary) },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true,
+            shape = SleekShapes.md,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // Debts List
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Your Debts (${debts.size})",
+                fontSize = SleekSizes.textBody,
+                fontWeight = FontWeight.Bold,
+                color = SleekTextPrimary
+            )
+            TextButton(onClick = { showAddDialog = true }) {
+                Text("+ Add Debt", fontSize = 12.sp, color = SleekPrimary, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        debts.forEach { debt ->
+            Surface(
+                shape = SleekShapes.lg,
+                color = SleekSurface,
+                border = BorderStroke(1.dp, SleekBorder),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = debt.name,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = SleekTextPrimary
+                        )
+                        Text(
+                            text = "APR: ${debt.apr}% • Min Pay: %s%,.0f/mo".format(currencySymbol, debt.minPayment),
+                            fontSize = 11.sp,
+                            color = SleekTextSecondary
+                        )
+                    }
+
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = "%s%,.0f".format(currencySymbol, debt.balance),
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFEF4444)
+                        )
+                        IconButton(
+                            onClick = { debts = debts.filter { it.id != debt.id } },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(AppIcons.Delete, contentDescription = "Remove", tint = SleekTextSecondary, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Add Debt Dialog
+    if (showAddDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddDialog = false },
+            title = { Text("Add Debt or Loan", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = newDebtName,
+                        onValueChange = { newDebtName = it },
+                        label = { Text("Debt Name (e.g. Student Loan)") },
+                        singleLine = true,
+                        shape = SleekShapes.md,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = newDebtBalance,
+                        onValueChange = { newDebtBalance = it },
+                        label = { Text("Current Balance") },
+                        prefix = { Text("$currencySymbol ") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        shape = SleekShapes.md,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = newDebtApr,
+                        onValueChange = { newDebtApr = it },
+                        label = { Text("Interest Rate (APR %)") },
+                        suffix = { Text("%") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        shape = SleekShapes.md,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = newDebtMinPay,
+                        onValueChange = { newDebtMinPay = it },
+                        label = { Text("Minimum Monthly Payment") },
+                        prefix = { Text("$currencySymbol ") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        shape = SleekShapes.md,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val bal = newDebtBalance.toDoubleOrNull() ?: 0.0
+                        val apr = newDebtApr.toDoubleOrNull() ?: 0.0
+                        val minPay = newDebtMinPay.toDoubleOrNull() ?: 0.0
+                        if (newDebtName.isNotBlank() && bal > 0) {
+                            val newItem = DebtPlanItem(
+                                id = System.currentTimeMillis(),
+                                name = newDebtName.trim(),
+                                balance = bal,
+                                apr = apr,
+                                minPayment = if (minPay > 0) minPay else (bal * 0.025).coerceAtLeast(25.0)
+                            )
+                            debts = debts + newItem
+                            newDebtName = ""
+                            newDebtBalance = ""
+                            newDebtApr = ""
+                            newDebtMinPay = ""
+                            showAddDialog = false
+                        }
+                    },
+                    shape = SleekShapes.md,
+                    colors = ButtonDefaults.buttonColors(containerColor = SleekPrimary)
+                ) {
+                    Text("Add", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddDialog = false }) {
+                    Text("Cancel", color = SleekTextSecondary)
+                }
+            },
+            containerColor = SleekSurface,
+            shape = SleekShapes.xl
+        )
+    }
+}
+

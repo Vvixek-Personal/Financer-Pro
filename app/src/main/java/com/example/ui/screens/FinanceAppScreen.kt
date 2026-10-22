@@ -855,6 +855,14 @@ fun FinanceAppScreen(viewModel: FinanceViewModel) {
                         viewModel = viewModel,
                         onBack = { activeSettingsSubScreen = null }
                     )
+                    SettingsSubScreen.FinancialHealthStudio -> {
+                        com.example.ui.components.FinancialHealthStudioDialog(
+                            viewModel = viewModel,
+                            onDismiss = { activeSettingsSubScreen = null },
+                            onNavigateToBudget = { activeSettingsSubScreen = SettingsSubScreen.Budgets },
+                            onNavigateToGoals = { activeSettingsSubScreen = SettingsSubScreen.SavingsGoals }
+                        )
+                    }
                 }
             }
         } else {

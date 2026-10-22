@@ -78,7 +78,7 @@ fun BillsSettingsScreen(
                         color = SleekTextPrimary
                     )
                     Text(
-                        text = "Manage your bills and reminder preferences",
+                        text = "Manage recurring bills, due dates & cash flow forecast",
                         style = MaterialTheme.typography.bodySmall,
                         color = SleekTextSecondary,
                         fontSize = 12.sp
@@ -87,13 +87,48 @@ fun BillsSettingsScreen(
             }
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+        var selectedTab by remember { mutableIntStateOf(0) }
+
+        TabRow(
+            selectedTabIndex = selectedTab,
+            containerColor = SleekSurface,
+            contentColor = SleekPrimary,
+            divider = { HorizontalDivider(color = SleekBorder) }
         ) {
+            Tab(
+                selected = selectedTab == 0,
+                onClick = { selectedTab = 0 },
+                text = {
+                    Text(
+                        text = "⚙️ Preferences",
+                        fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Medium,
+                        color = if (selectedTab == 0) SleekPrimary else SleekTextSecondary
+                    )
+                }
+            )
+            Tab(
+                selected = selectedTab == 1,
+                onClick = { selectedTab = 1 },
+                text = {
+                    Text(
+                        text = "📅 Cash Flow Calendar",
+                        fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Medium,
+                        color = if (selectedTab == 1) SleekPrimary else SleekTextSecondary
+                    )
+                }
+            )
+        }
+
+        if (selectedTab == 1) {
+            CashFlowCalendarView(viewModel = viewModel)
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
             // ================= SECTION 1: Bills Preferences =================
             BillsSettingSectionCard(
                 sectionIcon = AppIcons.AccountBalanceWallet,
@@ -331,6 +366,7 @@ fun BillsSettingsScreen(
             Spacer(modifier = Modifier.height(60.dp))
         }
     }
+}
 
     if (activePickerTitle != null) {
         AlertDialog(
@@ -566,3 +602,199 @@ private fun BillsSettingSwitchRow(
         )
     }
 }
+
+// ==========================================
+// 📅 30-DAY CASH FLOW & SUBSCRIPTION CALENDAR
+// ==========================================
+
+@Composable
+fun CashFlowCalendarView(viewModel: FinanceViewModel) {
+    val currencySymbol by viewModel.selectedCurrencySymbol.collectAsStateWithLifecycle()
+    val recurringRules by viewModel.recurringRules.collectAsStateWithLifecycle()
+    val billsCount = viewModel.billsList.size
+
+    val projections = remember(billsCount, recurringRules) {
+        viewModel.getCashFlowProjections(30)
+    }
+
+    val totalUpcomingBills = remember(projections) {
+        projections.sumOf { it.plannedBills }
+    }
+
+    val lowestBalance = remember(projections) {
+        projections.minOfOrNull { it.projectedBalance } ?: 0.0
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Summary Card
+        Surface(
+            shape = SleekShapes.xl,
+            color = SleekSurface,
+            border = BorderStroke(1.dp, SleekBorder),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("30-Day Upcoming Bills", fontSize = 11.sp, color = SleekTextSecondary)
+                        Text(
+                            text = "%s%,.0f".format(currencySymbol, totalUpcomingBills),
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color(0xFFF59E0B)
+                        )
+                    }
+
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text("Projected Lowest Point", fontSize = 11.sp, color = SleekTextSecondary)
+                        Text(
+                            text = "%s%,.0f".format(currencySymbol, lowestBalance),
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (lowestBalance >= 0) Color(0xFF10B981) else Color(0xFFEF4444)
+                        )
+                    }
+                }
+
+                if (lowestBalance < 0) {
+                    Surface(
+                        shape = SleekShapes.md,
+                        color = Color(0xFFFEF2F2),
+                        border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(text = "⚠️", fontSize = 16.sp)
+                            Text(
+                                text = "Overdraft Warning: Projected balance dips into negative territory within 30 days.",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF991B1B)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Text(
+            text = "Daily Cash Flow Timeline",
+            fontSize = SleekSizes.textBody,
+            fontWeight = FontWeight.Bold,
+            color = SleekTextPrimary
+        )
+
+        // Day by Day List
+        projections.forEach { day ->
+            val hasBills = day.plannedBills > 0
+            val isNegative = day.projectedBalance < 0
+
+            Surface(
+                shape = SleekShapes.lg,
+                color = if (hasBills) SleekPrimaryContainer.copy(alpha = 0.12f) else SleekSurface,
+                border = BorderStroke(
+                    1.dp,
+                    if (hasBills) SleekPrimary.copy(alpha = 0.3f) else SleekBorder
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Surface(
+                            shape = SleekShapes.md,
+                            color = if (hasBills) SleekPrimary else SleekBorder.copy(alpha = 0.4f),
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = day.dayOfWeek,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (hasBills) Color.White else SleekTextSecondary
+                                )
+                                Text(
+                                    text = day.dayLabel.take(2),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = if (hasBills) Color.White else SleekTextPrimary
+                                )
+                            }
+                        }
+
+                        Column {
+                            Text(
+                                text = day.dayLabel,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = SleekTextPrimary
+                            )
+                            if (hasBills) {
+                                Text(
+                                    text = "⚡ Due: ${day.billNames.joinToString(", ")} (-%s%,.0f)".format(currencySymbol, day.plannedBills),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFFEF4444)
+                                )
+                            } else {
+                                Text(
+                                    text = "Estimated standard burn",
+                                    fontSize = 10.sp,
+                                    color = SleekTextSecondary
+                                )
+                            }
+                        }
+                    }
+
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = "%s%,.0f".format(currencySymbol, day.projectedBalance),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isNegative) Color(0xFFEF4444) else SleekTextPrimary
+                        )
+                        Text(
+                            text = if (isNegative) "Deficit" else "Est. Balance",
+                            fontSize = 10.sp,
+                            color = SleekTextSecondary
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(40.dp))
+    }
+}
+

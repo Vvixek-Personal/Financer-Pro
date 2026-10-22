@@ -237,6 +237,17 @@ fun SidebarDrawerContent(
                         onCloseDrawer()
                         onOpenSettingsScreen(SettingsSubScreen.BadgesAndMilestones)
                     }
+                ),
+                SidebarMenuItemData(
+                    icon = AppIcons.HealthAndSafety,
+                    iconColor = Color(0xFF10B981),
+                    iconBgColor = Color(0xFFD1FAE5),
+                    titleKey = "Financial Health Studio",
+                    subtitleKey = "Diagnostic score, 4 pillars & what-if simulator",
+                    onClick = {
+                        onCloseDrawer()
+                        onOpenSettingsScreen(SettingsSubScreen.FinancialHealthStudio)
+                    }
                 )
             ),
             "PREFERENCES & APPEARANCE" to listOf(

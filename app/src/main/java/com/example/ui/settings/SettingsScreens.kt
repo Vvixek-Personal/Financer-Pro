@@ -58,6 +58,7 @@ import com.example.ui.components.ImportParseResult
 enum class SettingsSubScreen {
     PersonalData,
     BadgesAndMilestones,
+    FinancialHealthStudio,
     Appearance,
     Language,
     Currency,
@@ -1512,7 +1513,133 @@ fun BudgetSettingsScreen(
                 fontSize = 14.sp
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 🎯 SMART RUN-RATE RADAR & SAFE DAILY ALLOWANCE
+            val totalSpentThisMonth = currentMonthCategorySpent.values.sum()
+            val nowCal = Calendar.getInstance()
+            val dayOfMonth = nowCal.get(Calendar.DAY_OF_MONTH).coerceAtLeast(1)
+            val daysInMonth = nowCal.getActualMaximum(Calendar.DAY_OF_MONTH)
+            val daysRemaining = (daysInMonth - dayOfMonth + 1).coerceAtLeast(1)
+
+            val projectedMonthEndSpend = (totalSpentThisMonth / dayOfMonth) * daysInMonth
+            val safeDailyAllowance = if (monthlyBudget > totalSpentThisMonth) {
+                (monthlyBudget - totalSpentThisMonth) / daysRemaining
+            } else 0.0
+
+            val paceRatio = if (monthlyBudget > 0) projectedMonthEndSpend / monthlyBudget else 1.0
+            val (paceLabel, paceColor) = when {
+                monthlyBudget <= 0 -> "No budget limit set" to SleekTextSecondary
+                paceRatio <= 0.90 -> "🎯 On Track (${"%.0f".format(paceRatio * 100)}% pace)" to Color(0xFF10B981)
+                paceRatio <= 1.05 -> "⚡ On Edge (${"%.0f".format(paceRatio * 100)}% pace)" to Color(0xFFF59E0B)
+                else -> "⚠️ Overspending (${"%.0f".format(paceRatio * 100)}% pace)" to Color(0xFFEF4444)
+            }
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = SleekSurface),
+                border = BorderStroke(1.dp, SleekBorder),
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = paceColor.copy(alpha = 0.12f),
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = AppIcons.TrendingUp,
+                                        contentDescription = null,
+                                        tint = paceColor,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                            Column {
+                                Text(
+                                    text = "Run-Rate Radar",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = SleekTextPrimary,
+                                    fontSize = 16.sp
+                                )
+                                Text(
+                                    text = "Month-end pace forecast",
+                                    fontSize = 11.sp,
+                                    color = SleekTextSecondary
+                                )
+                            }
+                        }
+
+                        Surface(
+                            shape = CircleShape,
+                            color = paceColor.copy(alpha = 0.12f)
+                        ) {
+                            Text(
+                                text = paceLabel,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = paceColor,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(color = SleekBorder.copy(alpha = 0.6f))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text("Safe Daily Allowance", fontSize = 11.sp, color = SleekTextSecondary)
+                            Text(
+                                text = "%s%,.0f / day".format(currencySymbol, safeDailyAllowance),
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Black,
+                                color = if (safeDailyAllowance > 0) Color(0xFF10B981) else Color(0xFFEF4444)
+                            )
+                            Text(
+                                text = "for remaining $daysRemaining days",
+                                fontSize = 10.sp,
+                                color = SleekTextSecondary
+                            )
+                        }
+
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text("Projected Month-End", fontSize = 11.sp, color = SleekTextSecondary)
+                            Text(
+                                text = "%s%,.0f".format(currencySymbol, projectedMonthEndSpend),
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (monthlyBudget > 0 && projectedMonthEndSpend > monthlyBudget) Color(0xFFEF4444) else SleekTextPrimary
+                            )
+                            Text(
+                                text = "vs %s%,.0f budget".format(currencySymbol, monthlyBudget),
+                                fontSize = 10.sp,
+                                color = SleekTextSecondary
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             // 1. GENERAL SETTINGS CARD
             Card(
