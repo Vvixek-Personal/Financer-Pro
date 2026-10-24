@@ -1262,6 +1262,32 @@ fun DashboardTab(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // 🧠 Financial Health Score Badge
+                val healthScore = remember(expenses, savingsGoals, accounts, monthlyBudget) {
+                    viewModel.getFinancialHealthScore(0.0, 0.0)
+                }
+                Surface(
+                    onClick = { onOpenSettingsSubScreen(SettingsSubScreen.FinancialHealthStudio) },
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(healthScore.ratingColorHex).copy(alpha = 0.12f),
+                    border = BorderStroke(1.dp, Color(healthScore.ratingColorHex).copy(alpha = 0.35f)),
+                    modifier = Modifier.testTag("dashboard_health_score_badge")
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                    ) {
+                        Text(text = "🧠", fontSize = 12.sp)
+                        Text(
+                            text = "${healthScore.overallScore}",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(healthScore.ratingColorHex)
+                        )
+                    }
+                }
+
                 // 🔥 Streak Flame Logo (replaces text pill as requested)
                 StreakFlameLogo(
                     streakCount = currentStreak,

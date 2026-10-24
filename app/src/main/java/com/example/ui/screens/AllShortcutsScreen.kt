@@ -193,6 +193,17 @@ fun AllShortcutsTabScreen(
                 category = "Planning",
                 onClick = onAdjustBudget
             ),
+            AppShortcutItem(
+                id = "financial_health_studio",
+                title = "Health Studio",
+                subtitle = "Diagnostic score & simulator",
+                icon = AppIcons.HealthAndSafety,
+                iconTint = Color(0xFF10B981),
+                gradientColors = listOf(Color(0xFF10B981), Color(0xFF059669)),
+                category = "Planning",
+                badgeText = "Studio",
+                onClick = { onOpenSettingsSubScreen(SettingsSubScreen.FinancialHealthStudio) }
+            ),
 
             // 🧮 Tools & Utilities
             AppShortcutItem(
