@@ -16,8 +16,8 @@ android {
     applicationId = "com.aistudio.financetracker.vmpzqd"
     minSdk = 24
     targetSdk = 36
-    versionCode = 28
-    versionName = "1.28"
+    versionCode = 30
+    versionName = "1.30"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -31,7 +31,14 @@ android {
       keyPassword = System.getenv("KEY_PASSWORD")
     }
     create("debugConfig") {
-      storeFile = file("${rootDir}/debug.keystore")
+      val debugKeystoreFile = file("${rootDir}/debug.keystore")
+      storeFile = if (debugKeystoreFile.exists()) {
+        debugKeystoreFile
+      } else {
+        // Fallback: Android SDK's default debug keystore location
+        val defaultDebugKeystore = file(System.getProperty("user.home") + "/.android/debug.keystore")
+        if (defaultDebugKeystore.exists()) defaultDebugKeystore else debugKeystoreFile
+      }
       storePassword = "android"
       keyAlias = "androiddebugkey"
       keyPassword = "android"

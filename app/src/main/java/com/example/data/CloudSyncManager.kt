@@ -15,6 +15,13 @@ import java.util.*
 sealed class CloudSyncResult {
     data class Success(val message: String) : CloudSyncResult()
     data class Failure(val error: String, val isOffline: Boolean = false) : CloudSyncResult()
+    data class Conflict(val message: String, val localCount: Int, val remoteCount: Int) : CloudSyncResult()
+}
+
+sealed class SyncDirection {
+    object ToCloud : SyncDirection()
+    object FromCloud : SyncDirection()
+    object Merge : SyncDirection()
 }
 
 class CloudSyncManager private constructor(private val context: Context) {
@@ -55,7 +62,8 @@ class CloudSyncManager private constructor(private val context: Context) {
         currencyCode: String,
         currencySymbol: String,
         currencyName: String,
-        monthlyBudget: Double
+        monthlyBudget: Double,
+        direction: SyncDirection = SyncDirection.Merge
     ): CloudSyncResult {
         val user = auth.currentUser ?: return CloudSyncResult.Failure("User not signed in. Please sign in to sync cloud data.")
         val userId = user.uid
@@ -63,6 +71,49 @@ class CloudSyncManager private constructor(private val context: Context) {
 
         return try {
             val userDocRef = firestore.collection("users").document(userId)
+
+            // Fetch local snapshots
+            val expenses = dao.getExpensesSnapshot()
+            val accounts = dao.getAccountsSnapshot()
+            val budgets = dao.getBudgetsSnapshot()
+            val goals = dao.getSavingsGoalsSnapshot()
+            val recurringRules = dao.getRecurringRulesSnapshot()
+            val reminders = dao.getRemindersSnapshot()
+
+            val localTotalCount = expenses.size + accounts.size + budgets.size + 
+                goals.size + recurringRules.size + reminders.size
+
+            // Check if local database is empty - prevent accidental cloud deletion
+            if (localTotalCount == 0) {
+                return CloudSyncResult.Failure(
+                    "Local database is empty. Refusing to sync to prevent accidental cloud data deletion. " +
+                    "Please restore from cloud first or verify your local data."
+                )
+            }
+
+            // Fetch remote counts for conflict detection
+            val remoteCounts = mutableMapOf<String, Int>()
+            val subcollectionNames = listOf("expenses", "accounts", "budgets", "goals", "recurringRules", "reminders")
+            
+            for (subcollectionName in subcollectionNames) {
+                try {
+                    val remoteSnapshot = userDocRef.collection(subcollectionName).get().await()
+                    remoteCounts[subcollectionName] = remoteSnapshot.documents.size
+                } catch (_: Exception) {
+                    remoteCounts[subcollectionName] = 0
+                }
+            }
+
+            val remoteTotalCount = remoteCounts.values.sum()
+
+            // Detect potential data loss scenarios
+            if (direction == SyncDirection.Merge && remoteTotalCount > 0 && localTotalCount == 0) {
+                return CloudSyncResult.Conflict(
+                    "Cloud has data but local database is empty. Use restore from cloud instead.",
+                    localCount = localTotalCount,
+                    remoteCount = remoteTotalCount
+                )
+            }
 
             // Settings only stored in users/{uid}
             val settingsData = mutableMapOf<String, Any>()
@@ -74,14 +125,6 @@ class CloudSyncManager private constructor(private val context: Context) {
             settingsData["lastSync"] = now
 
             userDocRef.set(settingsData, SetOptions.merge()).await()
-
-            // Fetch local snapshots
-            val expenses = dao.getExpensesSnapshot()
-            val accounts = dao.getAccountsSnapshot()
-            val budgets = dao.getBudgetsSnapshot()
-            val goals = dao.getSavingsGoalsSnapshot()
-            val recurringRules = dao.getRecurringRulesSnapshot()
-            val reminders = dao.getRemindersSnapshot()
 
             val subcollections = listOf(
                 "expenses" to expenses.map { it.id.toString() to it.toMap() },
@@ -97,16 +140,22 @@ class CloudSyncManager private constructor(private val context: Context) {
 
             for ((subcollectionName, items) in subcollections) {
                 val localIds = items.map { it.first }.toSet()
-                // Fetch remote snapshot for this subcollection to reconcile deletions
-                try {
-                    val remoteSnapshot = userDocRef.collection(subcollectionName).get().await()
-                    for (remoteDoc in remoteSnapshot.documents) {
-                        if (remoteDoc.id !in localIds) {
-                            batchDeletes.add(remoteDoc.reference)
+                
+                // Only delete remote records if we're explicitly syncing to cloud
+                // and local data exists for this collection
+                if (direction == SyncDirection.ToCloud || direction == SyncDirection.Merge) {
+                    if (items.isNotEmpty()) {
+                        try {
+                            val remoteSnapshot = userDocRef.collection(subcollectionName).get().await()
+                            for (remoteDoc in remoteSnapshot.documents) {
+                                if (remoteDoc.id !in localIds) {
+                                    batchDeletes.add(remoteDoc.reference)
+                                }
+                            }
+                        } catch (_: Exception) {
+                            // Non-fatal if offline/empty collection
                         }
                     }
-                } catch (_: Exception) {
-                    // Non-fatal if offline/empty collection
                 }
 
                 for ((docId, itemData) in items) {
@@ -117,8 +166,12 @@ class CloudSyncManager private constructor(private val context: Context) {
 
             // Write in WriteBatch chunks of max 400
             val allOperations: MutableList<suspend (com.google.firebase.firestore.WriteBatch) -> Unit> = mutableListOf()
-            for (delRef in batchDeletes) {
-                allOperations.add { batch -> batch.delete(delRef) }
+            
+            // Only perform deletes if we have local data to prevent accidental cloud wipe
+            if (localTotalCount > 0) {
+                for (delRef in batchDeletes) {
+                    allOperations.add { batch -> batch.delete(delRef) }
+                }
             }
             for ((docRef, data) in batchSets) {
                 allOperations.add { batch -> batch.set(docRef, data, SetOptions.merge()) }
@@ -141,7 +194,8 @@ class CloudSyncManager private constructor(private val context: Context) {
 
     suspend fun restoreFromCloud(
         database: FinanceDatabase,
-        currencyCallback: (String, String, String, Double) -> Unit
+        currencyCallback: (String, String, String, Double) -> Unit,
+        forceRestore: Boolean = false
     ): CloudSyncResult {
         val user = auth.currentUser ?: return CloudSyncResult.Failure("User not signed in. Please sign in to restore cloud data.")
         val userId = user.uid
@@ -151,6 +205,18 @@ class CloudSyncManager private constructor(private val context: Context) {
             val userDocRef = firestore.collection("users").document(userId)
             val doc = userDocRef.get().await()
             if (!doc.exists()) return CloudSyncResult.Failure("No cloud data found in your cloud vault.")
+
+            // Check if local database has data - warn user before overwriting
+            val localCounts = dao.getDatabaseCounts()
+            val localTotal = localCounts.values.sum()
+            
+            if (localTotal > 0 && !forceRestore) {
+                return CloudSyncResult.Conflict(
+                    "Local database contains $localTotal records. Use forceRestore=true to overwrite, or backup first.",
+                    localCount = localTotal,
+                    remoteCount = 0
+                )
+            }
 
             val currencyCode = doc.getString("currencyCode") ?: "INR"
             val currencySymbol = doc.getString("currencySymbol") ?: "₹"
@@ -207,6 +273,12 @@ class CloudSyncManager private constructor(private val context: Context) {
                 parsedReminders = rawReminders.map { it.toReminderEntity() }
             }
 
+            // Validate we have data to restore
+            if (parsedAccounts.isEmpty() && parsedExpenses.isEmpty() && 
+                parsedBudgets.isEmpty() && parsedGoals.isEmpty()) {
+                return CloudSyncResult.Failure("No valid data found in cloud backup.")
+            }
+
             // Take a pre-restore safety copy of SQLite database file
             PreMigrationBackup.backupDatabaseBeforeMigration(context, DATABASE_NAME)
 
@@ -225,6 +297,36 @@ class CloudSyncManager private constructor(private val context: Context) {
             val lastSync = doc.getLong("lastSync") ?: System.currentTimeMillis()
             _lastSyncTimestamp.value = formatTimestamp(lastSync)
             CloudSyncResult.Success("Cloud Restore Complete: Restored ${parsedExpenses.size} transactions, ${parsedAccounts.size} accounts, ${parsedBudgets.size} budgets, and ${parsedGoals.size} goals.")
+        } catch (e: Exception) {
+            CloudSyncResult.Failure(friendlyErrorMessage(e))
+        }
+    }
+
+    suspend fun getRemoteDataCount(): CloudSyncResult {
+        val user = auth.currentUser ?: return CloudSyncResult.Failure("User not signed in.")
+        val userId = user.uid
+        
+        return try {
+            val userDocRef = firestore.collection("users").document(userId)
+            val doc = userDocRef.get().await()
+            
+            if (!doc.exists()) {
+                return CloudSyncResult.Failure("No cloud data found.")
+            }
+
+            val subcollectionNames = listOf("expenses", "accounts", "budgets", "goals", "recurringRules", "reminders")
+            var totalCount = 0
+            
+            for (subcollectionName in subcollectionNames) {
+                try {
+                    val snapshot = userDocRef.collection(subcollectionName).get().await()
+                    totalCount += snapshot.documents.size
+                } catch (_: Exception) {
+                    // Continue with other collections
+                }
+            }
+            
+            CloudSyncResult.Success("Cloud contains $totalCount records across all collections")
         } catch (e: Exception) {
             CloudSyncResult.Failure(friendlyErrorMessage(e))
         }
