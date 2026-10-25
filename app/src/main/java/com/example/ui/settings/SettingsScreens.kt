@@ -4415,7 +4415,7 @@ fun AboutAppScreen(
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(androidx.compose.ui.res.stringResource(com.example.R.string.app_name), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = SleekTextPrimary)
-                Text("Version 1.30 • Build 2026.10 (v30)", style = MaterialTheme.typography.bodyMedium, color = SleekTextSecondary)
+                Text("Version ${com.example.BuildConfig.VERSION_NAME} • Build ${com.example.BuildConfig.VERSION_CODE}", style = MaterialTheme.typography.bodyMedium, color = SleekTextSecondary)
 
                 Spacer(modifier = Modifier.height(20.dp))
 

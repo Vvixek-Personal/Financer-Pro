@@ -30,7 +30,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.AppIcons
 import com.example.ui.FinanceViewModel
-import com.example.ui.HealthScoreBreakdown
+import com.example.ui.health.FinancialHealthCalculator.HealthScoreBreakdown
 import com.example.ui.theme.*
 
 /**

@@ -154,4 +154,16 @@ interface FinanceDao {
         deleteAllRecurringRules()
         deleteAllReminders()
     }
+
+    @Transaction
+    suspend fun getDatabaseCounts(): Map<String, Int> {
+        val counts = mutableMapOf<String, Int>()
+        counts["expenses"] = getExpensesSnapshot().size
+        counts["accounts"] = getAccountsSnapshot().size
+        counts["budgets"] = getBudgetsSnapshot().size
+        counts["goals"] = getSavingsGoalsSnapshot().size
+        counts["recurringRules"] = getRecurringRulesSnapshot().size
+        counts["reminders"] = getRemindersSnapshot().size
+        return counts
+    }
 }

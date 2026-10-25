@@ -174,6 +174,19 @@ object Money {
         rates: Map<String, Double> = CurrencyManager.getRatesMap()
     ): Long {
         if (fromCurrency == toCurrency) return amountMinor
+        return convertOrNull(amountMinor, fromCurrency, toCurrency, rates) 
+            ?: throw IllegalStateException(
+                "Currency conversion failed: no valid exchange rate available for $fromCurrency to $toCurrency"
+            )
+    }
+
+    fun convertWithFallback(
+        amountMinor: Long,
+        fromCurrency: String,
+        toCurrency: String,
+        rates: Map<String, Double> = CurrencyManager.getRatesMap()
+    ): Long {
+        if (fromCurrency == toCurrency) return amountMinor
         return convertOrNull(amountMinor, fromCurrency, toCurrency, rates) ?: amountMinor
     }
 }
