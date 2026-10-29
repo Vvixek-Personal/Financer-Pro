@@ -298,6 +298,17 @@ fun SidebarDrawerContent(
             ),
             "FINANCIAL MANAGEMENT" to listOf(
                 SidebarMenuItemData(
+                    icon = AppIcons.AccountBalance,
+                    iconColor = Color(0xFF3B82F6),
+                    iconBgColor = Color(0xFFDBEAFE),
+                    titleKey = "Net Worth & Assets",
+                    subtitleKey = "Asset allocation, personal balance sheet & ratios",
+                    onClick = {
+                        onCloseDrawer()
+                        onOpenSettingsScreen(SettingsSubScreen.NetWorthAssets)
+                    }
+                ),
+                SidebarMenuItemData(
                     icon = AppIcons.ReceiptLong,
                     iconColor = Color(0xFFD97706),
                     iconBgColor = Color(0xFFFEF3C7),

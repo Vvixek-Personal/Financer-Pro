@@ -1,8 +1,6 @@
 package com.example.ui
 
 import com.example.ui.theme.*
-import com.example.ui.models.BillEntry
-import com.example.ui.models.ReminderEntry
 import com.example.ui.health.FinancialHealthCalculator
 import com.example.ui.projections.CashFlowProjector
 import android.app.Application
@@ -1667,6 +1665,11 @@ class FinanceViewModel(
                     _toastMessage.value = result.error
                     onResult?.invoke(false, result.error)
                 }
+                is com.example.data.CloudSyncResult.Conflict -> {
+                    _cloudSyncStatus.value = "Conflict Detected"
+                    _toastMessage.value = "⚠️ Sync Conflict: ${result.message}"
+                    onResult?.invoke(false, result.message)
+                }
             }
         }
     }
@@ -1694,6 +1697,11 @@ class FinanceViewModel(
                     _cloudSyncStatus.value = "Restore Error"
                     _toastMessage.value = result.error
                     onResult?.invoke(false, result.error)
+                }
+                is com.example.data.CloudSyncResult.Conflict -> {
+                    _cloudSyncStatus.value = "Conflict Detected"
+                    _toastMessage.value = "⚠️ Sync Conflict: ${result.message}"
+                    onResult?.invoke(false, result.message)
                 }
             }
         }
@@ -3101,6 +3109,101 @@ class FinanceViewModel(
             allBills = allBills,
             currencyCode = cur,
             daysToForecast = daysToForecast
+        )
+    }
+
+    fun getNetWorthSummary(targetCurrencyCode: String? = null): NetWorthSummary {
+        val cur = targetCurrencyCode ?: _selectedCurrencyCode.value
+        val allAccounts = accounts.value
+
+        var totalAssets = 0.0
+        var totalLiabilities = 0.0
+        val items = mutableListOf<AccountAllocationItem>()
+
+        for (acc in allAccounts) {
+            val converted = Money.convertWithFallback(acc.balanceMinor, acc.currencyCode, cur)
+            val balanceDouble = Money.toDouble(converted, cur)
+            val assetClass = AssetClass.fromAccountType(acc.type)
+
+            if (assetClass == AssetClass.LIABILITIES || balanceDouble < 0) {
+                totalLiabilities += kotlin.math.abs(balanceDouble)
+            } else {
+                totalAssets += balanceDouble
+            }
+
+            items.add(
+                AccountAllocationItem(
+                    account = acc,
+                    convertedBalance = balanceDouble,
+                    assetClass = assetClass,
+                    percentageOfTotalAssets = 0.0
+                )
+            )
+        }
+
+        val netWorth = totalAssets - totalLiabilities
+        val safeTotalAssets = if (totalAssets > 0) totalAssets else 1.0
+
+        val populatedItems = items.map { item ->
+            val pct = if (item.assetClass != AssetClass.LIABILITIES && item.convertedBalance > 0) {
+                (item.convertedBalance / safeTotalAssets) * 100.0
+            } else 0.0
+            item.copy(percentageOfTotalAssets = pct)
+        }
+
+        val breakdowns = AssetClass.values().map { cls ->
+            val clsItems = populatedItems.filter { it.assetClass == cls }
+            val clsTotal = clsItems.sumOf { kotlin.math.abs(it.convertedBalance) }
+            val clsPct = if (totalAssets > 0 && cls != AssetClass.LIABILITIES) {
+                (clsTotal / totalAssets) * 100.0
+            } else if (totalLiabilities > 0 && cls == AssetClass.LIABILITIES) {
+                (clsTotal / totalLiabilities) * 100.0
+            } else 0.0
+
+            AssetClassBreakdown(
+                assetClass = cls,
+                totalAmount = clsTotal,
+                percentageOfAssets = clsPct,
+                accountsCount = clsItems.size,
+                accounts = clsItems
+            )
+        }
+
+        val liquidAmount = breakdowns.firstOrNull { it.assetClass == AssetClass.LIQUID }?.totalAmount ?: 0.0
+        val growthAmount = breakdowns.firstOrNull { it.assetClass == AssetClass.GROWTH }?.totalAmount ?: 0.0
+        val reserveAmount = breakdowns.firstOrNull { it.assetClass == AssetClass.RESERVES }?.totalAmount ?: 0.0
+        val liabilitiesAmount = breakdowns.firstOrNull { it.assetClass == AssetClass.LIABILITIES }?.totalAmount ?: 0.0
+
+        val liquidityRatio = if (totalAssets > 0) (liquidAmount / totalAssets) else 0.0
+        val debtToAssetRatio = if (totalAssets > 0) (liabilitiesAmount / totalAssets) else 0.0
+
+        val advice = mutableListOf<String>()
+        if (debtToAssetRatio > 0.40) {
+            advice.add("⚠️ Liabilities exceed 40% of gross assets. Consider prioritizing high-interest debt payoffs.")
+        } else if (liabilitiesAmount == 0.0) {
+            advice.add("🛡️ Zero liabilities! You have full equity ownership of your personal balance sheet.")
+        }
+
+        if (liquidityRatio > 0.60 && totalAssets > 5000) {
+            advice.add("💡 Over 60% of your assets are in liquid cash. Consider allocating a portion to growth investments or inflation-hedging reserves.")
+        } else if (liquidityRatio < 0.15 && totalAssets > 0) {
+            advice.add("⚠️ Liquid cash is under 15% of total assets. Ensure adequate liquidity for day-to-day unexpected payments.")
+        } else {
+            advice.add("🎯 Healthy asset distribution across liquid, reserve, and growth categories.")
+        }
+
+        return NetWorthSummary(
+            totalAssets = totalAssets,
+            totalLiabilities = totalLiabilities,
+            netWorth = netWorth,
+            liquidAssets = liquidAmount,
+            growthAssets = growthAmount,
+            reserveAssets = reserveAmount,
+            targetCurrencyCode = cur,
+            breakdowns = breakdowns,
+            liquidityRatio = liquidityRatio,
+            debtToAssetRatio = debtToAssetRatio,
+            healthAdvice = advice
         )
     }
 

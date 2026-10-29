@@ -204,6 +204,17 @@ fun AllShortcutsTabScreen(
                 badgeText = "Studio",
                 onClick = { onOpenSettingsSubScreen(SettingsSubScreen.FinancialHealthStudio) }
             ),
+            AppShortcutItem(
+                id = "net_worth_assets",
+                title = "Net Worth & Assets",
+                subtitle = "Asset allocation & ratios",
+                icon = AppIcons.AccountBalance,
+                iconTint = Color(0xFF3B82F6),
+                gradientColors = listOf(Color(0xFF3B82F6), Color(0xFF1D4ED8)),
+                category = "Planning",
+                badgeText = "Portfolio",
+                onClick = { onOpenSettingsSubScreen(SettingsSubScreen.NetWorthAssets) }
+            ),
 
             // 🧮 Tools & Utilities
             AppShortcutItem(

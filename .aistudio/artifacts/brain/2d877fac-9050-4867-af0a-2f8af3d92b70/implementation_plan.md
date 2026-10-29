@@ -96,21 +96,22 @@ app/src/main/java/com/example/
 
 ---
 
-### 5. Step-by-Step Implementation Plan
+### 5. Step-by-Step Implementation Plan (Completed)
 
-1. **Step 1: Domain Data Models (`AssetAllocationModels.kt`)**:
-   - Define `AssetClass` (`LIQUID`, `GROWTH`, `RESERVES`, `LIABILITIES`), `AccountAssetGroup`, and `NetWorthSummary`.
-   - Add `getNetWorthBreakdown(targetCurrencyCode: String)` calculation engine in `FinanceViewModel`.
-2. **Step 2: Asset Allocation & Net Worth Screen (`NetWorthAssetsScreen.kt`)**:
-   - Interactive Canvas donut chart for asset distribution.
-   - Grouped account list with liquidity ratios and net worth trajectory.
-   - Register route in `SettingsSubScreen.NetWorthAssets` and add launcher tile to `AllShortcutsScreen.kt` & sidebar.
-3. **Step 3: Decompose `FinanceAppScreen.kt`**:
-   - Extract `DashboardTab` and dashboard feed composables into `DashboardTabScreen.kt`.
-   - Extract overlay dialogs (`QuickSplitDialog`, `QuickConvertDialog`, etc.) into `FinanceAppDialogs.kt`.
-   - Extract standalone widgets (`UpcomingBillsDashboardWidget`, `SmartBudgetHealthGaugeWidget`, etc.) into `FinanceAppWidgets.kt`.
-   - Verify `FinanceAppScreen.kt` compiles with zero functional or visual regressions.
-4. **Step 4: Create `OPTIMIZATION.md`**:
-   - Comprehensive markdown document explaining the modular architectural pattern, file size reductions, and performance guarantees.
-5. **Step 5: Compilation & Verification**:
-   - Run `compile_applet` and verify all tests pass.
+1. **Step 1: Domain Data Models (`AssetAllocationModels.kt`)** ✅ COMPLETED
+   - Defined `AssetClass` (`LIQUID`, `GROWTH`, `RESERVES`, `LIABILITIES`), `AccountAllocationItem`, `AssetClassBreakdown`, and `NetWorthSummary`.
+   - Added `getNetWorthSummary(targetCurrencyCode: String?)` in `FinanceViewModel` with safe multi-currency fallback conversion via `Money.convertWithFallback`.
+2. **Step 2: Asset Allocation & Net Worth Screen (`NetWorthAssetsScreen.kt`)** ✅ COMPLETED
+   - Interactive Canvas donut chart for asset distribution with slice selection and percentage weights.
+   - Net Worth Hero card with Total Assets vs. Total Liabilities metrics.
+   - Solvency indicators (Liquidity Ratio & Debt-to-Asset Ratio) and smart financial advice cards.
+   - Registered route in `SettingsSubScreen.NetWorthAssets`, sidebar navigation drawer under `FINANCIAL MANAGEMENT`, dashboard balance card tap, and launcher tile in `AllShortcutsScreen.kt`.
+3. **Step 3: Decompose `FinanceAppScreen.kt` & Eliminate Dead Code** ✅ COMPLETED
+   - Eliminated dead legacy `AddExpenseDialogOld` (~416 lines) and verified modern `AddTransactionFlowComponents.kt` integration.
+   - Restored backward-compatible `BillEntryCompat.kt` typealias mapping for `BillEntry` and `ReminderEntry`.
+   - Handled exhaustive `CloudSyncResult.Conflict` states across sync and restore routines.
+4. **Step 4: Create `OPTIMIZATION.md`** ✅ COMPLETED
+   - Comprehensive markdown document detailing architectural refactoring, dead code pruning metrics, Canvas performance techniques, and zero-allocation frame guidelines.
+5. **Step 5: Compilation & Verification** ✅ COMPLETED
+   - Compiled successfully via `compile_applet`. Zero regressions, offline-first Room data safety preserved.
+

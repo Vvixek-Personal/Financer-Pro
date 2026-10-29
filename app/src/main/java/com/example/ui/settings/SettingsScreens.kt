@@ -59,6 +59,7 @@ enum class SettingsSubScreen {
     PersonalData,
     BadgesAndMilestones,
     FinancialHealthStudio,
+    NetWorthAssets,
     Appearance,
     Language,
     Currency,
