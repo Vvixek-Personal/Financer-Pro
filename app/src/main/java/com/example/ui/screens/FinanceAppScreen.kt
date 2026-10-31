@@ -1093,15 +1093,6 @@ fun DashboardTab(
     var showQuickConvertDialog by remember { mutableStateOf(false) }
     var showAdjustBudgetDialog by remember { mutableStateOf(false) }
 
-    val showAiConsentDialog by viewModel.showAiConsentDialog.collectAsStateWithLifecycle()
-    if (showAiConsentDialog && !isLocked) {
-        AiConsentDialog(
-            onConsentAccepted = { viewModel.setAiConsent(true) },
-            onConsentDeclined = { viewModel.setAiConsent(false) },
-            onDismiss = { viewModel.dismissAiConsentDialog() }
-        )
-    }
-
     if (showStreakDialog && !isLocked) {
         DailyStreakCelebrationDialog(
             streakCount = currentStreak,
@@ -4290,107 +4281,6 @@ fun FaqAccordion(viewModel: FinanceViewModel) {
 
         Spacer(modifier = Modifier.height(16.dp))
         
-        // 🧠 AI BASED ASK
-        var aiQuestion by remember { mutableStateOf("") }
-        val aiAnswer by viewModel.aiCardAnswer.collectAsStateWithLifecycle()
-        val isQuerying by viewModel.isAiCardLoading.collectAsStateWithLifecycle()
-        
-        Card(
-            colors = CardDefaults.cardColors(containerColor = SleekPrimaryContainer.copy(alpha = 0.15f)),
-            border = BorderStroke(1.dp, SleekPrimary.copy(alpha = 0.35f)),
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = AppIcons.AutoAwesome,
-                        contentDescription = "AI",
-                        tint = SleekPrimary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Text(
-                        text = "Ask AI Financial Guide",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = SleekTextPrimary,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Have a question about your personal budget, tax, or saving tips? Ask our AI Financial Guide for practical insights grounded in your aggregated financial totals.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = SleekTextSecondary,
-                    lineHeight = 16.sp
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = aiQuestion,
-                    onValueChange = { 
-                        if (it.length <= 1000) {
-                            aiQuestion = it 
-                        }
-                    },
-                    placeholder = { Text("How can I start investing ₹2000/month?", fontSize = 13.sp, color = SleekTextSecondary) },
-                    singleLine = false,
-                    maxLines = 3,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = SleekPrimary,
-                        unfocusedBorderColor = SleekBorder,
-                        focusedContainerColor = SleekSurface,
-                        unfocusedContainerColor = SleekSurface,
-                        focusedTextColor = SleekTextPrimary,
-                        unfocusedTextColor = SleekTextPrimary
-                    )
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "🔒 AI queries are processed online via Google Gemini. For your security, never enter account numbers, passwords, or personal credentials.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = SleekTextSecondary.copy(alpha = 0.85f),
-                    fontSize = 11.sp,
-                    lineHeight = 15.sp
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                Button(
-                    onClick = {
-                        if (aiQuestion.isNotBlank()) {
-                            viewModel.askAiCardQuestion(aiQuestion)
-                        }
-                    },
-                    enabled = !isQuerying && aiQuestion.isNotBlank(),
-                    colors = ButtonDefaults.buttonColors(containerColor = SleekPrimary),
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.align(Alignment.End)
-                ) {
-                    if (isQuerying) {
-                        CircularProgressIndicator(modifier = Modifier.size(14.dp), color = Color.White, strokeWidth = 2.dp)
-                    } else {
-                        Text("Ask AI", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                    }
-                }
-                val answer = aiAnswer
-                if (answer != null) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    HorizontalDivider(color = SleekBorder.copy(alpha = 0.5f))
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = answer,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = SleekTextPrimary,
-                        lineHeight = 16.sp,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
-        }
-
         Spacer(modifier = Modifier.height(16.dp))
 
         // App Version Footer

@@ -12,11 +12,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.example.api.AiAdvisor
-import com.example.api.AiResult
 import com.example.api.ExchangeRateClient
-import com.example.api.FirebaseAiAdvisor
-import com.example.api.FinancialTotalsContext
 import com.example.data.*
 import com.example.data.realExpense
 import com.example.data.realIncome
@@ -35,16 +31,9 @@ import java.util.Locale
 
 private const val TAG = "FinanceViewModel"
 
-data class ChatMessage(
-    val text: String,
-    val isUser: Boolean,
-    val timestamp: Long = System.currentTimeMillis()
-)
-
 class FinanceViewModel(
     application: Application,
-    private val repository: FinanceRepository,
-    private val aiAdvisor: AiAdvisor = FirebaseAiAdvisor()
+    private val repository: FinanceRepository
 ) : AndroidViewModel(application) {
 
     val billsList = mutableStateListOf<BillEntry>()
@@ -178,36 +167,6 @@ class FinanceViewModel(
         }
     }
 
-    // Chat and AI states
-    private val _chatMessages = MutableStateFlow<List<ChatMessage>>(
-        listOf(
-            ChatMessage(
-                text = "Hello! I am your AI Financial Advisor. Ask me anything about budgeting, savings strategies, or request a complete 'AI Financial Audit' of your current finances using the dashboard button!",
-                isUser = false
-            )
-        )
-    )
-    val chatMessages: StateFlow<List<ChatMessage>> = _chatMessages.asStateFlow()
-
-    private val _isChatLoading = MutableStateFlow(false)
-    val isChatLoading: StateFlow<Boolean> = _isChatLoading.asStateFlow()
-
-    private val _aiAuditReport = MutableStateFlow<String?>(null)
-    val aiAuditReport: StateFlow<String?> = _aiAuditReport.asStateFlow()
-
-    private val _isAuditLoading = MutableStateFlow(false)
-    val isAuditLoading: StateFlow<Boolean> = _isAuditLoading.asStateFlow()
-
-    // Daily Spending Insight states (Powered by Gemini AI Advisor)
-    private val _dailySpendingInsight = MutableStateFlow<String?>(null)
-    val dailySpendingInsight: StateFlow<String?> = _dailySpendingInsight.asStateFlow()
-
-    private val _isInsightLoading = MutableStateFlow(false)
-    val isInsightLoading: StateFlow<Boolean> = _isInsightLoading.asStateFlow()
-
-    private val _insightLastUpdated = MutableStateFlow<Long?>(null)
-    val insightLastUpdated: StateFlow<Long?> = _insightLastUpdated.asStateFlow()
-
     // Selected Language Preference
     private val _selectedLanguage = MutableStateFlow("English")
     val selectedLanguage: StateFlow<String> = _selectedLanguage.asStateFlow()
@@ -244,22 +203,6 @@ class FinanceViewModel(
 
     private val _userProfileImageUri = MutableStateFlow<String?>(null)
     val userProfileImageUri: StateFlow<String?> = _userProfileImageUri.asStateFlow()
-
-    // Google Sign-In / Sign-Up Integration State (Firebase Auth + CredentialManager)
-    private val _isGoogleSignedIn = MutableStateFlow(false)
-    val isGoogleSignedIn: StateFlow<Boolean> = _isGoogleSignedIn.asStateFlow()
-
-    private val _isGoogleAuthLoading = MutableStateFlow(false)
-    val isGoogleAuthLoading: StateFlow<Boolean> = _isGoogleAuthLoading.asStateFlow()
-
-    private val _googleAccountEmail = MutableStateFlow<String?>(null)
-    val googleAccountEmail: StateFlow<String?> = _googleAccountEmail.asStateFlow()
-
-    private val _googleProfileName = MutableStateFlow<String?>(null)
-    val googleProfileName: StateFlow<String?> = _googleProfileName.asStateFlow()
-
-    private val _googleProfilePhotoUrl = MutableStateFlow<String?>(null)
-    val googleProfilePhotoUrl: StateFlow<String?> = _googleProfilePhotoUrl.asStateFlow()
 
     fun updateUserProfileImageFromUri(context: Context, uri: Uri) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -388,13 +331,6 @@ class FinanceViewModel(
                 repository.clearAllData()
             } catch (e: Throwable) {
                 android.util.Log.e("FinanceWipe", "Failed to clear database during wipe", e)
-            }
-
-            // 2. Sign out of Firebase to eliminate the cloud backdoor
-            try {
-                com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
-            } catch (e: Throwable) {
-                android.util.Log.e("FinanceWipe", "Failed to sign out of Firebase during wipe", e)
             }
 
             // 3. Cancel any scheduled reminders or background work
@@ -862,18 +798,6 @@ class FinanceViewModel(
     private val _lastBackupTimestamp = MutableStateFlow("Never")
     val lastBackupTimestamp: StateFlow<String> = _lastBackupTimestamp.asStateFlow()
 
-    private val _syncMode = MutableStateFlow("LOCAL_ONLY")
-    val syncMode: StateFlow<String> = _syncMode.asStateFlow()
-
-    private val _lastCloudSyncTimestamp = MutableStateFlow("Never")
-    val lastCloudSyncTimestamp: StateFlow<String> = _lastCloudSyncTimestamp.asStateFlow()
-
-    private val _cloudSyncStatus = MutableStateFlow("Local Only")
-    val cloudSyncStatus: StateFlow<String> = _cloudSyncStatus.asStateFlow()
-
-    private val _isCloudSyncing = MutableStateFlow(false)
-    val isCloudSyncing: StateFlow<Boolean> = _isCloudSyncing.asStateFlow()
-
     private val _toastMessage = MutableStateFlow<String?>(null)
     val toastMessage: StateFlow<String?> = _toastMessage.asStateFlow()
 
@@ -992,16 +916,9 @@ class FinanceViewModel(
                 _billAutoMarkPaid.value = settings.billAutoMarkPaid
                 _autoBackupEnabled.value = settings.autoBackupEnabled
                 _lastBackupTimestamp.value = settings.lastBackupTimestamp
-                _syncMode.value = settings.syncMode
-                _lastCloudSyncTimestamp.value = settings.lastCloudSyncTimestamp
-                _cloudSyncStatus.value = settings.cloudSyncStatus
             }
         }
         _userName.value = sharedPrefs.getString("user_name", null)
-        _isGoogleSignedIn.value = sharedPrefs.getBoolean("is_google_signed_in", false)
-        _googleAccountEmail.value = sharedPrefs.getString("google_account_email", null)
-        _googleProfileName.value = sharedPrefs.getString("google_profile_name", null)
-        _googleProfilePhotoUrl.value = sharedPrefs.getString("google_profile_photo_url", null)
         val savedImageUri = sharedPrefs.getString("user_profile_image_uri", null)
         if (!savedImageUri.isNullOrBlank()) {
             val localFile = File(getApplication<Application>().filesDir, "user_profile_avatar.jpg")
@@ -1626,85 +1543,6 @@ class FinanceViewModel(
         _autoBackupEnabled.value = enabled
         sharedPrefs.edit().putBoolean("auto_backup_enabled", enabled).apply()
         appSettingsManager.dispatch(AppSettingsIntent.SetAutoBackupEnabled(enabled))
-    }
-
-    fun setSyncMode(mode: String) {
-        _syncMode.value = mode
-        appSettingsManager.dispatch(com.example.data.AppSettingsIntent.UpdateSyncMode(mode))
-        if (mode == "ONLINE_SYNC") {
-            performCloudSync()
-        }
-    }
-
-    fun performCloudSync(onResult: ((Boolean, String) -> Unit)? = null) {
-        viewModelScope.launch {
-            _isCloudSyncing.value = true
-            val syncManager = com.example.data.CloudSyncManager.getInstance(getApplication())
-            val currentCurrencyCode = _selectedCurrencyCode.value
-            val currentCurrencySymbol = _selectedCurrencySymbol.value
-            val currentCurrencyName = _selectedCurrencyName.value
-            val currentBudget = _monthlyBudget.value
-
-            val result = syncManager.performSync(
-                database = com.example.data.FinanceDatabase.getDatabase(getApplication()),
-                currencyCode = currentCurrencyCode,
-                currencySymbol = currentCurrencySymbol,
-                currencyName = currentCurrencyName,
-                monthlyBudget = currentBudget
-            )
-            _isCloudSyncing.value = false
-            when (result) {
-                is com.example.data.CloudSyncResult.Success -> {
-                    _lastCloudSyncTimestamp.value = syncManager.lastSyncTimestamp.value
-                    _cloudSyncStatus.value = "Synced"
-                    _toastMessage.value = result.message
-                    onResult?.invoke(true, result.message)
-                }
-                is com.example.data.CloudSyncResult.Failure -> {
-                    _cloudSyncStatus.value = if (result.isOffline) "Offline (Local)" else "Error"
-                    _toastMessage.value = result.error
-                    onResult?.invoke(false, result.error)
-                }
-                is com.example.data.CloudSyncResult.Conflict -> {
-                    _cloudSyncStatus.value = "Conflict Detected"
-                    _toastMessage.value = "⚠️ Sync Conflict: ${result.message}"
-                    onResult?.invoke(false, result.message)
-                }
-            }
-        }
-    }
-
-    fun restoreFromCloud(onResult: ((Boolean, String) -> Unit)? = null) {
-        viewModelScope.launch {
-            _isCloudSyncing.value = true
-            val syncManager = com.example.data.CloudSyncManager.getInstance(getApplication())
-            val result = syncManager.restoreFromCloud(
-                database = com.example.data.FinanceDatabase.getDatabase(getApplication()),
-                currencyCallback = { code, symbol, name, budget ->
-                    updateDefaultCurrency(code, symbol, name, convertExisting = false)
-                    updateMonthlyBudget(budget)
-                }
-            )
-            _isCloudSyncing.value = false
-            when (result) {
-                is com.example.data.CloudSyncResult.Success -> {
-                    _lastCloudSyncTimestamp.value = syncManager.lastSyncTimestamp.value
-                    _cloudSyncStatus.value = "Restored"
-                    _toastMessage.value = result.message
-                    onResult?.invoke(true, result.message)
-                }
-                is com.example.data.CloudSyncResult.Failure -> {
-                    _cloudSyncStatus.value = "Restore Error"
-                    _toastMessage.value = result.error
-                    onResult?.invoke(false, result.error)
-                }
-                is com.example.data.CloudSyncResult.Conflict -> {
-                    _cloudSyncStatus.value = "Conflict Detected"
-                    _toastMessage.value = "⚠️ Sync Conflict: ${result.message}"
-                    onResult?.invoke(false, result.message)
-                }
-            }
-        }
     }
 
     fun clearAllData(targetContext: Context? = null) {
@@ -2466,161 +2304,6 @@ class FinanceViewModel(
             }
             val symbol = _selectedCurrencySymbol.value
             _toastMessage.value = "🎯 Successfully allocated %s%,.2f across %d goal(s)".format(symbol, totalToAllocate, allocations.count { it.value > 0 })
-        }
-    }
-
-    // AI Financial Advisor Layer
-    private var lastAiRequestTimestamp: Long = 0L
-
-    private val _aiCardAnswer = MutableStateFlow<String?>(null)
-    val aiCardAnswer: StateFlow<String?> = _aiCardAnswer.asStateFlow()
-
-    private val _isAiCardLoading = MutableStateFlow(false)
-    val isAiCardLoading: StateFlow<Boolean> = _isAiCardLoading.asStateFlow()
-
-    private val _showAiConsentDialog = MutableStateFlow(false)
-    val showAiConsentDialog: StateFlow<Boolean> = _showAiConsentDialog.asStateFlow()
-
-    val aiConsentEnabled: StateFlow<Boolean> = appSettingsManager.state
-        .map { it.aiConsentEnabled }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-
-    fun setAiConsent(enabled: Boolean) {
-        appSettingsManager.dispatch(AppSettingsIntent.SetAiConsent(enabled))
-        _showAiConsentDialog.value = false
-    }
-
-    fun dismissAiConsentDialog() {
-        _showAiConsentDialog.value = false
-    }
-
-    fun promptAiConsentDialog() {
-        _showAiConsentDialog.value = true
-    }
-
-    fun buildCurrentTotalsContext(): FinancialTotalsContext {
-        val allExp = expenses.value
-        val curCode = _selectedCurrencyCode.value
-        val curSymbol = _selectedCurrencySymbol.value
-        val totalInc = allExp.realIncome(curCode)
-        val totalExp = allExp.realExpense(curCode)
-        val net = totalInc - totalExp
-        val topCat = allExp.filter { it.type != "INCOME" && it.category != "Locked Savings" && it.kind != "SAVINGS_LOCK" && it.kind != "SAVINGS_RELEASE" }
-            .groupBy { it.category }
-            .mapValues { entry -> entry.value.sumOf { Money.convert(it.amountMinor, it.currencyCode, curCode) } }
-            .maxByOrNull { it.value }
-
-        return FinancialTotalsContext(
-            totalIncome = totalInc,
-            totalExpenses = totalExp,
-            netBalance = net,
-            topExpenseCategory = topCat?.key ?: "General",
-            categoryNames = allCategories.value,
-            currencySymbol = curSymbol
-        )
-    }
-
-    suspend fun askAiAdvisor(userPrompt: String): AiResult {
-        val trimmed = userPrompt.trim()
-        if (trimmed.isEmpty()) {
-            return AiResult.Failure.Unknown("Please enter a question.")
-        }
-        if (trimmed.length > FirebaseAiAdvisor.MAX_PROMPT_LENGTH) {
-            return AiResult.Failure.Unknown("Prompt is too long (maximum ${FirebaseAiAdvisor.MAX_PROMPT_LENGTH} characters).")
-        }
-
-        if (!appSettingsManager.state.value.aiConsentEnabled) {
-            _showAiConsentDialog.value = true
-            return AiResult.Failure.ConsentRequired
-        }
-
-        val now = System.currentTimeMillis()
-        if (now - lastAiRequestTimestamp < 3_000L) {
-            return AiResult.Failure.RateLimited
-        }
-
-        // Daily limit check (20 requests/day soft cap per device)
-        val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-        val lastDate = appSettingsManager.state.value.aiLastRequestDate
-        val count = if (lastDate == todayStr) appSettingsManager.state.value.aiDailyRequestCount else 0
-        if (count >= 20) {
-            return AiResult.Failure.DailyLimitReached
-        }
-
-        lastAiRequestTimestamp = now
-        appSettingsManager.dispatch(AppSettingsIntent.IncrementAiRequestCount)
-
-        val context = buildCurrentTotalsContext()
-        return aiAdvisor.ask(trimmed, context)
-    }
-
-    fun askAiCardQuestion(question: String) {
-        if (question.isBlank()) return
-        viewModelScope.launch {
-            _isAiCardLoading.value = true
-            val result = askAiAdvisor(question)
-            when (result) {
-                is AiResult.Success -> {
-                    _aiCardAnswer.value = result.text
-                }
-                is AiResult.Failure -> {
-                    if (result !is AiResult.Failure.ConsentRequired) {
-                        _aiCardAnswer.value = result.userFriendlyMessage
-                    }
-                }
-            }
-            _isAiCardLoading.value = false
-        }
-    }
-
-    fun sendChatMessage(userMessageText: String) {
-        if (userMessageText.isBlank()) return
-        val userMsg = ChatMessage(text = userMessageText, isUser = true)
-        _chatMessages.update { it + userMsg }
-        _isChatLoading.value = true
-
-        viewModelScope.launch {
-            val result = askAiAdvisor(userMessageText)
-            val reply = when (result) {
-                is AiResult.Success -> result.text
-                is AiResult.Failure -> result.userFriendlyMessage
-            }
-            _chatMessages.update { it + ChatMessage(text = reply, isUser = false) }
-            _isChatLoading.value = false
-        }
-    }
-
-    fun requestFinancialAudit() {
-        _isAuditLoading.value = true
-        _aiAuditReport.value = null
-
-        viewModelScope.launch {
-            val result = askAiAdvisor("Please provide a comprehensive financial audit and 3 actionable budget optimization tips based on my monthly totals.")
-            _aiAuditReport.value = when (result) {
-                is AiResult.Success -> result.text
-                is AiResult.Failure -> result.userFriendlyMessage
-            }
-            _isAuditLoading.value = false
-        }
-    }
-
-    fun generateDailySpendingInsight(forceRefresh: Boolean = false) {
-        if (_isInsightLoading.value && !forceRefresh) return
-        val now = System.currentTimeMillis()
-        val lastUpdated = _insightLastUpdated.value
-        if (!forceRefresh && _dailySpendingInsight.value != null && lastUpdated != null && (now - lastUpdated < 4 * 3600 * 1000L)) {
-            return
-        }
-
-        _isInsightLoading.value = true
-        viewModelScope.launch {
-            val result = askAiAdvisor("Provide a concise 2-sentence spending observation and budget health summary for today based on my totals.")
-            _dailySpendingInsight.value = when (result) {
-                is AiResult.Success -> result.text
-                is AiResult.Failure -> result.userFriendlyMessage
-            }
-            _insightLastUpdated.value = System.currentTimeMillis()
-            _isInsightLoading.value = false
         }
     }
 

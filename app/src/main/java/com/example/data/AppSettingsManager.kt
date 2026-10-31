@@ -7,7 +7,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 data class AppSettingsState(
-    val hasAiConsent: Boolean = false,
     val appPin: String? = null,
     val isAnimationEnabled: Boolean = true,
     val themeMode: String = "SYSTEM",
@@ -45,16 +44,9 @@ data class AppSettingsState(
     val billAutoMarkPaid: Boolean = false,
     val autoBackupEnabled: Boolean = false,
     val lastBackupTimestamp: String = "Never",
-    val syncMode: String = "LOCAL",
-    val lastCloudSyncTimestamp: String = "Never",
-    val cloudSyncStatus: String = "Not Synced",
-    val aiDailyRequestCount: Int = 0,
-    val aiLastRequestDate: String = "",
-    val aiConsentEnabled: Boolean = false
 )
 
 sealed class AppSettingsIntent {
-    data class SetAiConsent(val granted: Boolean) : AppSettingsIntent()
     data class SetPin(val pin: String?) : AppSettingsIntent()
     data class ResetPinLockout(val attempts: Int = 0) : AppSettingsIntent()
     data class SetAnimationsEnabled(val enabled: Boolean) : AppSettingsIntent()
@@ -77,13 +69,11 @@ sealed class AppSettingsIntent {
     data class UpdateBillReminderTiming(val days: String) : AppSettingsIntent()
     data class UpdateBillReminderPreferredTime(val time: String) : AppSettingsIntent()
     data class UpdateBillAutoMarkPaid(val enabled: Boolean) : AppSettingsIntent()
-    data class UpdateSyncMode(val mode: String) : AppSettingsIntent()
     data class SetBiometricEnabled(val enabled: Boolean) : AppSettingsIntent()
     data class SetPrivacyModeEnabled(val enabled: Boolean) : AppSettingsIntent()
     data class SetHideSensitiveAmounts(val enabled: Boolean) : AppSettingsIntent()
     data class SetLockOnRestart(val enabled: Boolean) : AppSettingsIntent()
     data class SetAutoBackupEnabled(val enabled: Boolean) : AppSettingsIntent()
-    object IncrementAiRequestCount : AppSettingsIntent()
     object ReloadStateAfterWipe : AppSettingsIntent()
     data class UpdateAnimationEnabled(val enabled: Boolean) : AppSettingsIntent()
 }
@@ -105,6 +95,23 @@ class AppSettingsManager private constructor(private val context: Context) {
     }
 
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    init {
+        // Remove obsolete preferences left by older Firebase, cloud-sync, and Google sign-in builds.
+        prefs.edit()
+            .remove("ai_consent_enabled")
+            .remove("ai_daily_request_count")
+            .remove("ai_last_request_date")
+            .remove("sync_mode")
+            .remove("last_cloud_sync_timestamp")
+            .remove("cloud_sync_status")
+            .remove("is_google_signed_in")
+            .remove("google_account_email")
+            .remove("google_profile_name")
+            .remove("google_profile_photo_url")
+            .apply()
+    }
+
     private val _state = MutableStateFlow(loadInitialState())
     val state: StateFlow<AppSettingsState> = _state.asStateFlow()
 
@@ -119,8 +126,6 @@ class AppSettingsManager private constructor(private val context: Context) {
         val initialLockoutWall = prefs.getLong("pin_lockout_until_wall", 0L)
 
         return AppSettingsState(
-            hasAiConsent = prefs.getBoolean("ai_consent_enabled", false),
-            aiConsentEnabled = prefs.getBoolean("ai_consent_enabled", false),
             appPin = rawPin,
             isAppLocked = !rawPin.isNullOrBlank(),
             pinLockoutUntil = initialLockoutWall,
@@ -153,12 +158,7 @@ class AppSettingsManager private constructor(private val context: Context) {
             billAutoMarkPaid = prefs.getBoolean("bill_auto_mark_paid", false),
             autoBackupEnabled = prefs.getBoolean("auto_backup_enabled", false),
             lastBackupTimestamp = prefs.getString("last_backup_timestamp", "Never") ?: "Never",
-            syncMode = prefs.getString("sync_mode", "LOCAL") ?: "LOCAL",
-            lastCloudSyncTimestamp = prefs.getString("last_cloud_sync_timestamp", "Never") ?: "Never",
-            cloudSyncStatus = prefs.getString("cloud_sync_status", "Not Synced") ?: "Not Synced",
             isAnimationEnabled = prefs.getBoolean("animations_enabled", true),
-            aiDailyRequestCount = prefs.getInt("ai_daily_request_count", 0),
-            aiLastRequestDate = prefs.getString("ai_last_request_date", "") ?: ""
         )
     }
 
@@ -235,10 +235,6 @@ class AppSettingsManager private constructor(private val context: Context) {
 
     fun dispatch(intent: AppSettingsIntent) {
         _state.value = when (intent) {
-            is AppSettingsIntent.SetAiConsent -> {
-                prefs.edit().putBoolean("ai_consent_enabled", intent.granted).apply()
-                _state.value.copy(aiConsentEnabled = intent.granted, hasAiConsent = intent.granted)
-            }
             is AppSettingsIntent.SetPin -> {
                 if (intent.pin.isNullOrBlank()) {
                     prefs.edit().remove("app_pin").commit()
@@ -252,19 +248,6 @@ class AppSettingsManager private constructor(private val context: Context) {
                     prefs.edit().putString("app_pin", hashed).commit()
                     _state.value.copy(appPin = hashed, isAppLocked = true)
                 }
-            }
-            is AppSettingsIntent.IncrementAiRequestCount -> {
-                val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
-                val newCount = if (_state.value.aiLastRequestDate == todayStr) {
-                    _state.value.aiDailyRequestCount + 1
-                } else {
-                    1
-                }
-                prefs.edit()
-                    .putInt("ai_daily_request_count", newCount)
-                    .putString("ai_last_request_date", todayStr)
-                    .apply()
-                _state.value.copy(aiDailyRequestCount = newCount, aiLastRequestDate = todayStr)
             }
             is AppSettingsIntent.UpdateLanguage -> {
                 prefs.edit().putString("language", intent.lang).apply()
@@ -354,10 +337,6 @@ class AppSettingsManager private constructor(private val context: Context) {
             is AppSettingsIntent.UpdateBillAutoMarkPaid -> {
                 prefs.edit().putBoolean("bill_auto_mark_paid", intent.enabled).apply()
                 _state.value.copy(billAutoMarkPaid = intent.enabled)
-            }
-            is AppSettingsIntent.UpdateSyncMode -> {
-                prefs.edit().putString("sync_mode", intent.mode).apply()
-                _state.value.copy(syncMode = intent.mode)
             }
             is AppSettingsIntent.SetBiometricEnabled -> {
                 prefs.edit().putBoolean("biometric_enabled", intent.enabled).apply()

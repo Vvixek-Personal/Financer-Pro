@@ -1,6 +1,6 @@
 {
   "name": "Expense Tracker",
-  "description": "A smart Personal Expense Tracker with offline Room database, interactive custom Canvas-drawn charts, and a Gemini-powered budget analysis advisor.",
+  "description": "A personal finance and expense tracker with local Room storage, interactive Canvas-drawn analytics, and on-device backup and recovery.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": []
 }

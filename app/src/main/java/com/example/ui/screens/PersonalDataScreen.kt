@@ -48,10 +48,6 @@ fun PersonalDataScreen(
     val currentGender by viewModel.userGender.collectAsStateWithLifecycle()
     val profileImageUri by viewModel.userProfileImageUri.collectAsStateWithLifecycle()
 
-    val isGoogleSignedIn by viewModel.isGoogleSignedIn.collectAsStateWithLifecycle()
-    val googleAccountEmail by viewModel.googleAccountEmail.collectAsStateWithLifecycle()
-    val googleProfileName by viewModel.googleProfileName.collectAsStateWithLifecycle()
-    val googleProfilePhotoUrl by viewModel.googleProfilePhotoUrl.collectAsStateWithLifecycle()
 
     var nameText by remember { mutableStateOf(currentName ?: "William John Malik") }
     LaunchedEffect(currentName) {

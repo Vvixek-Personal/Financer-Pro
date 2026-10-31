@@ -391,11 +391,11 @@ fun SidebarDrawerContent(
                     }
                 ),
                 SidebarMenuItemData(
-                    icon = AppIcons.CloudSync,
-                    iconColor = Color(0xFF0284C7),
-                    iconBgColor = Color(0xFFE0F2FE),
+                    icon = AppIcons.Restore,
+                    iconColor = Color(0xFF10B981),
+                    iconBgColor = Color(0xFFD1FAE5),
                     titleKey = "Backup & Restore",
-                    subtitleKey = "Local Only or Online Cloud Sync, 1-click restore",
+                    subtitleKey = "Encrypted local backup codes and recovery snapshots",
                     onClick = {
                         onCloseDrawer()
                         onOpenSettingsScreen(SettingsSubScreen.BackupRestore)
