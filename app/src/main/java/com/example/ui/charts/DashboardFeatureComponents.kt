@@ -1287,6 +1287,14 @@ fun QuickCurrencyConvertDialog(
                                     color = SleekTextSecondary
                                 )
                             }
+                            else -> {
+                                Text(
+                                    text = "Conversion unavailable",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = SleekTextSecondary
+                                )
+                            }
                         }
                     }
                 }
