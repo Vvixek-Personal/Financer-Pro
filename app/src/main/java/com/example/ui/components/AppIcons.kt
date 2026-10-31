@@ -49,9 +49,6 @@ object AppIcons {
     val ChevronRight: ImageVector get() = Icons.Outlined.ChevronRight
     val Clear: ImageVector get() = Icons.Outlined.Clear
     val Close: ImageVector get() = Icons.Outlined.Close
-    val CloudDownload: ImageVector get() = Icons.Outlined.CloudDownload
-    val CloudSync: ImageVector get() = Icons.Outlined.CloudSync
-    val CloudUpload: ImageVector get() = Icons.Outlined.CloudUpload
     val Code: ImageVector get() = Icons.Outlined.Code
     val Coffee: ImageVector get() = Icons.Outlined.Coffee
     val ColorLens: ImageVector get() = Icons.Outlined.ColorLens

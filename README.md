@@ -9,11 +9,10 @@ A personal finance and expense-tracking Android application built with **Kotlin*
 - **Expense tracking** — Keep track of personal income and expenses.
 - **Local data storage** — Uses [Room](https://developer.android.com/training/data-storage/room) for on-device persistence.
 - **Visual analytics** — Interactive charts, including custom Canvas-drawn visualizations.
-- **AI-assisted budget insights** — Includes a Gemini-powered budget analysis capability.
 - **Modern Android UI** — Built with Jetpack Compose and Material 3.
 - **Background work** — Android WorkManager is included in the project dependencies.
 
-The core project includes a local Room database. AI-assisted features and other network-backed integrations require connectivity; the app should not be assumed to be entirely offline.
+The app's financial records are stored locally in Room. There is no Firebase integration, cloud synchronization, remote account sign-in, or AI Advisor. Optional exchange-rate refreshes may contact the configured public rate provider; this does not upload transaction data.
 
 ## Tech stack
 
@@ -25,7 +24,6 @@ The core project includes a local Room database. AI-assisted features and other 
 | Local persistence | Room |
 | Async work | Kotlin Coroutines |
 | Networking | Retrofit, OkHttp, Moshi |
-| AI / backend integrations | Firebase AI, Firebase Authentication, Cloud Firestore, Firebase App Check |
 | Image loading | Coil |
 | Tests | JUnit, AndroidX Test, Robolectric, Roborazzi |
 
@@ -61,8 +59,6 @@ If you build from the command line, use the Gradle wrapper if wrapper scripts ar
 ## Configuration
 
 The repository includes an `.env.example` file as a configuration placeholder. Do not commit private credentials, signing keys, service-account files, or production secrets.
-
-The app includes Firebase-related integrations. If you need to run features that depend on a Firebase project, configure the appropriate Android Firebase configuration for your own project and follow the official [Firebase setup for Android](https://firebase.google.com/docs/android/setup) guide. The Google Services Gradle plugin is configured to warn when its configuration file is missing, so a successful Gradle sync alone does not prove that Firebase-backed features are configured.
 
 For release signing, the app's Gradle configuration reads the keystore path and passwords from environment variables:
 
@@ -106,7 +102,7 @@ Run the relevant test tasks from Android Studio's Gradle tool window or your loc
 
 ## Privacy and data handling
 
-Financer Pro uses a local Room database for on-device data persistence and also contains network/Firebase integrations. Do not interpret “local database” as a guarantee that every feature is offline-only or that no data can leave the device. Review the implementation and the privacy terms of any configured external service before using it with real financial information.
+Financer Pro stores transactions, accounts, budgets, and other financial records in its on-device Room database. It does not include Firebase, cloud synchronization, remote account sign-in, or AI Advisor services. The optional exchange-rate refresh feature may use the configured public rate provider; it does not transmit transaction records. Keep the device and exported backup files secure.
 
 Use test data while developing. Back up important data before installing development builds or testing database migrations.
 

@@ -2890,10 +2890,6 @@ fun BackupRestoreScreen(
 ) {
     val autoBackup by viewModel.autoBackupEnabled.collectAsStateWithLifecycle()
     val lastBackup by viewModel.lastBackupTimestamp.collectAsStateWithLifecycle()
-    val syncMode by viewModel.syncMode.collectAsStateWithLifecycle()
-    val cloudSyncStatus by viewModel.cloudSyncStatus.collectAsStateWithLifecycle()
-    val lastCloudSync by viewModel.lastCloudSyncTimestamp.collectAsStateWithLifecycle()
-    val isCloudSyncing by viewModel.isCloudSyncing.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
@@ -2903,7 +2899,6 @@ fun BackupRestoreScreen(
     var isExporting by remember { mutableStateOf(false) }
     var isRestoring by remember { mutableStateOf(false) }
     var showRestoreConfirmDialog by remember { mutableStateOf(false) }
-    var showCloudRestoreConfirmDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -2920,304 +2915,6 @@ fun BackupRestoreScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp)
         ) {
-            // 🛡️ SECTION 0: STORAGE & SYNC ENGINE MODE SELECTOR
-            Card(
-                colors = CardDefaults.cardColors(containerColor = SleekSurface),
-                border = BorderStroke(1.5.dp, Brush.horizontalGradient(
-                    colors = if (syncMode == "ONLINE_SYNC") {
-                        listOf(Color(0xFF0284C7).copy(alpha = 0.8f), Color(0xFF38BDF8).copy(alpha = 0.8f))
-                    } else {
-                        listOf(Color(0xFF10B981).copy(alpha = 0.8f), Color(0xFF34D399).copy(alpha = 0.8f))
-                    }
-                )),
-                shape = RoundedCornerShape(22.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(18.dp)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (syncMode == "ONLINE_SYNC") Color(0xFF0284C7).copy(alpha = 0.15f)
-                                    else Color(0xFF10B981).copy(alpha = 0.15f)
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = if (syncMode == "ONLINE_SYNC") AppIcons.CloudSync else AppIcons.Security,
-                                contentDescription = "Storage Mode",
-                                tint = if (syncMode == "ONLINE_SYNC") Color(0xFF0284C7) else Color(0xFF10B981),
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Storage & Sync Destination",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp,
-                                color = SleekTextPrimary
-                            )
-                            Text(
-                                text = if (syncMode == "ONLINE_SYNC") "Cloud Sync Enabled (Firebase Vault)" else "Local Only Storage (100% Offline & Private)",
-                                fontSize = 12.sp,
-                                color = if (syncMode == "ONLINE_SYNC") Color(0xFF0284C7) else Color(0xFF10B981),
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Text(
-                        text = "Choose whether financial records stay exclusively on this device or synchronize to your secure cloud database:",
-                        fontSize = 12.sp,
-                        color = SleekTextSecondary,
-                        lineHeight = 17.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // 🔲 OPTION A: LOCAL ONLY
-                    Surface(
-                        onClick = {
-                            viewModel.setSyncMode("LOCAL_ONLY")
-                            Toast.makeText(context, "Switched to Local Only Mode (Offline)", Toast.LENGTH_SHORT).show()
-                        },
-                        shape = RoundedCornerShape(14.dp),
-                        color = if (syncMode == "LOCAL_ONLY") Color(0xFF10B981).copy(alpha = 0.12f) else SleekSurfaceElevated,
-                        border = BorderStroke(
-                            width = if (syncMode == "LOCAL_ONLY") 1.8.dp else 1.dp,
-                            color = if (syncMode == "LOCAL_ONLY") Color(0xFF10B981) else SleekBorder
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            RadioButton(
-                                selected = syncMode == "LOCAL_ONLY",
-                                onClick = {
-                                    viewModel.setSyncMode("LOCAL_ONLY")
-                                    Toast.makeText(context, "Switched to Local Only Mode", Toast.LENGTH_SHORT).show()
-                                },
-                                colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF10B981))
-                            )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Text(
-                                        text = "Local Storage Only",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp,
-                                        color = SleekTextPrimary
-                                    )
-                                    Surface(
-                                        color = Color(0xFF10B981).copy(alpha = 0.15f),
-                                        shape = RoundedCornerShape(6.dp)
-                                    ) {
-                                        Text(
-                                            text = "100% PRIVATE",
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = Color(0xFF10B981),
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                        )
-                                    }
-                                }
-                                Text(
-                                    text = "All accounts, transactions and budgets stay in SQLite Room on device. Zero external data transmission.",
-                                    fontSize = 11.sp,
-                                    color = SleekTextSecondary,
-                                    lineHeight = 15.sp
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // ☁️ OPTION B: ONLINE CLOUD SYNC
-                    Surface(
-                        onClick = {
-                            viewModel.setSyncMode("ONLINE_SYNC")
-                            Toast.makeText(context, "Switched to Online Cloud Sync Mode", Toast.LENGTH_SHORT).show()
-                        },
-                        shape = RoundedCornerShape(14.dp),
-                        color = if (syncMode == "ONLINE_SYNC") Color(0xFF0284C7).copy(alpha = 0.12f) else SleekSurfaceElevated,
-                        border = BorderStroke(
-                            width = if (syncMode == "ONLINE_SYNC") 1.8.dp else 1.dp,
-                            color = if (syncMode == "ONLINE_SYNC") Color(0xFF0284C7) else SleekBorder
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            RadioButton(
-                                selected = syncMode == "ONLINE_SYNC",
-                                onClick = {
-                                    viewModel.setSyncMode("ONLINE_SYNC")
-                                    Toast.makeText(context, "Switched to Online Cloud Sync Mode", Toast.LENGTH_SHORT).show()
-                                },
-                                colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF0284C7))
-                            )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Text(
-                                        text = "Online Cloud Sync",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp,
-                                        color = SleekTextPrimary
-                                    )
-                                    Surface(
-                                        color = Color(0xFF0284C7).copy(alpha = 0.15f),
-                                        shape = RoundedCornerShape(6.dp)
-                                    ) {
-                                        Text(
-                                            text = "FIREBASE VAULT",
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = Color(0xFF0284C7),
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                        )
-                                    }
-                                }
-                                Text(
-                                    text = "Securely backup and synchronize accounts, transactions, budgets & goals to Cloud Firestore.",
-                                    fontSize = 11.sp,
-                                    color = SleekTextSecondary,
-                                    lineHeight = 15.sp
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // 🚀 ACTIVE MODE CONTROLS & PROPER BUTTONS
-                    if (syncMode == "ONLINE_SYNC") {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(SleekSurfaceElevated)
-                                .padding(14.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Text(
-                                        text = "Cloud Sync Status",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = SleekTextPrimary
-                                    )
-                                    Text(
-                                        text = "State: $cloudSyncStatus • Last synced: $lastCloudSync",
-                                        fontSize = 11.sp,
-                                        color = SleekTextSecondary
-                                    )
-                                }
-                                if (isCloudSyncing) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(18.dp),
-                                        strokeWidth = 2.dp,
-                                        color = Color(0xFF0284C7)
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            // 🔘 PROPER BUTTON: SYNC NOW
-                            Button(
-                                onClick = {
-                                    viewModel.performCloudSync { success, msg ->
-                                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                                    }
-                                },
-                                enabled = !isCloudSyncing,
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF0284C7),
-                                    contentColor = Color.White
-                                )
-                            ) {
-                                Icon(
-                                    imageVector = if (isCloudSyncing) AppIcons.Sync else AppIcons.CloudUpload,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = if (isCloudSyncing) "Syncing in Progress..." else "Sync Now to Cloud",
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            // 🔘 PROPER BUTTON: RESTORE FROM CLOUD
-                            OutlinedButton(
-                                onClick = { showCloudRestoreConfirmDialog = true },
-                                enabled = !isCloudSyncing,
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Icon(
-                                    imageVector = AppIcons.CloudDownload,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Restore Latest From Cloud Vault",
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-                    } else {
-                        // LOCAL ONLY HELPER BANNER
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF10B981).copy(alpha = 0.1f))
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = AppIcons.CheckCircle,
-                                contentDescription = null,
-                                tint = Color(0xFF10B981),
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Text(
-                                text = "Local Mode Active: Zero network traffic. Your finances are strictly offline and encrypted on this device.",
-                                fontSize = 11.sp,
-                                color = Color(0xFF065F46),
-                                fontWeight = FontWeight.Medium,
-                                lineHeight = 15.sp
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
             // 📦 SECTION 1: EXPORT BACKUP CODE CARD
             Card(
                 colors = CardDefaults.cardColors(containerColor = SleekSurface),
@@ -3595,47 +3292,6 @@ fun BackupRestoreScreen(
         )
     }
 
-    // ☁️ CLOUD RESTORE CONFIRMATION DIALOG
-    if (showCloudRestoreConfirmDialog) {
-        val authUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
-        val isUserLoggedIn = authUser != null
-        AlertDialog(
-            onDismissRequest = { showCloudRestoreConfirmDialog = false },
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(AppIcons.CloudDownload, contentDescription = null, tint = Color(0xFF0284C7))
-                    Text("Restore from Cloud Vault?", fontWeight = FontWeight.Bold)
-                }
-            },
-            text = {
-                if (!isUserLoggedIn) {
-                    Text("You must be signed in to access and restore your cloud vault. Please sign in via the Account tab first.")
-                } else {
-                    Text("This will download your latest cloud backup and restore your accounts, transactions, budgets, and savings goals into the local database. An emergency safety backup of your current local database will be created automatically before restoring. Proceed?")
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showCloudRestoreConfirmDialog = false
-                        viewModel.restoreFromCloud { success, msg ->
-                            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
-                        }
-                    },
-                    enabled = isUserLoggedIn,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
-                ) {
-                    Text("Restore from Cloud")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showCloudRestoreConfirmDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-
     // 🚚 Delivery Truck Loading Dialog for Export & Restore Operations
     TruckLoadingDialog(
         isOpen = isExporting,
@@ -3660,10 +3316,6 @@ fun DataManagementScreen(
     onNavigateToLocalRecovery: () -> Unit = {}
 ) {
     val storageSize by viewModel.storageSize.collectAsStateWithLifecycle()
-    val syncMode by viewModel.syncMode.collectAsStateWithLifecycle()
-    val cloudSyncStatus by viewModel.cloudSyncStatus.collectAsStateWithLifecycle()
-    val lastCloudSync by viewModel.lastCloudSyncTimestamp.collectAsStateWithLifecycle()
-    val isCloudSyncing by viewModel.isCloudSyncing.collectAsStateWithLifecycle()
     val accounts by viewModel.accounts.collectAsStateWithLifecycle()
     val currencyCode by viewModel.selectedCurrencyCode.collectAsStateWithLifecycle()
     val currencySymbol by viewModel.selectedCurrencySymbol.collectAsStateWithLifecycle()
@@ -3778,7 +3430,7 @@ fun DataManagementScreen(
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
                     ) {
-                        Icon(AppIcons.CloudUpload, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(AppIcons.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Choose CSV or JSON File", fontWeight = FontWeight.Bold)
                     }
@@ -3786,107 +3438,6 @@ fun DataManagementScreen(
             }
 
             Spacer(modifier = Modifier.height(20.dp))
-
-            // 💾 STORAGE & SYNC ENGINE CARD
-            Card(
-                colors = CardDefaults.cardColors(containerColor = SleekSurface),
-                border = BorderStroke(1.dp, if (syncMode == "ONLINE_SYNC") Color(0xFF0284C7).copy(alpha = 0.5f) else Color(0xFF10B981).copy(alpha = 0.5f)),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(
-                                imageVector = if (syncMode == "ONLINE_SYNC") AppIcons.CloudSync else AppIcons.Security,
-                                contentDescription = null,
-                                tint = if (syncMode == "ONLINE_SYNC") Color(0xFF0284C7) else Color(0xFF10B981),
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Text("STORAGE & SYNC DESTINATION", fontWeight = FontWeight.Bold, color = SleekTextPrimary)
-                        }
-                        Surface(
-                            color = if (syncMode == "ONLINE_SYNC") Color(0xFF0284C7).copy(alpha = 0.15f) else Color(0xFF10B981).copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(6.dp)
-                        ) {
-                            Text(
-                                text = if (syncMode == "ONLINE_SYNC") "CLOUD SYNC" else "LOCAL ONLY",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (syncMode == "ONLINE_SYNC") Color(0xFF0284C7) else Color(0xFF10B981),
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = if (syncMode == "ONLINE_SYNC") {
-                            "Encrypted cloud synchronization active with Firebase Vault. Status: $cloudSyncStatus • Last synced: $lastCloudSync"
-                        } else {
-                            "100% Offline & Private: Records stay solely in on-device SQLite database. No data is sent to external servers."
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = SleekTextSecondary,
-                        lineHeight = 16.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = {
-                                val target = if (syncMode == "ONLINE_SYNC") "LOCAL_ONLY" else "ONLINE_SYNC"
-                                viewModel.setSyncMode(target)
-                                Toast.makeText(
-                                    context,
-                                    if (target == "ONLINE_SYNC") "Switched to Online Cloud Sync" else "Switched to Local Storage Only",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (syncMode == "ONLINE_SYNC") AppIcons.Security else AppIcons.CloudSync,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(if (syncMode == "ONLINE_SYNC") "Use Local Only" else "Enable Cloud Sync", fontSize = 12.sp)
-                        }
-
-                        if (syncMode == "ONLINE_SYNC") {
-                            Button(
-                                onClick = {
-                                    viewModel.performCloudSync { success, msg ->
-                                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                                    }
-                                },
-                                enabled = !isCloudSyncing,
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
-                            ) {
-                                if (isCloudSyncing) {
-                                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = Color.White)
-                                } else {
-                                    Icon(AppIcons.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
-                                }
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(if (isCloudSyncing) "Syncing..." else "Sync Now", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-            }
 
             Spacer(modifier = Modifier.height(20.dp))
 
@@ -4362,7 +3913,6 @@ fun PrivacySettingsScreen(
     onBack: () -> Unit
 ) {
     val privacyMode by viewModel.privacyModeEnabled.collectAsStateWithLifecycle()
-    val aiConsent by viewModel.aiConsentEnabled.collectAsStateWithLifecycle()
 
     Column(
         modifier = Modifier
@@ -4389,57 +3939,11 @@ fun PrivacySettingsScreen(
                     Text("DATA STORAGE & PRIVACY ARCHITECTURE", fontWeight = FontWeight.Bold, color = SleekTextPrimary)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        "• Core Storage: All transaction entries, receipts, accounts, and local backup files remain strictly on your local device inside Room SQLite database. Backups to cloud are disabled.\n" +
-                        "• Online Features: Exchange rate updates (open.er-api.com) and optional AI Advisor (Google Gemini via Firebase AI Logic) require internet. AI features are disabled by default and require explicit consent.",
+                        "• Core Storage: Transactions, receipts, accounts, and backups remain on this device in the local Room database.\n" +
+                        "• Network Access: No Firebase, cloud sync, account sign-in, or AI Advisor services are included. Optional exchange-rate refreshes use the configured public rate provider.",
                         style = MaterialTheme.typography.bodySmall,
                         color = SleekTextSecondary,
                         lineHeight = 18.sp
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Card(
-                colors = CardDefaults.cardColors(containerColor = SleekSurface),
-                border = BorderStroke(1.dp, SleekBorder),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("AI Financial Advisor", fontWeight = FontWeight.Bold, color = SleekTextPrimary)
-                            Text(
-                                "Enable Gemini AI insights and daily budget recommendations",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = SleekTextSecondary
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Switch(
-                            checked = aiConsent,
-                            onCheckedChange = { isChecked ->
-                                if (isChecked) {
-                                    viewModel.promptAiConsentDialog()
-                                } else {
-                                    viewModel.setAiConsent(false)
-                                }
-                            }
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "When enabled, high-level monthly aggregates (total income, expenses, net balance) and questions are transmitted securely to Google Gemini servers via Firebase. Transaction notes, account numbers, and merchant names are NEVER shared.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = SleekTextSecondary.copy(alpha = 0.8f),
-                        fontSize = 11.sp,
-                        lineHeight = 15.sp
                     )
                 }
             }
@@ -4577,9 +4081,9 @@ fun AboutAppScreen(
                         Text("System Architecture & Specifications", fontWeight = FontWeight.Bold, color = SleekTextPrimary)
                         HorizontalDivider(color = SleekBorder)
                         DetailSpecRow("Platform", "Android (Jetpack Compose & Kotlin)")
-                        DetailSpecRow("Database", "Dual-Tier: 100% Offline Room + Optional Firebase Cloud Sync")
+                        DetailSpecRow("Database", "Local-only Room database with on-device backups")
                         DetailSpecRow("Screen Protection", "Android FLAG_SECURE Banking Privacy Shield")
-                        DetailSpecRow("Diagnostics", "AI Financial Health Score & Loan EMI Engine")
+                        DetailSpecRow("Diagnostics", "Financial Health Score & Loan EMI Engine")
                         DetailSpecRow("Localization", "9 Built-in Languages with native RTL")
                         DetailSpecRow("Currencies", "100+ Global fiat currencies catalog with live forex")
                         DetailSpecRow("Data Security", "Local Encrypted File Storage, Biometric & PIN Lock")
@@ -4598,7 +4102,7 @@ fun AboutAppScreen(
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Privacy Guarantee & Data Safety", fontWeight = FontWeight.Bold, color = SleekTextPrimary)
                         Text(
-                            "Financer defaults to 100% offline local storage on your device. When you explicitly enable Online Cloud Sync (Google Firebase Firestore) or use the AI Financial Advisor (Google Gemini), your financial records and queries are transmitted securely via encrypted HTTPS to Google Cloud Services under your authenticated account. Data is encrypted in transit and at rest, never sold, and never used for advertising.",
+                            "Financer stores your financial records locally on this device using Room. The app includes no Firebase services, cloud synchronization, remote account sign-in, or AI Advisor. Optional exchange-rate refreshes are the only feature that may contact its configured public rate provider; your transaction records are not uploaded.",
                             style = MaterialTheme.typography.bodySmall,
                             color = SleekTextSecondary,
                             lineHeight = 18.sp
@@ -4626,7 +4130,7 @@ fun AboutAppScreen(
                             color = SleekTextPrimary
                         )
                         Text(
-                            "Interactive high-fidelity physics loader (Uiverse.io by vinodjangid07) used across app startup, cloud sync, backups and data operations.",
+                            "Interactive high-fidelity physics loader (Uiverse.io by vinodjangid07) used across app startup, local backups and data operations.",
                             style = MaterialTheme.typography.bodySmall,
                             color = SleekTextSecondary,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center

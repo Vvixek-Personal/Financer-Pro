@@ -262,9 +262,9 @@ fun AllShortcutsTabScreen(
                 id = "backup_restore",
                 title = "Backup & Restore",
                 subtitle = "Safe local data storage",
-                icon = AppIcons.CloudSync,
-                iconTint = Color(0xFF0284C7),
-                gradientColors = listOf(Color(0xFF0284C7), Color(0xFF0369A1)),
+                icon = AppIcons.Restore,
+                iconTint = Color(0xFF10B981),
+                gradientColors = listOf(Color(0xFF10B981), Color(0xFF059669)),
                 category = "Tools",
                 onClick = { onOpenSettingsSubScreen(SettingsSubScreen.BackupRestore) }
             ),

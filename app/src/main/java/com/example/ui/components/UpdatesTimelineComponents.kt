@@ -105,7 +105,7 @@ fun getAppUpdatesHistory(): List<AppReleaseUpdate> {
             timestamp = tsV129,
             startDate = "7th Oct",
             endDate = "7th Oct",
-            headline = "Production-Grade Master Engineering Fixes: Real Local Data Recovery, Safe Currency Conversion, Locale-Aware Money Parser, Cloud Deletion Reconciliation, Analytics Statistical Accuracy, Zero-Data-Loss Universal Migration Engine (v13), Pre-Migration Auto-Backups, Animated Money Suite, 210,000 Iteration PBKDF2 PIN Security, Claude-Style Outlined Icon Architecture",
+            headline = "Production-Grade Master Engineering Fixes: Real Local Data Recovery, Safe Currency Conversion, Locale-Aware Money Parser, Local Data Integrity Reconciliation, Analytics Statistical Accuracy, Zero-Data-Loss Universal Migration Engine (v13), Pre-Migration Auto-Backups, Animated Money Suite, 210,000 Iteration PBKDF2 PIN Security, Claude-Style Outlined Icon Architecture",
             isLatest = true,
             specifications = listOf(
                 UpdateSpecification(
@@ -174,11 +174,6 @@ fun getAppUpdatesHistory(): List<AppReleaseUpdate> {
                     description = "Redesigned Money.parse() using DecimalFormatSymbols to accurately parse Indian lakh/crore formats (1,23,456.78), European comma-decimal formats (1.234,56 / 12,5), US standard grouping (1,234.50), and negative amounts without floating-point drift or misinterpreted decimal separators."
                 ),
                 UpdateSpecification(
-                    category = SpecCategory.SYSTEM,
-                    title = "Cloud Sync Deletion Reconciliation & Zombie Prevention",
-                    description = "Integrated bidirectional deletion reconciliation into CloudSyncManager.performSync(). Compares local snapshot IDs against remote Firestore subcollections and issues batch deletes for pruned local entities, permanently eliminating zombie resurrection during cloud restores."
-                ),
-                UpdateSpecification(
                     category = SpecCategory.UI_UX,
                     title = "Analytics Accuracy & Dynamic Currency-Aware Anomaly Detection",
                     description = "Refactored AnalyticsCalculator to compute true weekday averages based on unique calendar date occurrences, excluded internal transfers and savings lock transactions from expense metrics, and replaced the hardcoded 500 anomaly threshold with dynamic currency-scaled statistical anomaly detection."
@@ -222,16 +217,6 @@ fun getAppUpdatesHistory(): List<AppReleaseUpdate> {
                     category = SpecCategory.SYSTEM,
                     title = "Structured Log.w Audit Across All Empty Catch Blocks",
                     description = "Eliminated all silent exception swallows across app/src/main/java (PinSecurityComponents, DataExporter, StreakComponents, FinanceAppScreen, FinanceViewModel, FinanceDatabase, PreMigrationBackup, ReminderNotificationHelper). Every catch block is explicitly equipped with Log.w(TAG, msg, e) while strictly preserving control flow and existing user feedback mechanisms."
-                ),
-                UpdateSpecification(
-                    category = SpecCategory.SECURITY,
-                    title = "Production Release Firebase App Check Isolation (Play Integrity Only in Release)",
-                    description = "Scoped libs.firebase.appcheck.debug to debugImplementation in build.gradle.kts and decoupled DebugAppCheckProviderFactory from the main source set. Debug provider setup is encapsulated in src/debug/AppCheckDebugHelper with a no-op counterpart in src/release/AppCheckDebugHelper, guaranteeing release builds compile and enforce Play Integrity exclusively without debug artifact leakage."
-                ),
-                UpdateSpecification(
-                    category = SpecCategory.SYSTEM,
-                    title = "Subcollection Partitioning & 400-Chunk WriteBatch Cloud Sync",
-                    description = "Eliminated Firestore 1 MiB single-document overflow by moving all collections (expenses, accounts, budgets, goals, recurringRules, reminders) to users/{uid}/<name>/{id} subcollections committed in WriteBatch chunks of max 400 operations. Retained root doc strictly for user settings metadata, preserved full backwards compatibility on cloud restore, and fortified firestore.rules with match /users/{userId}/{document=**}."
                 ),
                 UpdateSpecification(
                     category = SpecCategory.SYSTEM,
@@ -279,11 +264,6 @@ fun getAppUpdatesHistory(): List<AppReleaseUpdate> {
                     description = "Hardened PIN verification across PinSecurityUtils, FinanceViewModel, and PinLockScreen: replaced all hash/PIN comparisons (including legacy plaintext) with constant-time MessageDigest.isEqual to eliminate timing side-channels. For v3 hashes where AndroidKeyStore HMAC keys are missing or invalidated, verifyPin returns a distinct KeystoreKeyCorrupted result instead of failing silently; this routes directly to the LocalRecoveryScreen flow and suppresses failed attempt increments to prevent permanent lockouts while preserving full backward compatibility for legacy hashes."
                 ),
                 UpdateSpecification(
-                    category = SpecCategory.SECURITY,
-                    title = "Forgot PIN Cloud Backdoor Elimination",
-                    description = "Secured data wipe: resetAppLockAndWipeData now explicitly signs out of Firebase Auth to ensure unauthorized cloud restores cannot be performed after a wipe. All file deletions and WorkManager cancellations are structured and logged, eliminating hidden exceptions."
-                ),
-                UpdateSpecification(
                     category = SpecCategory.SYSTEM,
                     title = "Recurring Rules Type & End-Date Preservation",
                     description = "Preserved rule type (INCOME vs EXPENSE) and endDate through migrations. RecurringProcessor now dynamically inspects rule metadata so recurring income (such as salaries or investments) is properly credited as INCOME rather than debited as an expense."
@@ -291,7 +271,7 @@ fun getAppUpdatesHistory(): List<AppReleaseUpdate> {
                 UpdateSpecification(
                     category = SpecCategory.SYSTEM,
                     title = "Minor Units as the Single Source of Truth",
-                    description = "Standardized amountMinor, balanceMinor, and limitMinor as the authoritative single source of truth across all 4 entity tables during Cloud Restore and local persistence, eliminating drifted currency amounts."
+                    description = "Standardized amountMinor, balanceMinor, and limitMinor as the authoritative single source of truth across all 4 entity tables during local persistence, eliminating drifted currency amounts."
                 ),
                 UpdateSpecification(
                     category = SpecCategory.SECURITY,
@@ -317,11 +297,6 @@ fun getAppUpdatesHistory(): List<AppReleaseUpdate> {
                     category = SpecCategory.SECURITY,
                     title = "Release Hardening, Path Confinement & Cache Pruning",
                     description = "Confined FileProvider in provider_paths.xml to specific subfolders (reports/, receipts/, images/), excluded *.jks and *.keystore in .gitignore, and added automatic pruning of temporary exports in cache/reports."
-                ),
-                UpdateSpecification(
-                    category = SpecCategory.SECURITY,
-                    title = "Zero-Trust Cloud Firestore Security Rules",
-                    description = "Authored and included firestore.rules in repository root enforcing zero-trust per-user document isolation requiring authenticated user ID matching."
                 ),
                 UpdateSpecification(
                     category = SpecCategory.SYSTEM,
@@ -354,11 +329,6 @@ fun getAppUpdatesHistory(): List<AppReleaseUpdate> {
                     description = "Standardized primary IDs, foreign key references, and monetary minor units to Long (64-bit integer) across all entities and SQLite definitions to prevent overflow and maintain SQLite type harmony."
                 ),
                 UpdateSpecification(
-                    category = SpecCategory.SECURITY,
-                    title = "Cloud Sync Metadata & ID Enrichment",
-                    description = "Updated Cloud Sync DataExtensions to include 'id' mapping for all entities, ensuring atomic updates and eliminating duplicate row creation during cloud synchronization."
-                ),
-                UpdateSpecification(
                     category = SpecCategory.SYSTEM,
                     title = "Deep Insights Crash Elimination",
                     description = "Diagnosed and resolved runtime crash in Deep Insights (Analytics) tab by correcting a malformed string format specifier inside SpendingPatternDetectionSection peak spending highlights."
@@ -371,17 +341,12 @@ fun getAppUpdatesHistory(): List<AppReleaseUpdate> {
                 UpdateSpecification(
                     category = SpecCategory.UI_UX,
                     title = "Unified Sizing Scale & Overflow Guard Engine (Part 1)",
-                    description = "Consolidated 35 arbitrary font sizes into a unified typographic scale (SleekSizes: micro 10sp, caption 11sp, bodySmall 12sp, bodyMedium 13sp, body 14sp, bodyLarge 15sp, subhead 16sp, title 18sp, titleLarge 20sp, headline 22sp, display 28sp). Replaced 16 ad-hoc corner radii with a canonical 6-tier radius system (SleekRadius: xs 4dp, sm 8dp, md 12dp, lg 16dp, xl 20dp, xxl 24dp, pill 999dp) and matching SleekShapes. Enhanced buttons with standard minimum touch targets (36dp/48dp) and added rigorous TextOverflow.Ellipsis and maxLines protection across FloatingDockBar, StreakComponents, TruckLoadingComponents, AiConsentDialog, ProfileCropDialog, and UpdatesTimelineComponents."
+                    description = "Consolidated 35 arbitrary font sizes into a unified typographic scale (SleekSizes: micro 10sp, caption 11sp, bodySmall 12sp, bodyMedium 13sp, body 14sp, bodyLarge 15sp, subhead 16sp, title 18sp, titleLarge 20sp, headline 22sp, display 28sp). Replaced 16 ad-hoc corner radii with a canonical 6-tier radius system (SleekRadius: xs 4dp, sm 8dp, md 12dp, lg 16dp, xl 20dp, xxl 24dp, pill 999dp) and matching SleekShapes. Enhanced buttons with standard minimum touch targets (36dp/48dp) and added rigorous TextOverflow.Ellipsis and maxLines protection across FloatingDockBar, StreakComponents, TruckLoadingComponents, ProfileCropDialog, and UpdatesTimelineComponents."
                 ),
                 UpdateSpecification(
                     category = SpecCategory.UI_UX,
                     title = "Standardized Design Tokens (SleekSizes)",
                     description = "Introduced SleekSizes design token system establishing consistent, accessible typography (10sp-22sp), button touch targets (36dp-56dp), and icon scales across tabs, replacing ad-hoc fractional dimensions."
-                ),
-                UpdateSpecification(
-                    category = SpecCategory.SECURITY,
-                    title = "Complete Cloud Restore & Pre-Restore Auto-Backup Engine",
-                    description = "Completely resolved cloud restore data loss: engineered full bidirectional Firestore deserializers in DataExtensions for accounts, expenses, budgets, savings goals, recurring rules, and reminders. Aligned monthlyBudget field keys between sync and restore, integrated automatic SQLite WAL-checkpointed safety backups prior to restore operations, and gated the Cloud Restore confirmation dialog behind authentication status."
                 ),
                 UpdateSpecification(
                     category = SpecCategory.SYSTEM,
@@ -423,28 +388,13 @@ fun getAppUpdatesHistory(): List<AppReleaseUpdate> {
             timestamp = tsV128,
             startDate = "29th Sept",
             endDate = "5th Oct",
-            headline = "Local Only vs Online Cloud Sync Architecture, Proper Sync Now Action Engine, Exact Long Minor Units, Unified Single-Ledger Architecture, Adaptive Dark/Light Mode Icon Suite, WorkManager Bill Reminders, Cryptographic PIN Storage, Full-App UI Animations, 3D Isometric Logo, Swipe-to-Fullscreen Sidebar, Delivery Truck Loader, Preference Persistence & Lock Isolation Fixes",
+            headline = "Local-First Storage, Exact Long Minor Units, Unified Single-Ledger Architecture, Adaptive Dark/Light Mode Icon Suite, WorkManager Bill Reminders, Cryptographic PIN Storage, Full-App UI Animations, 3D Isometric Logo, Swipe-to-Fullscreen Sidebar, Delivery Truck Loader, Preference Persistence & Lock Isolation Fixes",
             isLatest = false,
             specifications = listOf(
                 UpdateSpecification(
                     category = SpecCategory.UI_UX,
                     title = "Universal Adaptive Icon System (Dark & Light Mode)",
                     description = "Engineered a cohesive, high-fidelity icon suite (FinancerIcons & FinancerBadgeIcon) across all application surfaces: Bottom Navigation (Home, Transactions, Analytics, Calendar/More), Sidebar Navigation, Dashboard Badges (Balance, Income, Expense, Savings), Transaction Controls, Categories, Budget & Goals, and Action Badges. Features radiant luminescence and deep navy glass styling in Dark Mode, crisp soft pastel surfaces in Light Mode, and tactile 0.95 scale tap physics on press (80-150ms spring animation), while preserving the custom CSS-style delivery truck loading component."
-                ),
-                UpdateSpecification(
-                    category = SpecCategory.FEATURE,
-                    title = "Local Only vs Online Cloud Sync Architecture (Privacy & Cloud Invariant)",
-                    description = "Introduced a dedicated, prominent option between 100% Offline Local Storage and Online Cloud Sync. In Local Only mode, accounts, transactions, budgets, and goals remain strictly on-device in Room SQLite with zero external data transmission. In Online Cloud Sync mode, records securely synchronize with Firebase Cloud Firestore."
-                ),
-                UpdateSpecification(
-                    category = SpecCategory.FEATURE,
-                    title = "Proper 'Sync Now' & 'Restore from Cloud' Action Engine",
-                    description = "Engineered proper high-visibility M3 action buttons in Backup & Restore and Data Management screens: 'Sync Now to Cloud' with tactile spring feedback, live progress indicator, status badge ('Synced', 'Offline - Local', 'Syncing'), and last-synced timestamp, paired with an atomic 'Restore from Cloud Vault' confirmation dialog."
-                ),
-                UpdateSpecification(
-                    category = SpecCategory.SYSTEM,
-                    title = "Offline-First Cloud Sync Resilience",
-                    description = "Integrated robust network exception handling (UnknownHostException, SocketTimeoutException, Unavailable) ensuring cloud synchronization never blocks, breaks, or crashes offline financial bookkeeping. Unsynced records remain safely in local Room database until connectivity is re-established."
                 ),
                 UpdateSpecification(
                     category = SpecCategory.SECURITY,
@@ -534,11 +484,6 @@ fun getAppUpdatesHistory(): List<AppReleaseUpdate> {
             headline = "Zero-Data-Loss Database Engine, OWASP PIN Security & Boot Lockout, Auto-Lock, Financial Health Score & EMI Calculator",
             isLatest = false,
             specifications = listOf(
-                UpdateSpecification(
-                    category = SpecCategory.SECURITY,
-                    title = "Firebase AI Logic & App Check Architecture",
-                    description = "Migrated AI functionality to Firebase AI Logic with App Check support, removing static API keys."
-                ),
                 UpdateSpecification(
                     category = SpecCategory.SECURITY,
                     title = "PBKDF2-210k PIN Hashing & Boot-Count Lockout",

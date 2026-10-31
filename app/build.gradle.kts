@@ -1,11 +1,8 @@
-import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy
-
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
   alias(libs.plugins.google.devtools.ksp)
   alias(libs.plugins.roborazzi)
-  alias(libs.plugins.google.services)
 }
 
 android {
@@ -75,11 +72,8 @@ ksp {
   arg("room.schemaLocation", "$projectDir/schemas")
 }
 
-googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.WARN }
-
 dependencies {
   implementation(platform(libs.androidx.compose.bom))
-  implementation(platform(libs.firebase.bom))
   // implementation(libs.accompanist.permissions)
   implementation(libs.androidx.activity.compose)
   // implementation(libs.androidx.camera.camera2)
@@ -103,12 +97,6 @@ dependencies {
   implementation(libs.coil.compose)
   implementation("androidx.compose.ui:ui-text-google-fonts:1.6.3")
   implementation(libs.converter.moshi)
-  implementation(libs.firebase.ai)
-  implementation(libs.firebase.firestore)
-  implementation(libs.firebase.auth)
-  implementation(libs.firebase.appcheck.playintegrity)
-  debugImplementation(libs.firebase.appcheck.debug)
-  implementation(libs.firebase.config)
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
   implementation(libs.logging.interceptor)
