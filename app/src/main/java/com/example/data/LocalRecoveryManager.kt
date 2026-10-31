@@ -222,8 +222,13 @@ object LocalRecoveryManager {
                     put("imagePath", exp.imagePath ?: "")
                     put("type", exp.type)
                     put("currencyCode", exp.currencyCode)
-                    put("originalCurrencyCode", exp.originalCurrencyCode)
-                    if (exp.originalAmountMinor != null) put("originalAmountMinor", exp.originalAmountMinor)
+                    if ((exp.originalCurrencyCode == null) != (exp.originalAmountMinor == null)) {
+                        throw IllegalStateException("Expense ${exp.id} has incomplete original-currency metadata")
+                    }
+                    if (exp.originalCurrencyCode != null && exp.originalAmountMinor != null) {
+                        put("originalCurrencyCode", exp.originalCurrencyCode)
+                        put("originalAmountMinor", exp.originalAmountMinor)
+                    }
                     put("accountId", exp.accountId)
                     put("kind", exp.kind)
                     put("goalId", exp.goalId ?: -1L)
