@@ -172,6 +172,11 @@ private fun CurrencyConverterTool(viewModel: FinanceViewModel) {
                     color = SleekTextSecondary
                 )
                 Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = if (CurrencyManager.areRatesFresh()) "Rates refreshed within the last 24 hours" else "Using built-in reference estimates — refresh exchange rates for current values",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = SleekTextSecondary
+                )
                 Surface(
                     color = SleekPrimaryContainer,
                     shape = RoundedCornerShape(8.dp)

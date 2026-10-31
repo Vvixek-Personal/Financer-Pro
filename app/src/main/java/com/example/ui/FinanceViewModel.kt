@@ -591,7 +591,7 @@ class FinanceViewModel(
     private val _statsCurrencyName = MutableStateFlow("Indian Rupee")
     val statsCurrencyName: StateFlow<String> = _statsCurrencyName.asStateFlow()
 
-    private val _lastExchangeRateUpdate = MutableStateFlow("10 Aug 2026, 08:30 AM")
+    private val _lastExchangeRateUpdate = MutableStateFlow("Built-in reference rates — not yet refreshed")
     val lastExchangeRateUpdate: StateFlow<String> = _lastExchangeRateUpdate.asStateFlow()
 
     private val _isAutoExchangeRateUpdateEnabled = MutableStateFlow(true)
@@ -1047,7 +1047,32 @@ class FinanceViewModel(
         _statsCurrencyCode.value = sharedPrefs.getString("stats_currency_code", "INR") ?: "INR"
         _statsCurrencySymbol.value = sharedPrefs.getString("stats_currency_symbol", "₹") ?: "₹"
         _statsCurrencyName.value = sharedPrefs.getString("stats_currency_name", "Indian Rupee") ?: "Indian Rupee"
-        _lastExchangeRateUpdate.value = sharedPrefs.getString("last_exchange_rate_update", "10 Aug 2026, 08:30 AM") ?: "10 Aug 2026, 08:30 AM"
+        // Restore the last successful exchange-rate cache and its real server timestamp.
+        runCatching {
+            val cachedRates = sharedPrefs.getString("exchange_rates_json", null)
+            if (!cachedRates.isNullOrBlank()) {
+                val ratesObject = JSONObject(cachedRates)
+                val rates = buildMap {
+                    val keys = ratesObject.keys()
+                    while (keys.hasNext()) {
+                        val key = keys.next()
+                        val value = ratesObject.optDouble(key, Double.NaN)
+                        if (value.isFinite() && value > 0.0) put(key, value)
+                    }
+                }
+                if (rates.isNotEmpty()) {
+                    CurrencyManager.updateRates(rates, sharedPrefs.getLong("exchange_rates_updated_at", 0L))
+                }
+            }
+        }.onFailure { Log.w(TAG, "Could not restore cached exchange rates", it) }
+        val cachedRatesExist = !sharedPrefs.getString("exchange_rates_json", null).isNullOrBlank()
+        val savedRateLabel = sharedPrefs.getString("last_exchange_rate_update", null)
+        _lastExchangeRateUpdate.value = if (cachedRatesExist && CurrencyManager.lastUpdatedAtMillis != null &&
+            !savedRateLabel.isNullOrBlank() && savedRateLabel != "10 Aug 2026, 08:30 AM") {
+            if (CurrencyManager.areRatesFresh()) savedRateLabel else "$savedRateLabel (stale — refresh recommended)"
+        } else {
+            "Built-in reference rates — not yet refreshed"
+        }
         _isAutoExchangeRateUpdateEnabled.value = sharedPrefs.getBoolean("is_auto_exchange_rate_update", true)
 
         // Load Bills Preferences
@@ -1248,10 +1273,18 @@ class FinanceViewModel(
             _isUpdatingExchangeRates.value = true
             try {
                 ExchangeRateClient.fetchExchangeRates()
+                val updatedAt = CurrencyManager.lastUpdatedAtMillis ?: System.currentTimeMillis()
                 val sdf = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault())
-                val nowFormatted = sdf.format(Date())
-                _lastExchangeRateUpdate.value = nowFormatted
-                sharedPrefs.edit().putString("last_exchange_rate_update", nowFormatted).apply()
+                val updatedFormatted = sdf.format(Date(updatedAt))
+                val ratesJson = JSONObject().apply {
+                    CurrencyManager.getRatesMap().forEach { (code, rate) -> put(code, rate) }
+                }
+                sharedPrefs.edit()
+                    .putString("last_exchange_rate_update", updatedFormatted)
+                    .putString("exchange_rates_json", ratesJson.toString())
+                    .putLong("exchange_rates_updated_at", updatedAt)
+                    .apply()
+                _lastExchangeRateUpdate.value = updatedFormatted
                 _toastMessage.value = "Exchange rates updated successfully"
             } catch (e: Exception) {
                 // Do NOT touch _lastExchangeRateUpdate/sharedPrefs here — the fetch
@@ -1267,19 +1300,31 @@ class FinanceViewModel(
 
     fun updateDefaultCurrency(code: String, symbol: String, name: String, convertExisting: Boolean = false) {
         val oldCode = _selectedCurrencyCode.value
+        if (convertExisting && oldCode != code) {
+            if (!CurrencyManager.areRatesFresh()) {
+                _toastMessage.value = "Refresh exchange rates first. Existing records were not converted because the cached rates are missing or older than 24 hours."
+                return
+            }
+            viewModelScope.launch {
+                try {
+                    repository.convertAllEntitiesToCurrency(code, CurrencyManager.getRatesMap())
+                    _selectedCurrencyCode.value = code
+                    _selectedCurrencySymbol.value = symbol
+                    _selectedCurrencyName.value = name
+                    appSettingsManager.dispatch(AppSettingsIntent.UpdateCurrency(code, symbol, name, true))
+                    _toastMessage.value = "Existing records converted to $code using rates refreshed within the last 24 hours"
+                } catch (e: Exception) {
+                    _toastMessage.value = "Currency conversion failed; the database transaction was rolled back. ${e.message ?: "Check exchange rates and try again."}"
+                }
+            }
+            return
+        }
+
         _selectedCurrencyCode.value = code
         _selectedCurrencySymbol.value = symbol
         _selectedCurrencyName.value = name
-        appSettingsManager.dispatch(AppSettingsIntent.UpdateCurrency(code, symbol, name, convertExisting))
-        if (convertExisting && oldCode != code) {
-            viewModelScope.launch {
-                val rates = CurrencyManager.getRatesMap()
-                repository.convertAllEntitiesToCurrency(code, rates)
-            }
-            _toastMessage.value = "Currency changed to $code ($symbol) and all records converted safely using verified exchange rates"
-        } else {
-            _toastMessage.value = "Default currency updated to $code ($symbol)"
-        }
+        appSettingsManager.dispatch(AppSettingsIntent.UpdateCurrency(code, symbol, name, false))
+        _toastMessage.value = "Default currency updated to $code ($symbol)"
     }
 
     fun updateStatsCurrency(code: String, symbol: String, name: String) {
@@ -1293,8 +1338,6 @@ class FinanceViewModel(
     fun resetCurrencySettings() {
         updateDefaultCurrency("INR", "₹", "Indian Rupee", false)
         updateStatsCurrency("INR", "₹", "Indian Rupee")
-        _lastExchangeRateUpdate.value = "10 Aug 2026, 08:30 AM"
-        sharedPrefs.edit().putString("last_exchange_rate_update", "10 Aug 2026, 08:30 AM").apply()
         _toastMessage.value = "Currency settings restored to default"
     }
 
@@ -2813,7 +2856,7 @@ class FinanceViewModel(
         val items = mutableListOf<AccountAllocationItem>()
 
         for (acc in allAccounts) {
-            val converted = Money.convertWithFallback(acc.balanceMinor, acc.currencyCode, cur)
+            val converted = Money.convert(acc.balanceMinor, acc.currencyCode, cur)
             val balanceDouble = Money.toDouble(converted, cur)
             val assetClass = AssetClass.fromAccountType(acc.type)
 

@@ -9,7 +9,7 @@ import com.example.data.Money
 fun List<Expense>.realExpense(currencyCode: String): Double {
     return this.filter { it.type != "INCOME" && it.kind != "TRANSFER_IN" }
         .sumOf { exp ->
-            val converted = Money.convertWithFallback(exp.amountMinor, exp.currencyCode, currencyCode)
+            val converted = Money.convert(exp.amountMinor, exp.currencyCode, currencyCode)
             Money.toDouble(converted, currencyCode)
         }
 }
@@ -17,7 +17,7 @@ fun List<Expense>.realExpense(currencyCode: String): Double {
 fun List<Expense>.realIncome(currencyCode: String): Double {
     return this.filter { it.type == "INCOME" || it.kind == "TRANSFER_IN" }
         .sumOf { exp ->
-            val converted = Money.convertWithFallback(exp.amountMinor, exp.currencyCode, currencyCode)
+            val converted = Money.convert(exp.amountMinor, exp.currencyCode, currencyCode)
             Money.toDouble(converted, currencyCode)
         }
 }

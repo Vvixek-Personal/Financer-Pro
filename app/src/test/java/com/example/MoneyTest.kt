@@ -127,11 +127,16 @@ class MoneyTest {
         assertTrue(sameResult is Money.ConversionResult.Success)
         assertEquals(10000L, (sameResult as Money.ConversionResult.Success).amountMinor)
 
-        // Missing rate
-        val missingResult = Money.tryConvert(10000L, "USD", "UNKNOWN", rates)
+        // Unknown currency codes are rejected instead of being silently mapped to INR.
+        val unknownResult = Money.tryConvert(10000L, "USD", "ZZZ", rates)
+        assertTrue(unknownResult is Money.ConversionResult.InvalidCurrency)
+        assertNull(Money.convertOrNull(10000L, "USD", "ZZZ", rates))
+
+        // A known currency with no supplied rate is explicitly reported.
+        val missingResult = Money.tryConvert(10000L, "USD", "JPY", rates)
         assertTrue(missingResult is Money.ConversionResult.MissingRate)
-        assertEquals("UNKNOWN", (missingResult as Money.ConversionResult.MissingRate).missingCurrency)
-        assertNull(Money.convertOrNull(10000L, "USD", "UNKNOWN", rates))
+        assertEquals("JPY", (missingResult as Money.ConversionResult.MissingRate).missingCurrency)
+        assertNull(Money.convertOrNull(10000L, "USD", "JPY", rates))
 
         // Invalid negative or non-finite rate
         val badRates = mapOf("USD" to 1.0, "EUR" to -0.5, "JPY" to Double.NaN)
@@ -143,6 +148,33 @@ class MoneyTest {
         val validResult = Money.tryConvert(10000L, "USD", "INR", rates)
         assertTrue(validResult is Money.ConversionResult.Success)
         assertEquals(835000L, (validResult as Money.ConversionResult.Success).amountMinor)
+
+        try {
+            Money.convert(10000L, "USD", "JPY", rates)
+            fail("Expected missing-rate conversion to fail explicitly")
+        } catch (_: IllegalStateException) {
+            // A failed conversion must never return the unconverted source amount.
+        }
+
+        val sameUnknown = Money.tryConvert(100L, "ZZZ", "ZZZ", rates)
+        assertTrue(sameUnknown is Money.ConversionResult.InvalidCurrency)
+
+        val overflow = Money.tryConvert(Long.MAX_VALUE, "USD", "JPY", mapOf("USD" to 1.0, "JPY" to 1000.0))
+        assertTrue(overflow is Money.ConversionResult.Overflow)
+    }
+
+    @Test
+    fun testCurrencyManagerRejectsUnknownCurrencyAndTracksRateFreshness() {
+        try {
+            com.example.ui.CurrencyManager.getByCode("ZZZ")
+            fail("Unknown currencies must not silently resolve to INR")
+        } catch (_: IllegalArgumentException) {
+            // Expected: unknown currency is rejected.
+        }
+
+        assertTrue(com.example.ui.CurrencyManager.isRateTimestampFresh(10_000L, nowMillis = 10_500L, maxAgeMillis = 1_000L))
+        assertFalse(com.example.ui.CurrencyManager.isRateTimestampFresh(10_000L, nowMillis = 11_001L, maxAgeMillis = 1_000L))
+        assertFalse(com.example.ui.CurrencyManager.isRateTimestampFresh(null, nowMillis = 10_500L, maxAgeMillis = 1_000L))
     }
 
     @Test

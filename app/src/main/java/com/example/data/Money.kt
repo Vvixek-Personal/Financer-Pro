@@ -133,6 +133,8 @@ object Money {
         data class Success(val amountMinor: Long, val rateUsed: Double, val timestamp: Long) : ConversionResult()
         data class MissingRate(val missingCurrency: String) : ConversionResult()
         data class InvalidRate(val rate: Double) : ConversionResult()
+        data class InvalidCurrency(val currencyCode: String) : ConversionResult()
+        data object Overflow : ConversionResult()
     }
 
     fun tryConvert(
@@ -141,18 +143,38 @@ object Money {
         toCurrency: String,
         rates: Map<String, Double> = CurrencyManager.getRatesMap()
     ): ConversionResult {
-        if (fromCurrency == toCurrency) {
+        val fromCode = fromCurrency.trim().uppercase(Locale.ROOT)
+        val toCode = toCurrency.trim().uppercase(Locale.ROOT)
+        if (!fromCode.matches(Regex("[A-Z]{3}")) || CurrencyManager.findByCode(fromCode) == null) {
+            return ConversionResult.InvalidCurrency(fromCurrency)
+        }
+        if (!toCode.matches(Regex("[A-Z]{3}")) || CurrencyManager.findByCode(toCode) == null) {
+            return ConversionResult.InvalidCurrency(toCurrency)
+        }
+        if (fromCode == toCode) {
             return ConversionResult.Success(amountMinor, 1.0, System.currentTimeMillis())
         }
-        val fromRate = rates[fromCurrency] ?: return ConversionResult.MissingRate(fromCurrency)
-        val toRate = rates[toCurrency] ?: return ConversionResult.MissingRate(toCurrency)
+        val fromRate = rates[fromCode] ?: return ConversionResult.MissingRate(fromCode)
+        val toRate = rates[toCode] ?: return ConversionResult.MissingRate(toCode)
         if (fromRate <= 0.0 || !fromRate.isFinite()) return ConversionResult.InvalidRate(fromRate)
         if (toRate <= 0.0 || !toRate.isFinite()) return ConversionResult.InvalidRate(toRate)
 
-        val rateRatio = toRate / fromRate
-        val baseAmount = amountMinor.toDouble() / factor(fromCurrency) / fromRate
-        val targetAmount = baseAmount * toRate * factor(toCurrency)
-        return ConversionResult.Success(targetAmount.roundToLong(), rateRatio, System.currentTimeMillis())
+        return try {
+            val rateRatio = toRate / fromRate
+            if (!rateRatio.isFinite() || rateRatio <= 0.0) return ConversionResult.InvalidRate(rateRatio)
+            val sourceMajor = java.math.BigDecimal.valueOf(amountMinor)
+                .movePointLeft(minorDigits(fromCode))
+            val targetMajor = sourceMajor
+                .multiply(java.math.BigDecimal.valueOf(toRate))
+                .divide(java.math.BigDecimal.valueOf(fromRate), java.math.MathContext.DECIMAL128)
+            val targetMinor = targetMajor
+                .movePointRight(minorDigits(toCode))
+                .setScale(0, java.math.RoundingMode.HALF_EVEN)
+                .longValueExact()
+            ConversionResult.Success(targetMinor, rateRatio, CurrencyManager.lastUpdatedAtMillis ?: 0L)
+        } catch (_: ArithmeticException) {
+            ConversionResult.Overflow
+        }
     }
 
     fun convertOrNull(
@@ -173,20 +195,14 @@ object Money {
         toCurrency: String,
         rates: Map<String, Double> = CurrencyManager.getRatesMap()
     ): Long {
-        if (fromCurrency == toCurrency) return amountMinor
-        return convertOrNull(amountMinor, fromCurrency, toCurrency, rates) 
-            ?: throw IllegalStateException(
-                "Currency conversion failed: no valid exchange rate available for $fromCurrency to $toCurrency"
+        return when (val result = tryConvert(amountMinor, fromCurrency, toCurrency, rates)) {
+            is ConversionResult.Success -> result.amountMinor
+            is ConversionResult.MissingRate -> throw IllegalStateException(
+                "Exchange rate unavailable for ${result.missingCurrency}. Refresh rates before combining currencies."
             )
-    }
-
-    fun convertWithFallback(
-        amountMinor: Long,
-        fromCurrency: String,
-        toCurrency: String,
-        rates: Map<String, Double> = CurrencyManager.getRatesMap()
-    ): Long {
-        if (fromCurrency == toCurrency) return amountMinor
-        return convertOrNull(amountMinor, fromCurrency, toCurrency, rates) ?: amountMinor
+            is ConversionResult.InvalidRate -> throw IllegalStateException("Invalid exchange rate: ${result.rate}")
+            is ConversionResult.InvalidCurrency -> throw IllegalArgumentException("Unsupported currency code: ${result.currencyCode}")
+            ConversionResult.Overflow -> throw ArithmeticException("Currency conversion overflow: $fromCurrency to $toCurrency")
+        }
     }
 }

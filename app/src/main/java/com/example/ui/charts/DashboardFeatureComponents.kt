@@ -1246,7 +1246,11 @@ fun QuickCurrencyConvertDialog(
                                     color = SleekPrimary
                                 )
                                 Text(
-                                    text = "${Money.format(parsedMinor, currencyCode)} (Rate: ${String.format(Locale.US, "%.4f", conversionResult.rateUsed)})",
+                                    text = if (conversionResult.timestamp > 0L) {
+                                        "${Money.format(parsedMinor, currencyCode)} (Live rate: ${String.format(Locale.US, "%.4f", conversionResult.rateUsed)})"
+                                    } else {
+                                        "${Money.format(parsedMinor, currencyCode)} (Reference estimate — refresh rates for current value)"
+                                    },
                                     fontSize = 11.sp,
                                     color = SleekTextSecondary
                                 )
@@ -1262,6 +1266,22 @@ fun QuickCurrencyConvertDialog(
                             is Money.ConversionResult.InvalidRate -> {
                                 Text(
                                     text = "Invalid exchange rate",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = SleekTextSecondary
+                                )
+                            }
+                            is Money.ConversionResult.InvalidCurrency -> {
+                                Text(
+                                    text = "Unsupported currency",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = SleekTextSecondary
+                                )
+                            }
+                            Money.ConversionResult.Overflow -> {
+                                Text(
+                                    text = "Amount is too large to convert",
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = SleekTextSecondary

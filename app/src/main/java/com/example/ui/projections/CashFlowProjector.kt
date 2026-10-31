@@ -30,7 +30,7 @@ class CashFlowProjector {
         daysToForecast: Int = 30
     ): List<CashFlowDayProjection> {
         var runningBalance = allAccounts.sumOf { acc ->
-            val converted = Money.convertWithFallback(acc.balanceMinor, acc.currencyCode, currencyCode)
+            val converted = Money.convert(acc.balanceMinor, acc.currencyCode, currencyCode)
             Money.toDouble(converted, currencyCode)
         }
 

@@ -11,6 +11,9 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 @JsonClass(generateAdapter = true)
@@ -51,7 +54,12 @@ object ExchangeRateClient {
         try {
             val response = service.getLatestRates()
             if (response.result == "success" && response.rates != null) {
-                CurrencyManager.updateRates(response.rates)
+                val serverUpdatedAt = response.timeLastUpdateUtc?.let { raw ->
+                    runCatching {
+                        SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss Z", Locale.US).parse(raw)?.time
+                    }.getOrNull()
+                } ?: System.currentTimeMillis()
+                CurrencyManager.updateRates(response.rates, serverUpdatedAt)
                 "Exchange rates successfully updated from Open Exchange API"
             } else {
                 throw Exception("API returned non-success result")

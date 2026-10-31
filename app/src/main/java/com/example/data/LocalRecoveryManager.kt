@@ -25,6 +25,15 @@ data class SnapshotMeta(
     val isValid: Boolean = true
 )
 
+private data class RecoveryDatabaseSnapshot(
+    val accounts: List<Account>,
+    val expenses: List<Expense>,
+    val budgets: List<Budget>,
+    val goals: List<SavingsGoal>,
+    val reminders: List<ReminderEntity>,
+    val rules: List<RecurringRule>
+)
+
 object LocalRecoveryManager {
     fun getSnapshotDir(context: Context): File {
         val dir = File(context.filesDir, "snapshots")
@@ -52,20 +61,47 @@ object LocalRecoveryManager {
                     sha256(payloadStr.toByteArray(Charsets.UTF_8)) == expectedChecksum
 
                 val payload = if (payloadStr.isNotBlank()) JSONObject(payloadStr) else json
+                val formatVersion = payload.optInt("formatVersion", 1)
+                val requiredCollections = listOf("accounts", "expenses", "budgets", "savingsGoals", "reminders")
+                val collectionsPresent = requiredCollections.all { payload.optJSONArray(it) != null } &&
+                    (formatVersion < 2 || payload.optJSONArray("recurringRules") != null)
+                val schemaVersion = payload.optInt("schemaVersion", 0)
+                val supportedVersion = formatVersion in 1..SNAPSHOT_FORMAT_VERSION &&
+                    schemaVersion in 0..FINANCE_DB_VERSION
                 val meta = payload.optJSONObject("meta")
                 val createdAt = meta?.optLong("createdAt", file.lastModified()) ?: file.lastModified()
                 val counts = meta?.optJSONObject("counts")
+                val countEntries = listOf(
+                    "accounts" to "accounts",
+                    "expenses" to "expenses",
+                    "budgets" to "budgets",
+                    "savingsGoals" to "savingsGoals",
+                    "reminders" to "reminders",
+                    "recurringRules" to "recurringRules"
+                )
+                val countsMatch = if (formatVersion >= 2) {
+                    counts != null && countEntries.all { (countKey, arrayKey) ->
+                        counts.has(countKey) && counts.optInt(countKey, -1) == (payload.optJSONArray(arrayKey)?.length() ?: 0)
+                    }
+                } else {
+                    counts == null || countEntries.all { (countKey, arrayKey) ->
+                        !counts.has(countKey) || counts.optInt(countKey, -1) == (payload.optJSONArray(arrayKey)?.length() ?: 0)
+                    }
+                }
+                // Unchecksummed legacy files are intentionally marked unverified: the UI's
+                // normal restore action does not permit them without an explicit override.
+                val integrityValid = collectionsPresent && supportedVersion && countsMatch && isValidChecksum
 
                 SnapshotMeta(
                     fileName = file.name,
                     createdAt = createdAt,
                     fileSize = file.length(),
-                    accountsCount = counts?.optInt("accounts", 0) ?: 0,
-                    expensesCount = counts?.optInt("expenses", 0) ?: 0,
-                    budgetsCount = counts?.optInt("budgets", 0) ?: 0,
-                    savingsGoalsCount = counts?.optInt("savingsGoals", 0) ?: 0,
-                    remindersCount = counts?.optInt("reminders", 0) ?: 0,
-                    isValid = isValidChecksum || (!json.has("checksum") && json.has("accounts"))
+                    accountsCount = payload.optJSONArray("accounts")?.length() ?: 0,
+                    expensesCount = payload.optJSONArray("expenses")?.length() ?: 0,
+                    budgetsCount = payload.optJSONArray("budgets")?.length() ?: 0,
+                    savingsGoalsCount = payload.optJSONArray("savingsGoals")?.length() ?: 0,
+                    remindersCount = payload.optJSONArray("reminders")?.length() ?: 0,
+                    isValid = integrityValid
                 )
             } catch (e: Exception) {
                 Log.w(TAG, "Corrupt or unreadable snapshot: ${file.name}", e)
@@ -81,13 +117,25 @@ object LocalRecoveryManager {
 
     suspend fun createSnapshot(context: Context, db: FinanceDatabase): Boolean {
         return try {
+            // Read every financial table inside one Room transaction so the snapshot
+            // cannot combine records from different database moments.
             val dao = db.financeDao()
-            val accounts = dao.getAccountsSnapshot()
-            val expenses = dao.getExpensesSnapshot()
-            val budgets = dao.getBudgetsSnapshot()
-            val goals = dao.getSavingsGoalsSnapshot()
-            val reminders = dao.getRemindersSnapshot()
-            val rules = dao.getRecurringRulesSnapshot()
+            val databaseSnapshot = db.withTransaction {
+                RecoveryDatabaseSnapshot(
+                    accounts = dao.getAccountsSnapshot(),
+                    expenses = dao.getExpensesSnapshot(),
+                    budgets = dao.getBudgetsSnapshot(),
+                    goals = dao.getSavingsGoalsSnapshot(),
+                    reminders = dao.getRemindersSnapshot(),
+                    rules = dao.getRecurringRulesSnapshot()
+                )
+            }
+            val accounts = databaseSnapshot.accounts
+            val expenses = databaseSnapshot.expenses
+            val budgets = databaseSnapshot.budgets
+            val goals = databaseSnapshot.goals
+            val reminders = databaseSnapshot.reminders
+            val rules = databaseSnapshot.rules
 
             val prefs = context.getSharedPreferences(AppSettingsManager.PREFS_NAME, Context.MODE_PRIVATE)
             val currencyCode = prefs.getString("currency_code", "INR") ?: "INR"
@@ -174,6 +222,8 @@ object LocalRecoveryManager {
                     put("imagePath", exp.imagePath ?: "")
                     put("type", exp.type)
                     put("currencyCode", exp.currencyCode)
+                    put("originalCurrencyCode", exp.originalCurrencyCode)
+                    if (exp.originalAmountMinor != null) put("originalAmountMinor", exp.originalAmountMinor)
                     put("accountId", exp.accountId)
                     put("kind", exp.kind)
                     put("goalId", exp.goalId ?: -1L)
@@ -246,15 +296,19 @@ object LocalRecoveryManager {
             }
 
             val dir = getSnapshotDir(context)
-            val fileName = "snapshot_${now}.json"
+            val fileName = "snapshot_${now}_${System.nanoTime()}.json"
             val tempFile = File(dir, "${fileName}.tmp")
             val targetFile = File(dir, fileName)
 
             FileOutputStream(tempFile).use { out ->
                 out.write(wrapper.toString(2).toByteArray(Charsets.UTF_8))
                 out.flush()
+                out.fd.sync()
             }
-            tempFile.renameTo(targetFile)
+            if (!tempFile.renameTo(targetFile)) {
+                tempFile.delete()
+                throw IllegalStateException("Could not atomically publish recovery snapshot")
+            }
 
             pruneOldSnapshots(context, MAX_RETAINED_SNAPSHOTS)
             true
@@ -271,8 +325,13 @@ object LocalRecoveryManager {
         allowUnverifiedLegacy: Boolean = false,
         onCurrencyRestored: (String, String, String, Double) -> Unit
     ): Boolean {
-        val file = File(getSnapshotDir(context), fileName)
-        if (!file.exists() || !file.canRead()) {
+        val snapshotDir = getSnapshotDir(context).canonicalFile
+        val file = File(snapshotDir, fileName).canonicalFile
+        if (file.parentFile != snapshotDir || !file.name.endsWith(".json")) {
+            Log.w(TAG, "Rejected invalid snapshot path: $fileName")
+            return false
+        }
+        if (!file.exists() || !file.isFile || !file.canRead()) {
             Log.w(TAG, "Snapshot file does not exist or unreadable: $fileName")
             return false
         }
@@ -298,6 +357,27 @@ object LocalRecoveryManager {
                 root
             }
 
+            val formatVersion = payloadObj.optInt("formatVersion", 1)
+            val schemaVersion = payloadObj.optInt("schemaVersion", 0)
+            if (formatVersion !in 1..SNAPSHOT_FORMAT_VERSION) {
+                throw IllegalArgumentException("Unsupported snapshot format version: $formatVersion")
+            }
+            if (schemaVersion !in 0..FINANCE_DB_VERSION) {
+                throw IllegalArgumentException("Snapshot database schema $schemaVersion is newer than supported schema $FINANCE_DB_VERSION")
+            }
+            if (root.has("payload") && root.optInt("formatVersion", formatVersion) != formatVersion) {
+                throw IllegalArgumentException("Snapshot wrapper and payload format versions do not match")
+            }
+            val requiredArrays = listOf("accounts", "expenses", "budgets", "savingsGoals", "reminders")
+            requiredArrays.forEach { key ->
+                if (!payloadObj.has(key) || payloadObj.isNull(key) || payloadObj.optJSONArray(key) == null) {
+                    throw IllegalArgumentException("Snapshot is missing required collection: $key")
+                }
+            }
+            if (formatVersion >= 2 && payloadObj.optJSONArray("recurringRules") == null) {
+                throw IllegalArgumentException("Snapshot is missing required collection: recurringRules")
+            }
+
             // Parse accounts
             val rawAccounts = payloadObj.optJSONArray("accounts") ?: JSONArray()
             val accounts = (0 until rawAccounts.length()).map { idx ->
@@ -320,6 +400,9 @@ object LocalRecoveryManager {
             }
 
             val validAccountIds = accounts.map { it.id }.toSet()
+            if (validAccountIds.size != accounts.size || accounts.any { it.id <= 0L }) {
+                throw IllegalArgumentException("Snapshot contains duplicate or invalid account IDs")
+            }
 
             // Parse recurring rules
             val rawRules = payloadObj.optJSONArray("recurringRules") ?: JSONArray()
@@ -338,7 +421,9 @@ object LocalRecoveryManager {
                     nextDueDate = obj.optLong("nextDueDate", System.currentTimeMillis()),
                     isActive = obj.optBoolean("isActive", true),
                     currencyCode = cur,
-                    accountId = if (validAccountIds.contains(accId)) accId else (accounts.firstOrNull()?.id ?: 1L),
+                    accountId = accId.also {
+                        if (!validAccountIds.contains(it)) throw IllegalArgumentException("Recurring rule at index $idx references missing account $it")
+                    },
                     note = obj.optString("note", "")
                 )
             }
@@ -352,7 +437,18 @@ object LocalRecoveryManager {
                 val gId = obj.optLong("goalId", -1L)
                 val rId = obj.optLong("recurringRuleId", -1L)
                 val accId = obj.optLong("accountId", 0L)
-                val resolvedAccountId = if (validAccountIds.contains(accId)) accId else (accounts.firstOrNull()?.id ?: 1L)
+                if (!validAccountIds.contains(accId)) {
+                    throw IllegalArgumentException("Expense at index $idx references missing account $accId")
+                }
+                val originalCurrencyCode = if (obj.has("originalCurrencyCode") && !obj.isNull("originalCurrencyCode")) {
+                    obj.getString("originalCurrencyCode").takeIf { it.isNotBlank() }
+                } else null
+                val originalAmountMinor = if (obj.has("originalAmountMinor") && !obj.isNull("originalAmountMinor")) {
+                    obj.getLong("originalAmountMinor")
+                } else null
+                if ((originalCurrencyCode == null) != (originalAmountMinor == null)) {
+                    throw IllegalArgumentException("Expense at index $idx has incomplete original-currency metadata")
+                }
                 Expense(
                     id = obj.optLong("id", 0L),
                     amount = Money.toDouble(minor, cur),
@@ -363,10 +459,12 @@ object LocalRecoveryManager {
                     imagePath = if (obj.has("imagePath")) obj.getString("imagePath").ifBlank { null } else null,
                     type = obj.optString("type", "EXPENSE"),
                     currencyCode = cur,
-                    accountId = resolvedAccountId,
+                    accountId = accId,
                     kind = obj.optString("kind", "REGULAR"),
                     goalId = if (gId > 0L) gId else null,
-                    recurringRuleId = if (rId > 0L) rId else null
+                    recurringRuleId = if (rId > 0L) rId else null,
+                    originalCurrencyCode = originalCurrencyCode,
+                    originalAmountMinor = originalAmountMinor
                 )
             }
 
@@ -426,6 +524,47 @@ object LocalRecoveryManager {
                 )
             }
 
+            val goalIds = goals.map { it.id }.toSet()
+            val recurringRuleIds = rules.map { it.id }.toSet()
+            if (goalIds.size != goals.size || goals.any { it.id <= 0L }) {
+                throw IllegalArgumentException("Snapshot contains duplicate or invalid savings-goal IDs")
+            }
+            if (rules.map { it.id }.toSet().size != rules.size || rules.any { it.id <= 0L }) {
+                throw IllegalArgumentException("Snapshot contains duplicate or invalid recurring-rule IDs")
+            }
+            expenses.forEachIndexed { idx, expense ->
+                if (expense.goalId != null && expense.goalId !in goalIds) {
+                    throw IllegalArgumentException("Expense at index $idx references missing savings goal ${expense.goalId}")
+                }
+                if (expense.recurringRuleId != null && expense.recurringRuleId !in recurringRuleIds) {
+                    throw IllegalArgumentException("Expense at index $idx references missing recurring rule ${expense.recurringRuleId}")
+                }
+            }
+
+            // Validate metadata counts before changing the live database.
+            val counts = payloadObj.optJSONObject("meta")?.optJSONObject("counts")
+            val expectedCounts = mapOf(
+                "accounts" to accounts.size,
+                "expenses" to expenses.size,
+                "budgets" to budgets.size,
+                "savingsGoals" to goals.size,
+                "reminders" to reminders.size,
+                "recurringRules" to rules.size
+            )
+            if (formatVersion >= 2 && counts == null) {
+                throw IllegalArgumentException("Snapshot is missing integrity record counts")
+            }
+            counts?.let {
+                expectedCounts.forEach { (key, actual) ->
+                    if (formatVersion >= 2 && !it.has(key)) {
+                        throw IllegalArgumentException("Snapshot integrity metadata is missing $key count")
+                    }
+                    if (it.has(key) && it.optInt(key, -1) != actual) {
+                        throw IllegalArgumentException("Snapshot count mismatch for $key")
+                    }
+                }
+            }
+
             // Mandatory Pre-restore Safety Snapshot
             val safetySnapshotCreated = createSnapshot(context, db)
             if (!safetySnapshotCreated) {
@@ -445,10 +584,18 @@ object LocalRecoveryManager {
                 reminders.forEach { dao.insertReminder(it) }
 
                 // Verification of restored record counts
-                val restoredAccounts = dao.getAccountsSnapshot()
-                val restoredExpenses = dao.getExpensesSnapshot()
-                if (restoredAccounts.size != accounts.size || restoredExpenses.size != expenses.size) {
-                    throw IllegalStateException("Record count mismatch after restore! Accounts: ${restoredAccounts.size}/${accounts.size}, Expenses: ${restoredExpenses.size}/${expenses.size}")
+                val restored = RecoveryDatabaseSnapshot(
+                    accounts = dao.getAccountsSnapshot(),
+                    expenses = dao.getExpensesSnapshot(),
+                    budgets = dao.getBudgetsSnapshot(),
+                    goals = dao.getSavingsGoalsSnapshot(),
+                    reminders = dao.getRemindersSnapshot(),
+                    rules = dao.getRecurringRulesSnapshot()
+                )
+                val expectedCounts = listOf(accounts.size, expenses.size, budgets.size, goals.size, reminders.size, rules.size)
+                val actualCounts = listOf(restored.accounts.size, restored.expenses.size, restored.budgets.size, restored.goals.size, restored.reminders.size, restored.rules.size)
+                if (actualCounts != expectedCounts) {
+                    throw IllegalStateException("Record count mismatch after restore. Expected $expectedCounts but found $actualCounts")
                 }
             }
 
