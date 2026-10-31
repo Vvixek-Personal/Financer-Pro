@@ -501,7 +501,7 @@ fun CurrencySettingsScreen(
             text = {
                 Column {
                     Text(
-                        text = "Current Rate: 1 $currentCode = $currentRate ${target.code}",
+                        text = "${if (CurrencyManager.areRatesFresh()) "Current Rate" else "Reference estimate (refresh for current rate)"}: 1 $currentCode = $currentRate ${target.code}",
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.SemiBold,
                         color = SleekPrimary

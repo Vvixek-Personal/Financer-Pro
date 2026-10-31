@@ -48,12 +48,12 @@ class FinancialHealthCalculator {
         val effectiveIncome = if (recentIncome > 0) recentIncome else (actualSpend * 1.25).coerceAtLeast(1000.0)
 
         val totalGoalSavings = allGoals.sumOf { goal ->
-            val converted = Money.convertWithFallback(goal.currentAmountMinor, goal.currencyCode, cur)
+            val converted = Money.convert(goal.currentAmountMinor, goal.currencyCode, cur)
             Money.toDouble(converted, cur)
         } + simulatedMonthlySavingsBoost
 
         val totalLiquidAccounts = allAccounts.sumOf { acc ->
-            val converted = Money.convertWithFallback(acc.balanceMinor, acc.currencyCode, cur)
+            val converted = Money.convert(acc.balanceMinor, acc.currencyCode, cur)
             Money.toDouble(converted, cur)
         }
         val totalLiquidReserves = (totalLiquidAccounts + (effectiveIncome - actualSpend).coerceAtLeast(0.0)).coerceAtLeast(0.0)

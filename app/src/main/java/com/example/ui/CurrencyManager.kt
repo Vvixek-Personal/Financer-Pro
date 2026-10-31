@@ -1,5 +1,7 @@
 package com.example.ui
 
+import java.util.Locale
+
 data class CurrencyItem(
     val country: String,
     val name: String,
@@ -116,38 +118,63 @@ object CurrencyManager {
         CurrencyItem("Yemen", "Yemeni Rial", "YER", "YR", "🇾🇪", 250.0)
     )
 
-    val currencies: List<CurrencyItem> get() = mutableCurrencies
+    @Volatile
+    var lastUpdatedAtMillis: Long? = null
+        private set
 
-    fun getRatesMap(): Map<String, Double> {
-        return mutableCurrencies.associate { it.code to it.rateToUsd }
+    val currencies: List<CurrencyItem> get() = synchronized(this) { mutableCurrencies.toList() }
+
+    fun getRatesMap(): Map<String, Double> = synchronized(this) {
+        mutableCurrencies.associate { it.code.uppercase(Locale.ROOT) to it.rateToUsd }
     }
 
-    fun updateRates(ratesMap: Map<String, Double>) {
+    fun areRatesFresh(nowMillis: Long = System.currentTimeMillis(), maxAgeMillis: Long = 24L * 60L * 60L * 1000L): Boolean =
+        isRateTimestampFresh(lastUpdatedAtMillis, nowMillis, maxAgeMillis)
+
+    fun isRateTimestampFresh(
+        updatedAtMillis: Long?,
+        nowMillis: Long = System.currentTimeMillis(),
+        maxAgeMillis: Long = 24L * 60L * 60L * 1000L
+    ): Boolean {
+        val updatedAt = updatedAtMillis ?: return false
+        val age = nowMillis - updatedAt
+        return age in 0..maxAgeMillis
+    }
+
+    fun updateRates(ratesMap: Map<String, Double>, updatedAtMillis: Long = System.currentTimeMillis()) = synchronized(this) {
+        var accepted = 0
         for (i in mutableCurrencies.indices) {
             val curr = mutableCurrencies[i]
-            val liveRate = ratesMap[curr.code]
-            if (liveRate != null) {
+            val liveRate = ratesMap.entries.firstOrNull { it.key.equals(curr.code, ignoreCase = true) }?.value
+            if (liveRate != null && liveRate > 0.0 && liveRate.isFinite()) {
                 mutableCurrencies[i] = curr.copy(rateToUsd = liveRate)
+                accepted++
             }
         }
+        require(accepted > 0) { "Exchange-rate response contained no usable rates" }
+        lastUpdatedAtMillis = updatedAtMillis.takeIf { it > 0L }
     }
 
-    fun getByCode(code: String): CurrencyItem {
-        return currencies.firstOrNull { it.code.equals(code, ignoreCase = true) }
-            ?: currencies[0] // default to INR
+    fun findByCode(code: String): CurrencyItem? = synchronized(this) {
+        mutableCurrencies.firstOrNull { it.code.equals(code.trim(), ignoreCase = true) }
     }
 
-    fun getSymbol(code: String): String {
-        return getByCode(code).symbol
-    }
+    fun getByCode(code: String): CurrencyItem = findByCode(code)
+        ?: throw IllegalArgumentException("Unsupported currency code: $code")
+
+    fun getSymbol(code: String): String = findByCode(code)?.symbol ?: code.trim().uppercase(Locale.ROOT)
 
     fun convert(amount: Double, fromCode: String, toCode: String): Double {
-        if (fromCode.equals(toCode, ignoreCase = true)) return amount
-        val fromRate = getByCode(fromCode).rateToUsd
-        val toRate = getByCode(toCode).rateToUsd
-        if (fromRate <= 0.0 || !fromRate.isFinite()) return amount
-        if (toRate <= 0.0 || !toRate.isFinite()) return amount
-        val amountInUsd = amount / fromRate
-        return amountInUsd * toRate
+        require(amount.isFinite()) { "Amount must be finite" }
+        val from = getByCode(fromCode)
+        val to = getByCode(toCode)
+        if (from.code.equals(to.code, ignoreCase = true)) return amount
+        val fromRate = from.rateToUsd
+        val toRate = to.rateToUsd
+        require(fromRate > 0.0 && fromRate.isFinite()) { "No valid rate for ${from.code}" }
+        require(toRate > 0.0 && toRate.isFinite()) { "No valid rate for ${to.code}" }
+        val converted = (amount / fromRate) * toRate
+        check(converted.isFinite()) { "Currency conversion overflow" }
+        return converted
     }
 }
