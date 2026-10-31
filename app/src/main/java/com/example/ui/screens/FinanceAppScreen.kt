@@ -105,94 +105,194 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector)
     object Calendar : Screen("calendar", "Calendar", AppIcons.CalendarMonth)
 }
 
+fun getCategoryColor(category: String): Color {
+    val clean = category.trim().lowercase(java.util.Locale.getDefault())
+    return when {
+        clean.contains("food") || clean.contains("dining") || clean.contains("restaurant") || clean.contains("grocer") || clean.contains("cafe") || clean.contains("coffee") || clean.contains("fastfood") || clean.contains("snack") || clean.contains("baking") -> Color(0xFFF97316)
+        clean.contains("travel") || clean.contains("transport") || clean.contains("car") || clean.contains("fuel") || clean.contains("gas") || clean.contains("flight") || clean.contains("taxi") || clean.contains("bus") -> Color(0xFF0D9488)
+        clean.contains("rent") || clean.contains("home") || clean.contains("house") || clean.contains("housing") || clean.contains("mortgage") || clean.contains("flat") || clean.contains("apartment") -> Color(0xFF2563EB)
+        clean.contains("util") || clean.contains("bill") || clean.contains("electric") || clean.contains("power") || clean.contains("water") || clean.contains("bolt") || clean.contains("wifi") || clean.contains("internet") || clean.contains("phone") || clean.contains("mobile") -> Color(0xFF16A34A)
+        clean.contains("entertain") || clean.contains("movie") || clean.contains("cinema") || clean.contains("game") || clean.contains("gaming") || clean.contains("music") || clean.contains("netflix") || clean.contains("streaming") -> Color(0xFFE11D48)
+        clean.contains("shop") || clean.contains("cloth") || clean.contains("fashion") || clean.contains("store") || clean.contains("shoe") || clean.contains("retail") || clean.contains("mall") -> Color(0xFF9333EA)
+        clean.contains("health") || clean.contains("medic") || clean.contains("doctor") || clean.contains("hospital") || clean.contains("pharmacy") || clean.contains("clinic") || clean.contains("dental") || clean.contains("dentist") -> Color(0xFFDC2626)
+        clean.contains("fit") || clean.contains("gym") || clean.contains("sport") || clean.contains("workout") || clean.contains("exercise") || clean.contains("yoga") -> Color(0xFF059669)
+        clean.contains("educat") || clean.contains("school") || clean.contains("college") || clean.contains("university") || clean.contains("tuition") || clean.contains("course") || clean.contains("book") || clean.contains("study") -> Color(0xFF4F46E5)
+        clean.contains("salary") || clean.contains("wage") || clean.contains("income") || clean.contains("paycheck") || clean.contains("earnings") -> Color(0xFF10B981)
+        clean.contains("freelance") || clean.contains("work") || clean.contains("business") || clean.contains("consult") || clean.contains("client") || clean.contains("gig") -> Color(0xFF0284C7)
+        clean.contains("invest") || clean.contains("stock") || clean.contains("crypto") || clean.contains("bitcoin") || clean.contains("trading") || clean.contains("dividend") || clean.contains("share") -> Color(0xFF8B5CF6)
+        clean.contains("saving") || clean.contains("save") || clean.contains("deposit") || clean.contains("vault") || clean.contains("piggy") || clean.contains("reserve") || clean.contains("emergency") -> Color(0xFFF59E0B)
+        clean.contains("gift") || clean.contains("donat") || clean.contains("charit") || clean.contains("present") -> Color(0xFFEC4899)
+        clean.contains("spa") || clean.contains("beauty") || clean.contains("salon") || clean.contains("barber") || clean.contains("haircut") || clean.contains("skincare") || clean.contains("personal") -> Color(0xFFD946EF)
+        clean.contains("person") || clean.contains("family") || clean.contains("friend") || clean.contains("kid") || clean.contains("child") || clean.contains("baby") -> Color(0xFF0EA5E9)
+        clean.contains("pet") || clean.contains("dog") || clean.contains("cat") || clean.contains("animal") || clean.contains("vet") -> Color(0xFFD97706)
+        clean.contains("subscri") || clean.contains("recur") || clean.contains("membership") -> Color(0xFF6366F1)
+        clean.contains("loan") || clean.contains("debt") || clean.contains("emi") || clean.contains("credit") || clean.contains("card") || clean.contains("repay") -> Color(0xFFEF4444)
+        clean.contains("tax") || clean.contains("fee") || clean.contains("fine") || clean.contains("duty") || clean.contains("charge") || clean.contains("receipt") -> Color(0xFFB91C1C)
+        clean.contains("tech") || clean.contains("comput") || clean.contains("laptop") || clean.contains("code") -> Color(0xFF0284C7)
+        clean.contains("construct") || clean.contains("repair") || clean.contains("build") || clean.contains("tool") -> Color(0xFFCA8A04)
+        clean.contains("event") || clean.contains("holiday") || clean.contains("celebrat") -> Color(0xFFEA580C)
+        clean.contains("star") || clean.contains("badge") || clean.contains("milestone") -> Color(0xFFEAB308)
+        else -> {
+            val hash = kotlin.math.abs(category.hashCode())
+            val palette = listOf(
+                Color(0xFFF97316), Color(0xFF0D9488), Color(0xFF2563EB), Color(0xFF16A34A),
+                Color(0xFFE11D48), Color(0xFF9333EA), Color(0xFF0EA5E9), Color(0xFFF59E0B),
+                Color(0xFF10B981), Color(0xFF6366F1), Color(0xFFEC4899), Color(0xFF8B5CF6)
+            )
+            palette[hash % palette.size]
+        }
+    }
+}
+
+// Category palette helper backed by getCategoryColor
+val categoryColors: Map<String, Color> = mapOf(
+    "Food" to Color(0xFFF97316),
+    "Travel" to Color(0xFF0D9488),
+    "Rent" to Color(0xFF2563EB),
+    "Utilities" to Color(0xFF16A34A),
+    "Entertainment" to Color(0xFFE11D48),
+    "Shopping" to Color(0xFF9333EA),
+    "Persons" to Color(0xFF0EA5E9),
+    "Others" to Color(0xFF64748B),
+    "Salary" to Color(0xFF10B981),
+    "Freelance" to Color(0xFF0284C7),
+    "Investments" to Color(0xFF8B5CF6),
+    "Gifts" to Color(0xFFEC4899),
+    "Health" to Color(0xFFDC2626),
+    "Healthcare" to Color(0xFFDC2626),
+    "Medical" to Color(0xFFDC2626),
+    "Education" to Color(0xFF4F46E5),
+    "Groceries" to Color(0xFFF97316),
+    "Transport" to Color(0xFF0D9488),
+    "Bills" to Color(0xFF16A34A),
+    "Savings" to Color(0xFFF59E0B),
+    "Fitness" to Color(0xFF059669),
+    "Personal Care" to Color(0xFFD946EF),
+    "Subscriptions" to Color(0xFF6366F1),
+    "Taxes" to Color(0xFFB91C1C),
+    "Loan" to Color(0xFFEF4444)
+)
+
 fun getCategoryEmoji(category: String, customMap: Map<String, String> = emptyMap()): String {
-    val resolved = (customMap[category] ?: category).lowercase(java.util.Locale.getDefault())
-    return when (resolved) {
-        "food", "dining", "restaurant", "baking", "fastfood" -> "🍔"
-        "travel", "flight", "aviation", "taxi", "transportation", "flighttakeoff" -> "✈️"
-        "rent", "home", "housing", "real estate" -> "🏠"
-        "utilities", "electricity", "water", "gas", "electricbolt", "bolt" -> "💡"
-        "entertainment", "gaming", "movies", "cinema", "sportsesports", "movie" -> "🎮"
-        "shopping", "clothing", "gear", "shoppingcart" -> "🛍️"
-        "persons", "friends", "family", "dogs", "cats", "pets", "person" -> "👥"
-        "salary", "income", "finance", "monetizationon" -> "💵"
-        "freelance", "work" -> "💼"
-        "investments", "crypto" -> "🪙"
-        "gifts", "gift", "cardgiftcard" -> "🎁"
-        "art" -> "🎨"
-        "botany" -> "🌱"
-        "cars", "car", "directionscar" -> "🚗"
-        "technology", "programming" -> "💻"
-        "fashion" -> "👗"
-        "birds" -> "🐦"
-        "health care", "healthcare", "medical", "localhospital", "healing" -> "🏥"
-        "geography" -> "🗺️"
-        "lgbtq" -> "🏳️‍🌈"
-        "mental health" -> "🧠"
-        "sports", "fitness", "fitnesscenter" -> "⚽"
-        "photography" -> "📷"
-        "design" -> "🖋️"
-        "ufo" -> "🛸"
-        "music" -> "🎶"
-        "school" -> "🏫"
-        "settings" -> "⚙️"
-        "star" -> "⭐️"
-        "construction" -> "🔨"
-        "coffee" -> "☕"
-        "waterdrop" -> "💧"
-        "checkroom" -> "🧥"
-        "directionsbus" -> "🚌"
-        "localgasstation" -> "⛽"
-        "event" -> "📅"
-        "spa" -> "🧖"
-        "pending" -> "⏳"
+    val clean = (customMap[category] ?: category).trim().lowercase(java.util.Locale.getDefault())
+    return when {
+        clean.contains("coffee") || clean.contains("cafe") -> "☕"
+        clean.contains("fastfood") || clean.contains("burger") || clean.contains("pizza") -> "🍔"
+        clean.contains("food") || clean.contains("dining") || clean.contains("restaurant") || clean.contains("grocer") || clean.contains("meal") -> "🍽️"
+        clean.contains("flight") || clean.contains("plane") || clean.contains("aviation") -> "✈️"
+        clean.contains("bus") -> "🚌"
+        clean.contains("gas") || clean.contains("fuel") || clean.contains("petrol") -> "⛽"
+        clean.contains("travel") || clean.contains("transport") || clean.contains("car") || clean.contains("taxi") -> "🚗"
+        clean.contains("rent") || clean.contains("home") || clean.contains("house") || clean.contains("housing") || clean.contains("apartment") -> "🏠"
+        clean.contains("water") -> "💧"
+        clean.contains("util") || clean.contains("bill") || clean.contains("electric") || clean.contains("power") || clean.contains("bolt") -> "💡"
+        clean.contains("game") || clean.contains("gaming") || clean.contains("esports") -> "🎮"
+        clean.contains("music") || clean.contains("spotify") || clean.contains("song") -> "🎵"
+        clean.contains("entertain") || clean.contains("movie") || clean.contains("cinema") || clean.contains("netflix") -> "🎬"
+        clean.contains("cloth") || clean.contains("fashion") || clean.contains("dress") -> "👗"
+        clean.contains("shop") || clean.contains("store") || clean.contains("mall") -> "🛍️"
+        clean.contains("salary") || clean.contains("wage") || clean.contains("income") || clean.contains("paycheck") -> "💵"
+        clean.contains("freelance") || clean.contains("work") || clean.contains("business") || clean.contains("job") -> "💼"
+        clean.contains("invest") || clean.contains("stock") || clean.contains("shares") || clean.contains("crypto") -> "📈"
+        clean.contains("saving") || clean.contains("save") || clean.contains("deposit") || clean.contains("vault") -> "🐷"
+        clean.contains("gift") || clean.contains("present") || clean.contains("donat") || clean.contains("charit") -> "🎁"
+        clean.contains("health") || clean.contains("medic") || clean.contains("doctor") || clean.contains("hospital") || clean.contains("pharmacy") -> "🏥"
+        clean.contains("fit") || clean.contains("gym") || clean.contains("sport") || clean.contains("workout") -> "🏋️"
+        clean.contains("educat") || clean.contains("school") || clean.contains("college") || clean.contains("university") || clean.contains("book") -> "🏫"
+        clean.contains("spa") || clean.contains("beauty") || clean.contains("salon") || clean.contains("haircut") || clean.contains("personal") -> "🧖"
+        clean.contains("person") || clean.contains("family") || clean.contains("friend") || clean.contains("people") -> "👥"
+        clean.contains("pet") || clean.contains("dog") || clean.contains("cat") || clean.contains("animal") -> "🐾"
+        clean.contains("subscri") || clean.contains("recur") -> "🔄"
+        clean.contains("loan") || clean.contains("debt") || clean.contains("emi") || clean.contains("credit") || clean.contains("card") -> "💳"
+        clean.contains("tax") || clean.contains("fine") || clean.contains("fee") || clean.contains("receipt") -> "🧾"
+        clean.contains("tech") || clean.contains("comput") || clean.contains("laptop") || clean.contains("code") -> "💻"
+        clean.contains("construct") || clean.contains("repair") || clean.contains("tool") -> "🔨"
+        clean.contains("event") || clean.contains("holiday") || clean.contains("celebrat") -> "📅"
+        clean.contains("star") || clean.contains("badge") || clean.contains("reward") -> "⭐️"
+        clean.contains("pending") || clean.contains("wait") -> "⏳"
         else -> "📦"
     }
 }
 
-// Category palette helper
-val categoryColors = mapOf(
-    "Food" to Color(0xFFF97316),        // Orange
-    "Travel" to Color(0xFF0D9488),      // Teal
-    "Rent" to Color(0xFF2563EB),        // Blue
-    "Utilities" to Color(0xFF16A34A),   // Green
-    "Entertainment" to Color(0xFFE11D48),// Rose
-    "Shopping" to Color(0xFF9333EA),     // Purple
-    "Persons" to Color(0xFF0EA5E9),      // Sky Blue (Persons Category)
-    "Others" to Color(0xFF64748B)        // Slate
-)
-
 fun getCategoryIcon(category: String, customMap: Map<String, String> = emptyMap()): ImageVector {
-    val resolved = customMap[category] ?: category
-    return when (resolved) {
-        "Food", "Restaurant" -> AppIcons.Restaurant
-        "Travel", "DirectionsCar" -> AppIcons.DirectionsCar
-        "Rent", "Home" -> AppIcons.Home
-        "Utilities", "Bolt", "ElectricBolt" -> AppIcons.Bolt
-        "Entertainment", "Movie" -> AppIcons.Movie
-        "Shopping", "ShoppingCart" -> AppIcons.ShoppingCart
-        "Persons", "Person" -> AppIcons.Person
-        "LocalHospital", "Healing" -> AppIcons.LocalHospital
-        "School" -> AppIcons.School
-        "Work" -> AppIcons.Work
-        "Flight", "FlightTakeoff" -> AppIcons.Flight
-        "SportsEsports" -> AppIcons.SportsEsports
-        "CardGiftcard" -> AppIcons.CardGiftcard
-        "MonetizationOn" -> AppIcons.MonetizationOn
-        "Settings" -> AppIcons.Settings
-        "Pets" -> AppIcons.Pets
-        "Star" -> AppIcons.Star
-        "Construction" -> AppIcons.Construction
-        "Fastfood" -> AppIcons.Fastfood
-        "Coffee" -> AppIcons.Coffee
-        "WaterDrop" -> AppIcons.WaterDrop
-        "Checkroom" -> AppIcons.Checkroom
-        "DirectionsBus" -> AppIcons.DirectionsBus
-        "LocalGasStation" -> AppIcons.LocalGasStation
-        "FitnessCenter" -> AppIcons.FitnessCenter
-        "Event" -> AppIcons.Event
-        "Spa" -> AppIcons.Spa
-        "Pending" -> AppIcons.Pending
+    val raw = customMap[category] ?: category
+    val clean = raw.trim().lowercase(java.util.Locale.getDefault())
+
+    // 1. Direct icon identifier matching
+    when (clean) {
+        "restaurant", "food", "dining" -> return AppIcons.Restaurant
+        "directionscar", "car", "travel" -> return AppIcons.DirectionsCar
+        "home", "house", "rent" -> return AppIcons.Home
+        "bolt", "electricbolt", "electricity", "utilities" -> return AppIcons.Bolt
+        "movie", "entertainment" -> return AppIcons.Movie
+        "shoppingcart", "shopping", "shoppingbag" -> return AppIcons.ShoppingCart
+        "person", "persons" -> return AppIcons.Person
+        "localhospital", "healing", "hospital", "health" -> return AppIcons.LocalHospital
+        "school", "education" -> return AppIcons.School
+        "work", "business" -> return AppIcons.Work
+        "flight", "flighttakeoff", "airplane" -> return AppIcons.Flight
+        "sportsesports", "gaming" -> return AppIcons.SportsEsports
+        "cardgiftcard", "gift", "gifts" -> return AppIcons.CardGiftcard
+        "monetizationon", "salary", "income" -> return AppIcons.MonetizationOn
+        "settings" -> return AppIcons.Settings
+        "pets", "pet" -> return AppIcons.Pets
+        "star" -> return AppIcons.Star
+        "construction" -> return AppIcons.Construction
+        "fastfood" -> return AppIcons.Fastfood
+        "coffee" -> return AppIcons.Coffee
+        "waterdrop", "water" -> return AppIcons.WaterDrop
+        "checkroom", "clothes" -> return AppIcons.Checkroom
+        "directionsbus", "bus" -> return AppIcons.DirectionsBus
+        "localgasstation", "fuel", "gas" -> return AppIcons.LocalGasStation
+        "fitnesscenter", "gym", "fitness" -> return AppIcons.FitnessCenter
+        "event", "calendar" -> return AppIcons.Event
+        "spa", "beauty" -> return AppIcons.Spa
+        "pending" -> return AppIcons.Pending
+        "accountbalance", "bank" -> return AppIcons.AccountBalance
+        "creditcard", "card", "loan" -> return AppIcons.CreditCard
+        "savings" -> return AppIcons.Savings
+        "piechart", "budget" -> return AppIcons.PieChart
+        "receipt", "tax" -> return AppIcons.Receipt
+        "laptop", "computer" -> return AppIcons.Laptop
+        "category" -> return AppIcons.Category
+    }
+
+    // 2. Keyword heuristic matching
+    return when {
+        clean.contains("coffee") || clean.contains("cafe") -> AppIcons.Coffee
+        clean.contains("fastfood") || clean.contains("burger") || clean.contains("pizza") -> AppIcons.Fastfood
+        clean.contains("food") || clean.contains("dining") || clean.contains("restaurant") || clean.contains("grocer") || clean.contains("meal") || clean.contains("snack") || clean.contains("bak") -> AppIcons.Restaurant
+        clean.contains("flight") || clean.contains("plane") || clean.contains("aviation") -> AppIcons.Flight
+        clean.contains("bus") -> AppIcons.DirectionsBus
+        clean.contains("gas") || clean.contains("fuel") || clean.contains("petrol") -> AppIcons.LocalGasStation
+        clean.contains("travel") || clean.contains("transport") || clean.contains("car") || clean.contains("taxi") || clean.contains("commute") -> AppIcons.DirectionsCar
+        clean.contains("rent") || clean.contains("home") || clean.contains("house") || clean.contains("housing") || clean.contains("apartment") || clean.contains("mortgage") || clean.contains("flat") -> AppIcons.Home
+        clean.contains("water") -> AppIcons.WaterDrop
+        clean.contains("util") || clean.contains("bill") || clean.contains("electric") || clean.contains("power") || clean.contains("bolt") || clean.contains("wifi") || clean.contains("internet") || clean.contains("phone") || clean.contains("mobile") -> AppIcons.Bolt
+        clean.contains("game") || clean.contains("gaming") || clean.contains("esports") -> AppIcons.SportsEsports
+        clean.contains("entertain") || clean.contains("movie") || clean.contains("cinema") || clean.contains("netflix") || clean.contains("theatre") || clean.contains("music") || clean.contains("streaming") -> AppIcons.Movie
+        clean.contains("cloth") || clean.contains("fashion") || clean.contains("shoe") || clean.contains("wear") -> AppIcons.Checkroom
+        clean.contains("shop") || clean.contains("store") || clean.contains("mall") || clean.contains("retail") -> AppIcons.ShoppingCart
+        clean.contains("health") || clean.contains("medic") || clean.contains("doctor") || clean.contains("hospital") || clean.contains("pharmacy") || clean.contains("clinic") || clean.contains("dental") || clean.contains("care") -> AppIcons.LocalHospital
+        clean.contains("fit") || clean.contains("gym") || clean.contains("sport") || clean.contains("workout") || clean.contains("exercise") || clean.contains("yoga") -> AppIcons.FitnessCenter
+        clean.contains("educat") || clean.contains("school") || clean.contains("college") || clean.contains("university") || clean.contains("tuition") || clean.contains("course") || clean.contains("book") || clean.contains("study") -> AppIcons.School
+        clean.contains("salary") || clean.contains("wage") || clean.contains("income") || clean.contains("paycheck") || clean.contains("earnings") || clean.contains("stipend") -> AppIcons.MonetizationOn
+        clean.contains("freelance") || clean.contains("work") || clean.contains("business") || clean.contains("consult") || clean.contains("client") || clean.contains("gig") || clean.contains("job") -> AppIcons.Work
+        clean.contains("invest") || clean.contains("stock") || clean.contains("crypto") || clean.contains("bitcoin") || clean.contains("trading") || clean.contains("share") || clean.contains("dividend") || clean.contains("fund") -> AppIcons.AutoGraph
+        clean.contains("saving") || clean.contains("save") || clean.contains("deposit") || clean.contains("vault") || clean.contains("piggy") || clean.contains("reserve") || clean.contains("emergency") -> AppIcons.Savings
+        clean.contains("gift") || clean.contains("present") || clean.contains("donat") || clean.contains("charit") -> AppIcons.CardGiftcard
+        clean.contains("spa") || clean.contains("beauty") || clean.contains("salon") || clean.contains("barber") || clean.contains("haircut") || clean.contains("skincare") || clean.contains("personal") -> AppIcons.Spa
+        clean.contains("person") || clean.contains("family") || clean.contains("friend") || clean.contains("kid") || clean.contains("child") || clean.contains("baby") || clean.contains("people") -> AppIcons.Person
+        clean.contains("pet") || clean.contains("dog") || clean.contains("cat") || clean.contains("animal") || clean.contains("vet") -> AppIcons.Pets
+        clean.contains("subscri") || clean.contains("recur") || clean.contains("membership") -> AppIcons.Autorenew
+        clean.contains("loan") || clean.contains("debt") || clean.contains("emi") || clean.contains("credit") || clean.contains("card") || clean.contains("repay") -> AppIcons.CreditCard
+        clean.contains("tax") || clean.contains("fine") || clean.contains("fee") || clean.contains("duty") || clean.contains("receipt") -> AppIcons.Receipt
+        clean.contains("tech") || clean.contains("comput") || clean.contains("laptop") || clean.contains("code") -> AppIcons.Laptop
+        clean.contains("construct") || clean.contains("repair") || clean.contains("build") || clean.contains("tool") -> AppIcons.Construction
+        clean.contains("event") || clean.contains("holiday") || clean.contains("celebrat") -> AppIcons.Event
+        clean.contains("star") || clean.contains("badge") || clean.contains("milestone") -> AppIcons.Star
+        clean.contains("pending") || clean.contains("wait") -> AppIcons.Pending
+        clean.contains("bank") || clean.contains("account") -> AppIcons.AccountBalance
         else -> AppIcons.Category
     }
 }
@@ -3606,9 +3706,28 @@ fun CreateCategoryDialog(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
+                val previewIcon = getCategoryIcon(newCatName.ifBlank { if (selectedType == "INCOME") "Salary" else "Food" })
+                val previewColor = getCategoryColor(newCatName.ifBlank { if (selectedType == "INCOME") "Salary" else "Food" })
+
                 OutlinedTextField(
                     value = newCatName,
                     onValueChange = { newCatName = it },
+                    leadingIcon = {
+                        Box(
+                            modifier = Modifier
+                                .size(30.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(previewColor.copy(alpha = 0.16f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = previewIcon,
+                                contentDescription = null,
+                                tint = previewColor,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    },
                     label = { Text("Category Name", color = SleekTextSecondary) },
                     placeholder = { Text(if (selectedType == "INCOME") "e.g., Freelance, Bonus..." else "e.g., Gym, Subscriptions...", color = SleekTextSecondary, fontSize = 12.sp) },
                     singleLine = true,

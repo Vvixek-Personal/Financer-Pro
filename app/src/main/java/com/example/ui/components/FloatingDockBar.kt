@@ -230,9 +230,9 @@ private fun AnimatedDockTile(
                 tint = if (isSelected) {
                     Color.White
                 } else {
-                    if (isDarkModeActive) Color.White.copy(alpha = 0.75f) else Color(0xFF475569)
+                    if (isDarkModeActive) Color.White.copy(alpha = 0.85f) else Color(0xFF334155)
                 },
-                modifier = Modifier.size(if (isSelected) SleekSizes.iconMedium else SleekSizes.iconSmall)
+                modifier = Modifier.size(if (isSelected) 22.dp else 20.dp)
             )
         }
 

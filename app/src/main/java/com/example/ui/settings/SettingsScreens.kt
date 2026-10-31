@@ -325,6 +325,7 @@ fun CategoriesTagsScreen(
     val goalCategories by viewModel.goalCategories.collectAsStateWithLifecycle()
     val budgetCategories by viewModel.budgetCategories.collectAsStateWithLifecycle()
     val allTags by viewModel.allTags.collectAsStateWithLifecycle()
+    val categoryIcons by viewModel.categoryIcons.collectAsStateWithLifecycle()
 
     val preventDeleteUsed by viewModel.preventDeleteUsedCategories.collectAsStateWithLifecycle()
     val showCategoryInList by viewModel.showCategoryInTransactionList.collectAsStateWithLifecycle()
@@ -791,11 +792,32 @@ fun CategoriesTagsScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(
-                                        cat,
-                                        fontWeight = FontWeight.Medium,
-                                        color = SleekTextPrimary
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        val catIcon = getCategoryIcon(cat, categoryIcons)
+                                        val catColor = getCategoryColor(cat)
+                                        Box(
+                                            modifier = Modifier
+                                                .size(34.dp)
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(catColor.copy(alpha = 0.16f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = catIcon,
+                                                contentDescription = cat,
+                                                tint = catColor,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                        Text(
+                                            cat,
+                                            fontWeight = FontWeight.Medium,
+                                            color = SleekTextPrimary
+                                        )
+                                    }
                                     IconButton(
                                         onClick = {
                                             viewModel.deleteAnyCategory(cat)
@@ -839,9 +861,28 @@ fun CategoriesTagsScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Category Name", style = MaterialTheme.typography.labelMedium, color = SleekTextSecondary)
+                    val previewIcon = getCategoryIcon(catName.ifBlank { if (selectedType == "Income") "Salary" else "Food" })
+                    val previewColor = getCategoryColor(catName.ifBlank { if (selectedType == "Income") "Salary" else "Food" })
+
                     OutlinedTextField(
                         value = catName,
                         onValueChange = { catName = it },
+                        leadingIcon = {
+                            Box(
+                                modifier = Modifier
+                                    .size(30.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(previewColor.copy(alpha = 0.16f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = previewIcon,
+                                    contentDescription = null,
+                                    tint = previewColor,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        },
                         placeholder = { Text("e.g. Groceries, Gym, Freelance") },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
@@ -924,21 +965,124 @@ fun CategoriesTagsScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(cat, fontWeight = FontWeight.Medium, color = SleekTextPrimary)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    val catIcon = getCategoryIcon(cat, categoryIcons)
+                                    val catColor = getCategoryColor(cat)
+                                    Box(
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(catColor.copy(alpha = 0.16f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = catIcon,
+                                            contentDescription = cat,
+                                            tint = catColor,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                    Text(cat, fontWeight = FontWeight.Medium, color = SleekTextPrimary)
+                                }
                                 Icon(AppIcons.Edit, contentDescription = "Edit", tint = SleekPrimary, modifier = Modifier.size(18.dp))
                             }
                         }
                     }
                 } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("Rename '${editingCat}'", fontWeight = FontWeight.Bold, color = SleekTextPrimary)
+                    val availableIcons = remember {
+                        listOf(
+                            "Restaurant" to AppIcons.Restaurant,
+                            "DirectionsCar" to AppIcons.DirectionsCar,
+                            "Home" to AppIcons.Home,
+                            "Bolt" to AppIcons.Bolt,
+                            "Movie" to AppIcons.Movie,
+                            "ShoppingCart" to AppIcons.ShoppingCart,
+                            "LocalHospital" to AppIcons.LocalHospital,
+                            "FitnessCenter" to AppIcons.FitnessCenter,
+                            "School" to AppIcons.School,
+                            "Work" to AppIcons.Work,
+                            "MonetizationOn" to AppIcons.MonetizationOn,
+                            "AutoGraph" to AppIcons.AutoGraph,
+                            "Savings" to AppIcons.Savings,
+                            "CardGiftcard" to AppIcons.CardGiftcard,
+                            "Spa" to AppIcons.Spa,
+                            "Person" to AppIcons.Person,
+                            "Pets" to AppIcons.Pets,
+                            "Fastfood" to AppIcons.Fastfood,
+                            "Coffee" to AppIcons.Coffee,
+                            "WaterDrop" to AppIcons.WaterDrop,
+                            "CreditCard" to AppIcons.CreditCard,
+                            "Star" to AppIcons.Star
+                        )
+                    }
+                    var selectedIconName by remember(editingCat) {
+                        mutableStateOf(categoryIcons[editingCat] ?: "Restaurant")
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 420.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text("Edit '${editingCat}'", fontWeight = FontWeight.Bold, color = SleekTextPrimary)
                         OutlinedTextField(
                             value = newCatName,
                             onValueChange = { newCatName = it },
+                            label = { Text("Category Name") },
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth()
                         )
+
+                        Text(
+                            "Choose Icon",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = SleekTextSecondary
+                        )
+
+                        // Icon selection grid
+                        val iconRows = availableIcons.chunked(6)
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            iconRows.forEach { rowIcons ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    rowIcons.forEach { (name, iconVector) ->
+                                        val isChosen = selectedIconName.equals(name, ignoreCase = true)
+                                        Box(
+                                            modifier = Modifier
+                                                .size(38.dp)
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(if (isChosen) SleekPrimary.copy(alpha = 0.22f) else SleekBg)
+                                                .border(
+                                                    width = if (isChosen) 2.dp else 1.dp,
+                                                    color = if (isChosen) SleekPrimary else SleekBorder,
+                                                    shape = RoundedCornerShape(8.dp)
+                                                )
+                                                .clickable { selectedIconName = name },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = iconVector,
+                                                contentDescription = name,
+                                                tint = if (isChosen) SleekPrimary else SleekTextPrimary,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
                         Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
                             TextButton(onClick = { editingCat = null }) {
                                 Text("Back")
@@ -947,9 +1091,12 @@ fun CategoriesTagsScreen(
                                 onClick = {
                                     val cat = editingCat
                                     if (newCatName.isNotBlank() && cat != null) {
-                                        viewModel.renameAnyCategory(cat, newCatName)
+                                        if (newCatName != cat) {
+                                            viewModel.renameAnyCategory(cat, newCatName)
+                                        }
+                                        viewModel.updateCategoryIcon(newCatName, selectedIconName)
                                         editingCat = null
-                                        Toast.makeText(context, "Renamed category!", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "Saved category!", Toast.LENGTH_SHORT).show()
                                     }
                                 },
                                 shape = RoundedCornerShape(10.dp),

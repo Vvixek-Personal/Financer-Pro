@@ -141,18 +141,21 @@ fun SidebarGroupCard(
                             .clickable { item.onClick() }
                             .padding(horizontal = 16.dp, vertical = 14.dp)
                     ) {
+                        val badgeBg = if (isDarkModeActive) item.iconColor.copy(alpha = 0.16f) else item.iconBgColor
+                        val badgeBorder = if (isDarkModeActive) item.iconColor.copy(alpha = 0.35f) else item.iconColor.copy(alpha = 0.22f)
+                        val badgeTint = if (isDarkModeActive) item.iconColor.copy(alpha = 0.95f) else item.iconColor
                         Box(
                             modifier = Modifier
                                 .size(40.dp)
-                                .clip(SleekShapes.chip)
-                                .background(SleekBg)
-                                .border(1.dp, SleekBorder, SleekShapes.chip),
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(badgeBg)
+                                .border(1.dp, badgeBorder, RoundedCornerShape(12.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = item.icon,
                                 contentDescription = item.titleKey,
-                                tint = SleekPrimary,
+                                tint = badgeTint,
                                 modifier = Modifier.size(20.dp)
                             )
                         }

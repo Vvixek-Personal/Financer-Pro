@@ -426,41 +426,26 @@ fun Image1TransactionRow(
                 .padding(SleekSpacing.cardPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            val catIcon = getCategoryIcon(expense.category, categoryIcons)
+            val catColor = if (isIncome) IncomeGreen else getCategoryColor(expense.category)
+            val iconBg = if (isTransfer) Color(0xFF0284C7).copy(alpha = 0.15f) else catColor.copy(alpha = 0.15f)
+            val iconBorder = if (isTransfer) Color(0xFF0284C7).copy(alpha = 0.30f) else catColor.copy(alpha = 0.28f)
+            val iconTint = if (isTransfer) Color(0xFF0284C7) else catColor
+
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(accentBg),
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(iconBg)
+                    .border(BorderStroke(1.dp, iconBorder), RoundedCornerShape(12.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                if (isTransfer) {
-                    Icon(
-                        imageVector = AppIcons.Sync,
-                        contentDescription = "Transfer",
-                        tint = accentColor,
-                        modifier = Modifier.size(20.dp)
-                    )
-                } else {
-                    val firstChar = displayName.trim().firstOrNull()?.uppercaseChar() ?: 'T'
-                    if (displayName.contains("Eva", ignoreCase = true) ||
-                        displayName.contains("Henrik", ignoreCase = true) ||
-                        displayName.contains("Matteo", ignoreCase = true) ||
-                        displayName.contains("Emilia", ignoreCase = true)) {
-                        Text(
-                            text = firstChar.toString(),
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = IncomeGreen
-                        )
-                    } else {
-                        Icon(
-                            imageVector = getCategoryIcon(expense.category, categoryIcons),
-                            contentDescription = expense.category,
-                            tint = if (isIncome) IncomeGreen else SleekTextPrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
+                Icon(
+                    imageVector = if (isTransfer) AppIcons.Sync else catIcon,
+                    contentDescription = expense.category,
+                    tint = iconTint,
+                    modifier = Modifier.size(20.dp)
+                )
             }
 
             Spacer(modifier = Modifier.width(12.dp))

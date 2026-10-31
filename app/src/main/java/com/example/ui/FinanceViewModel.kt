@@ -1914,6 +1914,15 @@ class FinanceViewModel(
         }
     }
 
+    fun updateCategoryIcon(category: String, iconName: String) {
+        val trimmed = category.trim()
+        if (trimmed.isEmpty() || iconName.isBlank()) return
+        sharedPrefs.edit().putString("cat_icon_$trimmed", iconName).apply()
+        val updatedIcons = _categoryIcons.value.toMutableMap()
+        updatedIcons[trimmed] = iconName
+        _categoryIcons.value = updatedIcons
+    }
+
     fun getAvailableNetBalance(): Double {
         val allExp = expenses.value
         val curCode = _selectedCurrencyCode.value

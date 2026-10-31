@@ -503,18 +503,21 @@ fun AddExpenseDialog(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
+                                    val catIcon = getCategoryIcon(category, categoryIcons)
+                                    val catColor = getCategoryColor(category)
                                     Box(
                                         modifier = Modifier
-                                            .size(36.dp)
+                                            .size(38.dp)
                                             .clip(SleekShapes.chip)
-                                            .background(activeSoftBg),
+                                            .background(catColor.copy(alpha = 0.16f))
+                                            .border(BorderStroke(1.dp, catColor.copy(alpha = 0.28f)), SleekShapes.chip),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
-                                            imageVector = AppIcons.Category,
-                                            contentDescription = null,
-                                            tint = activeColor,
-                                            modifier = Modifier.size(18.dp)
+                                            imageVector = catIcon,
+                                            contentDescription = category,
+                                            tint = catColor,
+                                            modifier = Modifier.size(20.dp)
                                         )
                                     }
                                     Spacer(modifier = Modifier.width(12.dp))
@@ -1137,6 +1140,9 @@ fun CategoryGridSection(
                     val isSelected = cat == selectedCategory
                     val emoji = getCategoryEmoji(cat, categoryIcons)
 
+                    val catIcon = getCategoryIcon(cat, categoryIcons)
+                    val catColor = getCategoryColor(cat)
+
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
@@ -1152,15 +1158,20 @@ fun CategoryGridSection(
                             modifier = Modifier
                                 .size(48.dp)
                                 .clip(CircleShape)
-                                .background(if (isSelected) activeBg else SleekBg)
+                                .background(if (isSelected) catColor.copy(alpha = 0.22f) else SleekBg)
                                 .border(
                                     width = if (isSelected) 2.dp else 1.dp,
-                                    color = if (isSelected) activeColor else SleekBorder,
+                                    color = if (isSelected) catColor else SleekBorder,
                                     shape = CircleShape
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(text = emoji.ifBlank { "📦" }, fontSize = 20.sp)
+                            Icon(
+                                imageVector = catIcon,
+                                contentDescription = cat,
+                                tint = if (isSelected) catColor else SleekTextPrimary,
+                                modifier = Modifier.size(22.dp)
+                            )
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
