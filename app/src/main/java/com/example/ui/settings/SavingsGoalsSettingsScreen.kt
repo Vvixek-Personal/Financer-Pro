@@ -1,5 +1,7 @@
 package com.example.ui
 
+import androidx.activity.compose.BackHandler
+
 import com.example.ui.theme.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
@@ -24,6 +26,8 @@ fun SavingsGoalsSettingsScreen(
     viewModel: FinanceViewModel,
     onBack: () -> Unit
 ) {
+    BackHandler { onBack() }
+
     val viewMode by viewModel.goalViewMode.collectAsStateWithLifecycle()
     val progressStyle by viewModel.goalProgressStyle.collectAsStateWithLifecycle()
 

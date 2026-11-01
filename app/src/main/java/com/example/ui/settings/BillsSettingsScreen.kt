@@ -1,5 +1,7 @@
 package com.example.ui
 
+import androidx.activity.compose.BackHandler
+
 import com.example.ui.theme.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -25,6 +27,8 @@ fun BillsSettingsScreen(
     viewModel: FinanceViewModel,
     onBack: () -> Unit
 ) {
+    BackHandler { onBack() }
+
     val defaultRecurrence by viewModel.billDefaultRecurrence.collectAsStateWithLifecycle()
     val recurringEnd by viewModel.billRecurringEnd.collectAsStateWithLifecycle()
     val defaultCategory by viewModel.billDefaultCategory.collectAsStateWithLifecycle()

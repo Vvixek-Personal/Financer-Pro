@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import androidx.activity.compose.BackHandler
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -53,6 +55,8 @@ fun NetWorthAssetsScreen(
     viewModel: FinanceViewModel,
     onBack: () -> Unit
 ) {
+    BackHandler { onBack() }
+
     val haptic = LocalHapticFeedback.current
     val accounts by viewModel.accounts.collectAsStateWithLifecycle()
     val currencySymbol by viewModel.selectedCurrencySymbol.collectAsStateWithLifecycle()

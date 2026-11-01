@@ -1,5 +1,7 @@
 package com.example.ui
 
+import androidx.activity.compose.BackHandler
+
 import com.example.ui.theme.*
 import android.net.Uri
 import android.widget.Toast
@@ -41,6 +43,8 @@ fun PersonalDataScreen(
     viewModel: FinanceViewModel,
     onBack: () -> Unit
 ) {
+    BackHandler { onBack() }
+
     val currentName by viewModel.userName.collectAsStateWithLifecycle()
     val currentDob by viewModel.userDob.collectAsStateWithLifecycle()
     val currentJob by viewModel.userJob.collectAsStateWithLifecycle()

@@ -1,5 +1,7 @@
 package com.example.ui
 
+import androidx.activity.compose.BackHandler
+
 import com.example.ui.theme.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -40,6 +42,8 @@ fun CurrencySettingsScreen(
     viewModel: FinanceViewModel,
     onBack: () -> Unit
 ) {
+    BackHandler { onBack() }
+
     val currentCode by viewModel.selectedCurrencyCode.collectAsStateWithLifecycle()
     val currentSymbol by viewModel.selectedCurrencySymbol.collectAsStateWithLifecycle()
     val currentName by viewModel.selectedCurrencyName.collectAsStateWithLifecycle()

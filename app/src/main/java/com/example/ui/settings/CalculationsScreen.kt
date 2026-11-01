@@ -1,5 +1,7 @@
 package com.example.ui
 
+import androidx.activity.compose.BackHandler
+
 import com.example.ui.theme.*
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -50,6 +52,8 @@ fun CalculationsScreen(
     viewModel: FinanceViewModel,
     onBack: () -> Unit
 ) {
+    BackHandler { onBack() }
+
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabTitles = listOf(
         "Currency Converter",

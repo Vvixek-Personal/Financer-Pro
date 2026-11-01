@@ -1,5 +1,7 @@
 package com.example.ui
 
+import androidx.activity.compose.BackHandler
+
 import com.example.ui.theme.*
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
@@ -28,6 +30,8 @@ fun LanguageScreen(
     viewModel: FinanceViewModel,
     onBack: () -> Unit
 ) {
+    BackHandler { onBack() }
+
     val selectedLanguage by viewModel.selectedLanguage.collectAsStateWithLifecycle()
     var searchLanguage by remember { mutableStateOf("") }
     val context = LocalContext.current

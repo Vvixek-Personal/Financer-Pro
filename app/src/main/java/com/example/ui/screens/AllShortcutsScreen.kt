@@ -1,5 +1,7 @@
 package com.example.ui
 
+import androidx.activity.compose.BackHandler
+
 import com.example.ui.theme.*
 import androidx.compose.animation.*
 import androidx.compose.animation.core.Spring
@@ -80,6 +82,8 @@ fun AllShortcutsTabScreen(
     selectedLanguage: String = "English",
     modifier: Modifier = Modifier
 ) {
+    BackHandler { onBack() }
+
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("All") }
 

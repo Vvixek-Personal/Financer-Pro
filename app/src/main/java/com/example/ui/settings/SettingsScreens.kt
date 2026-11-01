@@ -1,5 +1,7 @@
 package com.example.ui
 
+import androidx.activity.compose.BackHandler
+
 import com.example.ui.theme.*
 import java.util.Calendar
 import java.util.Date
@@ -320,6 +322,8 @@ fun CategoriesTagsScreen(
     viewModel: FinanceViewModel,
     onBack: () -> Unit
 ) {
+    BackHandler { onBack() }
+
     val expenseCategories by viewModel.expenseCategories.collectAsStateWithLifecycle()
     val incomeCategories by viewModel.incomeCategories.collectAsStateWithLifecycle()
     val goalCategories by viewModel.goalCategories.collectAsStateWithLifecycle()
@@ -1560,6 +1564,8 @@ fun BudgetSettingsScreen(
     viewModel: FinanceViewModel,
     onBack: () -> Unit
 ) {
+    BackHandler { onBack() }
+
     val monthlyBudget by viewModel.monthlyBudget.collectAsStateWithLifecycle()
     val currencyCode by viewModel.selectedCurrencyCode.collectAsStateWithLifecycle()
     val currencySymbol by viewModel.selectedCurrencySymbol.collectAsStateWithLifecycle()
@@ -2888,6 +2894,8 @@ fun BackupRestoreScreen(
     viewModel: FinanceViewModel,
     onBack: () -> Unit
 ) {
+    BackHandler { onBack() }
+
     val autoBackup by viewModel.autoBackupEnabled.collectAsStateWithLifecycle()
     val lastBackup by viewModel.lastBackupTimestamp.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -3315,6 +3323,7 @@ fun DataManagementScreen(
     onBack: () -> Unit,
     onNavigateToLocalRecovery: () -> Unit = {}
 ) {
+    BackHandler { onBack() }
     val storageSize by viewModel.storageSize.collectAsStateWithLifecycle()
     val accounts by viewModel.accounts.collectAsStateWithLifecycle()
     val currencyCode by viewModel.selectedCurrencyCode.collectAsStateWithLifecycle()
@@ -3666,6 +3675,8 @@ fun SecuritySettingsScreen(
     viewModel: FinanceViewModel,
     onBack: () -> Unit
 ) {
+    BackHandler { onBack() }
+
     val appPin by viewModel.appPin.collectAsStateWithLifecycle()
     val lockOnRestart by viewModel.lockOnRestart.collectAsStateWithLifecycle()
     val biometricEnabled by viewModel.biometricEnabled.collectAsStateWithLifecycle()
@@ -3912,6 +3923,8 @@ fun PrivacySettingsScreen(
     viewModel: FinanceViewModel,
     onBack: () -> Unit
 ) {
+    BackHandler { onBack() }
+
     val privacyMode by viewModel.privacyModeEnabled.collectAsStateWithLifecycle()
 
     Column(
@@ -3982,6 +3995,8 @@ fun AboutAppScreen(
     viewModel: FinanceViewModel,
     onBack: () -> Unit
 ) {
+    BackHandler { onBack() }
+
     var selectedTab by remember { mutableIntStateOf(0) }
 
     Column(
@@ -4187,6 +4202,8 @@ fun HelpSupportScreen(
     viewModel: FinanceViewModel,
     onBack: () -> Unit
 ) {
+    BackHandler { onBack() }
+
     var searchQuery by remember { mutableStateOf("") }
 
     val faqs = remember {
@@ -4278,6 +4295,8 @@ fun ExportDataScreen(
     viewModel: FinanceViewModel,
     onBack: () -> Unit
 ) {
+    BackHandler { onBack() }
+
     val context = LocalContext.current
     val expenses by viewModel.expenses.collectAsStateWithLifecycle()
     val currencyCode by viewModel.selectedCurrencyCode.collectAsStateWithLifecycle()

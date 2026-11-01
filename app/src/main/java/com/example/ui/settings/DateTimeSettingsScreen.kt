@@ -1,5 +1,7 @@
 package com.example.ui
 
+import androidx.activity.compose.BackHandler
+
 import com.example.ui.theme.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -25,6 +27,8 @@ fun DateTimeScreen(
     viewModel: FinanceViewModel,
     onBack: () -> Unit
 ) {
+    BackHandler { onBack() }
+
     val dateFormat by viewModel.dateFormat.collectAsStateWithLifecycle()
     val firstDay by viewModel.firstDayOfWeek.collectAsStateWithLifecycle()
 

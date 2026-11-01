@@ -1,5 +1,7 @@
 package com.example.ui
 
+import androidx.activity.compose.BackHandler
+
 import com.example.ui.theme.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
@@ -27,6 +29,8 @@ fun TransactionSettingsScreen(
     viewModel: FinanceViewModel,
     onBack: () -> Unit
 ) {
+    BackHandler { onBack() }
+
     val defaultTxType by viewModel.defaultTxType.collectAsStateWithLifecycle()
     val rememberLastCategory by viewModel.rememberLastCategory.collectAsStateWithLifecycle()
     val confirmDelete by viewModel.confirmTxDelete.collectAsStateWithLifecycle()

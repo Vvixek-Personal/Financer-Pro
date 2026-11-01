@@ -1,5 +1,7 @@
 package com.example.ui
 
+import androidx.activity.compose.BackHandler
+
 import com.example.ui.theme.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -26,6 +28,8 @@ fun AppearanceScreen(
     viewModel: FinanceViewModel,
     onBack: () -> Unit
 ) {
+    BackHandler { onBack() }
+
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val isFollowDeviceColors by viewModel.isFollowDeviceColors.collectAsStateWithLifecycle()
     val themeIndex by viewModel.themeIndex.collectAsStateWithLifecycle()

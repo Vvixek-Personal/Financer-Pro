@@ -1,5 +1,7 @@
 package com.example.ui
 
+import androidx.activity.compose.BackHandler
+
 import com.example.ui.theme.*
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
@@ -32,6 +34,8 @@ fun LocalRecoveryScreen(
     viewModel: FinanceViewModel,
     onBack: () -> Unit
 ) {
+    BackHandler { onBack() }
+
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var snapshots by remember { mutableStateOf(emptyList<SnapshotMeta>()) }
