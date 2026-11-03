@@ -37,6 +37,7 @@ fun BillsFullScreen(
     onBack: () -> Unit,
     onPayBill: (String, Double) -> Unit
 ) {
+    BackHandler { onBack() }
     val context = LocalContext.current
     val billsList = viewModel.billsList
     val accounts by viewModel.accounts.collectAsStateWithLifecycle()
@@ -333,6 +334,7 @@ fun RemindersFullScreen(
     viewModel: FinanceViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     onBack: () -> Unit
 ) {
+    BackHandler { onBack() }
     val context = LocalContext.current
     val reminders by viewModel.reminders.collectAsStateWithLifecycle()
 

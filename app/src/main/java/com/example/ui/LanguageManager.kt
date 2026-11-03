@@ -46,7 +46,7 @@ object LanguageManager {
 
     fun applyAppLocale(context: Context, language: String) {
         val code = getLanguageCode(language)
-        val locale = Locale(code)
+        val locale = Locale.forLanguageTag(code)
         Locale.setDefault(locale)
         val config = Configuration(context.resources.configuration)
         config.setLocale(locale)

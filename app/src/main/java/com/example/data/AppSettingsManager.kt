@@ -365,7 +365,6 @@ class AppSettingsManager private constructor(private val context: Context) {
             is AppSettingsIntent.ReloadStateAfterWipe -> {
                 loadInitialState()
             }
-            else -> _state.value
         }
     }
 }

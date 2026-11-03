@@ -82,7 +82,7 @@ object DataImporter {
                 val amount = obj.optDouble("amount", 0.0)
                 val category = obj.optString("category", "General").ifBlank { "General" }
                 val type = obj.optString("type", "EXPENSE").uppercase(Locale.getDefault())
-                val note = obj.optString("note", "").ifBlank { obj.optString("title", null) }
+                val note = obj.optString("note", "").ifBlank { obj.optString("title", "") }
                 val currency = obj.optString("currencyCode", obj.optString("currency", defaultCurrency))
                 val dateVal = obj.optLong("date", obj.optLong("timestamp", System.currentTimeMillis()))
                 val accountId = obj.optLong("accountId", defaultAccountId)

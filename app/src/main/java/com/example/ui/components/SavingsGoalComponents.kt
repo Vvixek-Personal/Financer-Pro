@@ -64,6 +64,7 @@ fun SavingGoalsFullScreen(
     viewModel: FinanceViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     onBack: () -> Unit
 ) {
+    BackHandler { onBack() }
     val haptic = LocalHapticFeedback.current
     val savingsGoals by viewModel.savingsGoals.collectAsStateWithLifecycle()
     val accounts by viewModel.accounts.collectAsStateWithLifecycle()

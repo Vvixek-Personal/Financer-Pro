@@ -266,6 +266,7 @@ fun BadgesAndMilestonesScreen(
     viewModel: FinanceViewModel,
     onBack: () -> Unit
 ) {
+    BackHandler { onBack() }
     Column(
         modifier = Modifier
             .fillMaxSize()

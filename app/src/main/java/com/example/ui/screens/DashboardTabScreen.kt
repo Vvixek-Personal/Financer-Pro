@@ -1549,7 +1549,7 @@ fun CategorySelectorGrid(
     onCategorySelected: (String) -> Unit,
     categories: List<String>,
     categoryIcons: Map<String, String> = emptyMap(),
-    onAddCustomCategoryClick: () -> Unit,
+    onAddCustomCategoryClick: (() -> Unit)? = null,
     onDeleteCustomCategory: ((String) -> Unit)? = null,
     onEditCustomCategory: ((String, String) -> Unit)? = null
 ) {
