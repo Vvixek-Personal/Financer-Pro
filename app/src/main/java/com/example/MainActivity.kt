@@ -32,24 +32,13 @@ class MainActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Real Android FLAG_SECURE & recents preview protection
+        // Purely controlled by the screenshot toggle setting:
+        // ON -> blocks screenshots & screen recordings (FLAG_SECURE)
+        // OFF -> allows screenshots and recents previews
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                combine(
-                    viewModel.screenshotProtection,
-                    viewModel.appPin,
-                    viewModel.biometricEnabled
-                ) { isProtected, pin, biometric ->
-                    isProtected || !pin.isNullOrBlank() || biometric
-                }.collect { shouldProtect ->
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        setRecentsScreenshotEnabled(!shouldProtect)
-                    }
-                    if (shouldProtect) {
-                        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                    } else {
-                        window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                    }
+                viewModel.screenshotProtection.collect { isProtected ->
+                    applyScreenshotProtection(isProtected)
                 }
             }
         }
@@ -61,15 +50,32 @@ class MainActivity : BaseActivity() {
         }
     }
 
+    private fun applyScreenshotProtection(isProtected: Boolean) {
+        if (isProtected) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            setRecentsScreenshotEnabled(!isProtected)
+        }
+    }
+
     override fun onStart() {
         super.onStart()
         viewModel.onAppForegrounded()
+        applyScreenshotProtection(viewModel.screenshotProtection.value)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        applyScreenshotProtection(viewModel.screenshotProtection.value)
     }
 
     override fun onStop() {
         super.onStop()
         viewModel.onAppBackgrounded()
-        if (!viewModel.appPin.value.isNullOrBlank() || viewModel.biometricEnabled.value) {
+        if (viewModel.screenshotProtection.value) {
             window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         }
     }

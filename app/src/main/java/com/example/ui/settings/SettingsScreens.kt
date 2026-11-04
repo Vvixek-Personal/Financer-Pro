@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -3832,13 +3833,26 @@ fun SecuritySettingsScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                             Text("Screenshot & Capture Protection", fontWeight = FontWeight.Bold, color = SleekTextPrimary)
-                            Text("Blocks Android system screenshots & screen recordings (FLAG_SECURE) for banking privacy", style = MaterialTheme.typography.bodySmall, color = SleekTextSecondary)
+                            Text(
+                                if (isScreenshotProtected) "Protection ON: Screenshots & screen recordings blocked (FLAG_SECURE)"
+                                else "Protection OFF: Screenshots and screen captures allowed",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (isScreenshotProtected) Color(0xFFF59E0B) else SleekTextSecondary
+                            )
                         }
                         Switch(
                             checked = isScreenshotProtected,
-                            onCheckedChange = { viewModel.toggleScreenshotProtection(it) }
+                            onCheckedChange = { enable ->
+                                viewModel.toggleScreenshotProtection(enable)
+                                if (enable) {
+                                    Toast.makeText(context, "Screenshots blocked (Protection ON)", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Screenshots allowed (Protection OFF)", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier.testTag("screenshot_protection_switch")
                         )
                     }
 
@@ -3926,6 +3940,8 @@ fun PrivacySettingsScreen(
     BackHandler { onBack() }
 
     val privacyMode by viewModel.privacyModeEnabled.collectAsStateWithLifecycle()
+    val isScreenshotProtected by viewModel.screenshotProtection.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -3974,11 +3990,48 @@ fun PrivacySettingsScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                         Text("Privacy Blur Mode", fontWeight = FontWeight.Bold, color = SleekTextPrimary)
                         Text("Mask financial numbers when sharing screens", style = MaterialTheme.typography.bodySmall, color = SleekTextSecondary)
                     }
                     Switch(checked = privacyMode, onCheckedChange = { viewModel.togglePrivacyModeEnabled(it) })
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = SleekSurface),
+                border = BorderStroke(1.dp, SleekBorder),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                        Text("Screenshot & Capture Protection", fontWeight = FontWeight.Bold, color = SleekTextPrimary)
+                        Text(
+                            if (isScreenshotProtected) "Protection ON: Screenshots & recordings blocked (FLAG_SECURE)"
+                            else "Protection OFF: Screenshots allowed",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (isScreenshotProtected) Color(0xFFF59E0B) else SleekTextSecondary
+                        )
+                    }
+                    Switch(
+                        checked = isScreenshotProtected,
+                        onCheckedChange = { enable ->
+                            viewModel.toggleScreenshotProtection(enable)
+                            if (enable) {
+                                Toast.makeText(context, "Screenshots blocked (Protection ON)", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "Screenshots allowed (Protection OFF)", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.testTag("privacy_screenshot_protection_switch")
+                    )
                 }
             }
 

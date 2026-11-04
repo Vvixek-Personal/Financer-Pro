@@ -302,7 +302,7 @@ class AppSettingsManager private constructor(private val context: Context) {
                 _state.value.copy(statsCurrencyCode = intent.code, statsCurrencySymbol = intent.symbol, statsCurrencyName = intent.name)
             }
             is AppSettingsIntent.SetScreenshotProtection -> {
-                prefs.edit().putBoolean("screenshot_protection", intent.enabled).apply()
+                prefs.edit().putBoolean("screenshot_protection", intent.enabled).commit()
                 _state.value.copy(screenshotProtection = intent.enabled)
             }
             is AppSettingsIntent.UpdateFontFamily -> {
