@@ -864,7 +864,23 @@ fun FinanceAppScreen(viewModel: FinanceViewModel) {
                 when (targetScreen) {
                     SettingsSubScreen.PersonalData -> PersonalDataScreen(
                         viewModel = viewModel,
-                        onBack = { activeSettingsSubScreen = null }
+                        onBack = { activeSettingsSubScreen = null },
+                        onOpenSettings = {
+                            activeSettingsSubScreen = SettingsSubScreen.Appearance
+                        },
+                        onNavigateToAnalytics = {
+                            activeSettingsSubScreen = null
+                            navigateToScreen(Screen.Analytics)
+                        },
+                        onNavigateToGoals = {
+                            activeSettingsSubScreen = SettingsSubScreen.SavingsGoals
+                        },
+                        onNavigateToExport = {
+                            activeSettingsSubScreen = SettingsSubScreen.Export
+                        },
+                        onNavigateToDataManagement = {
+                            activeSettingsSubScreen = SettingsSubScreen.DataManagement
+                        }
                     )
                     SettingsSubScreen.BadgesAndMilestones -> BadgesAndMilestonesScreen(
                         viewModel = viewModel,

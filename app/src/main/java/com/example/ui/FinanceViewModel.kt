@@ -198,7 +198,7 @@ class FinanceViewModel(
     private val _categoryIcons = MutableStateFlow<Map<String, String>>(emptyMap())
     val categoryIcons: StateFlow<Map<String, String>> = _categoryIcons.asStateFlow()
 
-    private val _userName = MutableStateFlow<String?>(null)
+    private val _userName = MutableStateFlow<String?>("Vivek Singh")
     val userName: StateFlow<String?> = _userName.asStateFlow()
 
     private val _userProfileImageUri = MutableStateFlow<String?>(null)
@@ -918,7 +918,7 @@ class FinanceViewModel(
                 _lastBackupTimestamp.value = settings.lastBackupTimestamp
             }
         }
-        _userName.value = sharedPrefs.getString("user_name", null)
+        _userName.value = sharedPrefs.getString("user_name", "Vivek Singh") ?: "Vivek Singh"
         val savedImageUri = sharedPrefs.getString("user_profile_image_uri", null)
         if (!savedImageUri.isNullOrBlank()) {
             val localFile = File(getApplication<Application>().filesDir, "user_profile_avatar.jpg")
