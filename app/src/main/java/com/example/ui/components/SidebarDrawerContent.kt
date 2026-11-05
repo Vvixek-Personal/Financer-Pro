@@ -614,7 +614,7 @@ fun SidebarDrawerContent(
                         .background(SleekPrimaryContainer),
                     contentAlignment = Alignment.Center
                 ) {
-                    UserAvatar(
+                    com.example.ui.components.UserAvatar(
                         userName = userName,
                         imageUri = profileImageUri,
                         size = 62.dp,

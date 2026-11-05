@@ -52,7 +52,7 @@ fun MyApplicationTheme(
   // Cache the two schemes per (dark, accent) pair. Without this, every recomposition of the
   // theme root — which happens on every drawer toggle and every setting change — allocated a new
   // ColorScheme plus a full MaterialTheme scope.
-  val schemeKey = SchemeKey(darkTheme, SleekPrimary.value, SleekPrimaryContainer.value, dynamicColor)
+  val schemeKey = SchemeKey(darkTheme, SleekPrimary.value.toLong(), SleekPrimaryContainer.value.toLong(), dynamicColor)
   val colorScheme = if (dynamicColor) {
     if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
   } else {

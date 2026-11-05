@@ -3399,7 +3399,7 @@ fun DataManagementScreen(
     val currencyCode by viewModel.selectedCurrencyCode.collectAsStateWithLifecycle()
     val currencySymbol by viewModel.selectedCurrencySymbol.collectAsStateWithLifecycle()
     val expenses by viewModel.expenses.collectAsStateWithLifecycle()
-    val snapshots by remember { mutableStateOf(viewModel.autoBackupSnapshotCount()) }
+    var snapshots by remember { mutableStateOf(viewModel.autoBackupSnapshotCount()) }
     val context = LocalContext.current
     var showResetDialog by remember { mutableStateOf(false) }
 
@@ -4452,6 +4452,7 @@ fun ExportDataScreen(
     val context = LocalContext.current
     val expenses by viewModel.expenses.collectAsStateWithLifecycle()
     val currencyCode by viewModel.selectedCurrencyCode.collectAsStateWithLifecycle()
+    val currencySymbol by viewModel.selectedCurrencySymbol.collectAsStateWithLifecycle()
     val selectedLanguage by viewModel.selectedLanguage.collectAsStateWithLifecycle()
 
     var dateRangeFilter by remember { mutableStateOf("All Time") }

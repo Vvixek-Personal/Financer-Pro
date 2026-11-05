@@ -1731,9 +1731,8 @@ class FinanceViewModel(
      * the user asked to hide small amounts. This is the single place that flag is computed.
      */
     private fun syncRowMask() {
-        com.example.data.UiPrefs.setMaskRowAmounts(
+        com.example.data.UiPrefs.maskRowAmounts =
             _hideSensitiveAmounts.value || (_privacyModeEnabled.value && !_privacyRevealOverride.value)
-        )
     }
 
     fun toggleScreenshotProtection(enabled: Boolean) {

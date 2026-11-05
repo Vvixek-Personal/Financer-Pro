@@ -1803,3 +1803,112 @@ fun ManageCategoryDialog(
 
 // Note: Add Expense Dialog is modularized in AddTransactionFlowComponents.kt
 
+@Composable
+fun AllShortcutsTabScreen(
+    onBack: () -> Unit,
+    onAddExpense: () -> Unit,
+    onAddIncome: () -> Unit,
+    onQuickSplit: () -> Unit,
+    onQuickConvert: () -> Unit,
+    onViewGoals: () -> Unit,
+    onNavigateToExpenses: () -> Unit,
+    onNavigateToAnalytics: () -> Unit,
+    onBillsClick: () -> Unit,
+    onReminderClick: () -> Unit,
+    onAdjustBudget: () -> Unit,
+    onOpenStreak: () -> Unit,
+    onOpenSettingsSubScreen: (SettingsSubScreen) -> Unit,
+    hasBillDueToday: Boolean,
+    currentStreak: Int,
+    selectedLanguage: String
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(SleekBg)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+    ) {
+        SettingsHeaderTitle("All Shortcuts & Actions", onBack)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text("QUICK TRANSACTIONS", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = SleekTextSecondary)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(onClick = onAddExpense, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = ExpenseRed), shape = RoundedCornerShape(14.dp)) {
+                    Icon(AppIcons.Add, contentDescription = null, tint = Color.White)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Add Expense", color = Color.White)
+                }
+                Button(onClick = onAddIncome, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)), shape = RoundedCornerShape(14.dp)) {
+                    Icon(AppIcons.Add, contentDescription = null, tint = Color.White)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Add Income", color = Color.White)
+                }
+            }
+
+            Text("TOOLS & UTILITIES", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = SleekTextSecondary)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedButton(onClick = onQuickSplit, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, SleekBorder)) {
+                    Icon(AppIcons.ReceiptLong, contentDescription = null, tint = SleekPrimary)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Quick Split", color = SleekTextPrimary)
+                }
+                OutlinedButton(onClick = onQuickConvert, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, SleekBorder)) {
+                    Icon(AppIcons.SwapHoriz, contentDescription = null, tint = SleekPrimary)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Currency", color = SleekTextPrimary)
+                }
+            }
+
+            Text("MANAGEMENT", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = SleekTextSecondary)
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                ShortcutMenuRow("Saving Goals", "Track targets and contributions", AppIcons.Savings, onViewGoals)
+                ShortcutMenuRow("Transactions Ledger", "View and filter all records", AppIcons.ReceiptLong, onNavigateToExpenses)
+                ShortcutMenuRow("Analytics & Reports", "Charts, cash flow and breakdowns", AppIcons.Analytics, onNavigateToAnalytics)
+                ShortcutMenuRow("Bills & Subscriptions", "Manage recurring charges", AppIcons.CalendarToday, onBillsClick)
+                ShortcutMenuRow("Reminders & Alerts", "Payment notifications", AppIcons.Notifications, onReminderClick)
+                ShortcutMenuRow("Monthly Budget", "Set and manage spending limits", AppIcons.AccountBalanceWallet, onAdjustBudget)
+                ShortcutMenuRow("Activity Streak ($currentStreak days)", "View streak progress", AppIcons.LocalFireDepartment, onOpenStreak)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShortcutMenuRow(title: String, subtitle: String, icon: ImageVector, onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        colors = CardDefaults.cardColors(containerColor = SleekSurface),
+        border = BorderStroke(1.dp, SleekBorder),
+        shape = RoundedCornerShape(14.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.weight(1f)) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(SleekPrimaryContainer, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, contentDescription = null, tint = SleekPrimary, modifier = Modifier.size(20.dp))
+                }
+                Column {
+                    Text(title, fontWeight = FontWeight.Bold, color = SleekTextPrimary)
+                    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = SleekTextSecondary)
+                }
+            }
+            Icon(AppIcons.ChevronRight, contentDescription = null, tint = SleekTextSecondary)
+        }
+    }
+}
+

@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -231,7 +232,7 @@ fun PersonalDataScreen(
                 totalTransactions = expenses.size,
                 streak = currentStreak,
                 goalsTotal = savingGoals.size,
-                goalsCompleted = savingGoals.count { it.savedAmount >= it.targetAmount && it.targetAmount > 0 },
+                goalsCompleted = savingGoals.count { it.currentAmount >= it.targetAmount && it.targetAmount > 0 },
                 budgetKept = monthlyBudget > 0 && thisMonthExpenses <= monthlyBudget,
                 hasBudget = monthlyBudget > 0,
                 onSeeAllClick = onNavigateToBadges
@@ -757,6 +758,147 @@ private fun LiveAchievementsSection(
 // data-driven achievement system instead of the earlier "Coming soon" construction banner.
 // The placeholder banner was removed with it because nothing else referenced it.
 
-// The "Coming soon" crane banner was removed once Badges & Milestones shipped as a real
-// screen; it had no remaining callers.
+
+@Composable
+fun ProfileStreakCard(
+    streakDays: Int,
+    isDark: Boolean
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = SleekSurface),
+        border = BorderStroke(1.dp, SleekBorder),
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(Color(0xFFF59E0B).copy(alpha = 0.15f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(AppIcons.LocalFireDepartment, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(24.dp))
+                }
+                Column {
+                    Text("$streakDays Day Streak", fontWeight = FontWeight.Bold, color = SleekTextPrimary, fontSize = 16.sp)
+                    Text("Consistent financial logging active", style = MaterialTheme.typography.bodySmall, color = SleekTextSecondary)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ProfileNavigationMenuCard(
+    isDark: Boolean,
+    onNavigateToAnalytics: () -> Unit,
+    onNavigateToGoals: () -> Unit,
+    onNavigateToExport: () -> Unit,
+    onNavigateToDataManagement: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = SleekSurface),
+        border = BorderStroke(1.dp, SleekBorder),
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(8.dp)) {
+            ProfileMenuItem("Analytics & Reports", "Deep insights & charts", AppIcons.Analytics, onNavigateToAnalytics)
+            HorizontalDivider(color = SleekBorder.copy(alpha = 0.5f), modifier = Modifier.padding(horizontal = 8.dp))
+            ProfileMenuItem("Saving Goals", "Track targets and progress", AppIcons.Savings, onNavigateToGoals)
+            HorizontalDivider(color = SleekBorder.copy(alpha = 0.5f), modifier = Modifier.padding(horizontal = 8.dp))
+            ProfileMenuItem("Export Statements", "PDF & CSV reports", AppIcons.Download, onNavigateToExport)
+            HorizontalDivider(color = SleekBorder.copy(alpha = 0.5f), modifier = Modifier.padding(horizontal = 8.dp))
+            ProfileMenuItem("Data Management", "Backups & local storage", AppIcons.Storage, onNavigateToDataManagement)
+        }
+    }
+}
+
+@Composable
+private fun ProfileMenuItem(title: String, subtitle: String, icon: ImageVector, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.weight(1f)) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(SleekPrimaryContainer, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = SleekPrimary, modifier = Modifier.size(18.dp))
+            }
+            Column {
+                Text(title, fontWeight = FontWeight.Bold, color = SleekTextPrimary, fontSize = 14.sp)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = SleekTextSecondary)
+            }
+        }
+        Icon(AppIcons.ChevronRight, contentDescription = null, tint = SleekTextSecondary)
+    }
+}
+
+@Composable
+fun EditProfileDialog(
+    currentName: String,
+    hasCustomPhoto: Boolean,
+    isDark: Boolean,
+    onDismiss: () -> Unit,
+    onSaveName: (String) -> Unit,
+    onPickPhoto: () -> Unit,
+    onRemovePhoto: () -> Unit
+) {
+    var nameInput by remember { mutableStateOf(currentName) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit Profile") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = nameInput,
+                    onValueChange = { nameInput = it },
+                    label = { Text("Display Name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = onPickPhoto, modifier = Modifier.weight(1f)) {
+                        Text("Change Photo")
+                    }
+                    if (hasCustomPhoto) {
+                        OutlinedButton(onClick = onRemovePhoto, modifier = Modifier.weight(1f)) {
+                            Text("Remove Photo")
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onSaveName(nameInput) }) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+fun formatStatNumber(value: Double): String {
+    return if (value >= 1_000_000) String.format(java.util.Locale.getDefault(), "%.1fM", value / 1_000_000)
+    else if (value >= 1_000) String.format(java.util.Locale.getDefault(), "%.1fk", value / 1_000)
+    else String.format(java.util.Locale.getDefault(), "%.0f", value)
+}
 

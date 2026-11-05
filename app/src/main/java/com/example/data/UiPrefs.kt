@@ -49,11 +49,6 @@ object UiPrefs {
      * (hide sensitive amounts + privacy mode); read by list rows at draw time.
      */
     var maskRowAmounts by mutableStateOf(false)
-        private set
-
-    fun setMaskRowAmounts(value: Boolean) {
-        maskRowAmounts = value
-    }
 
     /** Mirrors the "Show cents" appearance setting, read by Money.format on every call. */
     var showCents by mutableStateOf(true)

@@ -59,7 +59,7 @@ private fun buildAchievements(
     savingsShare: Float
 ): List<Achievement> {
     fun p(value: Number, target: Number): Float =
-        if (target <= 0) 0f else (value.toFloat() / target.toFloat()).coerceIn(0f, 1f)
+        if (target.toFloat() <= 0f) 0f else (value.toFloat() / target.toFloat()).coerceIn(0f, 1f)
 
     return listOf(
         Achievement(
@@ -196,10 +196,10 @@ fun BadgesMilestonesScreen(
             .groupBy { monthKey(it.date) }
             .mapValues { entry -> entry.value.sumOf { it.amount } }
         val incomeTotal = expenses.filter { it.type == "INCOME" }.sumOf { it.amount }
-        val savedIntoGoals = goals.sumOf { it.savedAmount }
+        val savedIntoGoals = goals.sumOf { it.currentAmount }
         BadgeStats(
             totalTransactions = expenses.size,
-            goalsCompleted = goals.count { it.targetAmount > 0 && it.savedAmount >= it.targetAmount },
+            goalsCompleted = goals.count { it.targetAmount > 0 && it.currentAmount >= it.targetAmount },
             monthsWithData = expenses.map { monthKey(it.date) }.distinct().size,
             distinctCategories = expenses.map { it.category }.distinct().size,
             budgetKeptMonths = if (monthlyBudget > 0) spendByMonth.values.count { it <= monthlyBudget } else 0,
@@ -235,7 +235,7 @@ fun BadgesMilestonesScreen(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 120.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item { HeroProgressCard(unlocked, achievements.size, completion, streak, totalTx) }
+            item { HeroProgressCard(unlocked, achievements.size, completion, streak, stats.totalTransactions) }
 
             item {
                 Text(

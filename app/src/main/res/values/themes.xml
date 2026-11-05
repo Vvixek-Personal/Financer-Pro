@@ -7,7 +7,7 @@
       window background stayed light regardless of the in-app theme, which caused a white flash
       before Compose drew its first frame in dark mode.
     -->
-    <style name="Theme.MyApplication" parent="android:Theme.DeviceDefault.DayNight.NoActionBar">
+    <style name="Theme.MyApplication" parent="android:Theme.DeviceDefault.NoActionBar">
         <item name="android:windowBackground">@color/window_background</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
