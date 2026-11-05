@@ -373,21 +373,12 @@ fun AnalyticsTab(
                     .clickable { onProfileClick() },
                 contentAlignment = Alignment.Center
             ) {
-                if (!profileImageUri.isNullOrBlank()) {
-                    AsyncImage(
-                        model = profileImageUri,
-                        contentDescription = "Profile Picture",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_default_profile_avatar),
-                        contentDescription = "Profile",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
+                com.example.ui.components.UserAvatar(
+                    userName = userName,
+                    imageUri = profileImageUri,
+                    size = 40.dp,
+                    modifier = Modifier.fillMaxSize()
+                )
             }
 
             Text(
@@ -615,7 +606,8 @@ fun AnalyticsTab(
                             expenses = filteredPeriodExpenses,
                             categoryColors = categoryColors,
                             periodLabel = "$selectedTimeFilter ($dateRangeLabel)",
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            currencySymbol = currencySymbol
                         )
 
                         AnalyticsPeriodTransactionsCard(

@@ -420,14 +420,14 @@ fun InteractiveAnalyticsHeader(
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
-                            tint = if (isSelected) Color.White else SleekTextSecondary,
+                            tint = if (isSelected) onAccentColor else SleekTextSecondary,
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
                             text = label,
                             fontSize = SleekSizes.textCaption,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) Color.White else SleekTextSecondary,
+                            color = if (isSelected) onAccentColor else SleekTextSecondary,
                             maxLines = 1
                         )
                     }
@@ -1804,7 +1804,7 @@ fun MetricInspectionModal(
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Close Inspector", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("Close Inspector", color = onAccentColor, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -1950,7 +1950,7 @@ fun CategoryDrillDownDialog(
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Done", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("Done", color = onAccentColor, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -1971,7 +1971,7 @@ fun CustomDateRangePickerDialog(
     var startCal by remember { mutableStateOf(Calendar.getInstance().apply { timeInMillis = initialStartMs }) }
     var endCal by remember { mutableStateOf(Calendar.getInstance().apply { timeInMillis = initialEndMs }) }
 
-    val sdf = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+    val sdf = com.example.data.UiPrefs.formatter()
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -2102,7 +2102,7 @@ fun CustomDateRangePickerDialog(
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Apply Range", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text("Apply Range", color = onAccentColor, fontWeight = FontWeight.Bold)
                     }
                 }
             }

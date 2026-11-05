@@ -539,7 +539,7 @@ fun UpcomingBillsDashboardWidget(
                                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                                         modifier = Modifier.heightIn(min = 48.dp)
                                     ) {
-                                        Text("Pay", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                                        Text("Pay", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = onAccentColor)
                                     }
                                 }
                             }
@@ -1028,7 +1028,7 @@ fun QuickGoalDepositDialog(
                         colors = ButtonDefaults.buttonColors(containerColor = SleekPrimary),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Deposit", color = Color.White)
+                        Text("Deposit", color = onAccentColor)
                     }
                 }
             }
@@ -1321,7 +1321,7 @@ fun QuickCurrencyConvertDialog(
                         colors = ButtonDefaults.buttonColors(containerColor = SleekPrimary),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Done", color = Color.White)
+                        Text("Done", color = onAccentColor)
                     }
                 }
             }
@@ -1390,7 +1390,7 @@ fun SavingsGoalsMiniCarouselWidget(
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B)),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                 ) {
-                    Text("+ Create", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("+ Create", color = onAccentColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }

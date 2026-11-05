@@ -58,7 +58,8 @@ fun TagSpendingBarChart(
     categoryColors: Map<String, Color>,
     modifier: Modifier = Modifier,
     periodLabel: String = "This Month",
-    chartHeight: Dp = 200.dp
+    chartHeight: Dp = 200.dp,
+    currencySymbol: String = "₹"
 ) {
     var selectedTag by remember { mutableStateOf<String?>(null) }
     val animEnabled = LocalAnimationsEnabled.current
@@ -302,7 +303,7 @@ fun TagSpendingBarChart(
                             // Y-axis label text
                             val labelValue = maxTagAmount * level
                             val labelText = if (labelValue >= 1000) {
-                                String.format(Locale.getDefault(), "₹%.1fk", labelValue / 1000)
+                                String.format(Locale.getDefault(), "%s%.1fk", currencySymbol, labelValue / 1000)
                             } else {
                                 String.format(Locale.getDefault(), "₹%.0f", labelValue)
                             }

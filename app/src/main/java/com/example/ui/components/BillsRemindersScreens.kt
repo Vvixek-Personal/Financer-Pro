@@ -8,6 +8,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -20,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -42,6 +46,48 @@ fun BillsFullScreen(
     val billsList = viewModel.billsList
     val accounts by viewModel.accounts.collectAsStateWithLifecycle()
     val totalBalance = remember(accounts) { accounts.sumOf { it.balance } }
+    val currencySymbol by viewModel.selectedCurrencySymbol.collectAsStateWithLifecycle()
+    // Bills preferences from Settings > Bills now drive this list instead of being stored only.
+    val sortOrder by viewModel.billSortOrder.collectAsStateWithLifecycle()
+    val defaultFilter by viewModel.billDefaultFilter.collectAsStateWithLifecycle()
+    val showNotes by viewModel.billShowNotes.collectAsStateWithLifecycle()
+    val upcomingDays by viewModel.billUpcomingDays.collectAsStateWithLifecycle()
+    var filterOverride by remember { mutableStateOf<String?>(null) }
+
+    fun parseDueDate(raw: String): Long = try {
+        java.text.SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).parse(raw)?.time ?: Long.MAX_VALUE
+    } catch (_: Exception) {
+        Long.MAX_VALUE
+    }
+
+    val activeFilter = filterOverride ?: defaultFilter
+    val sortedBills = remember(billsList.toList(), sortOrder, activeFilter, upcomingDays) {
+        val now = System.currentTimeMillis()
+        val horizon = when (upcomingDays) {
+            "3 Days" -> 3L
+            "14 Days" -> 14L
+            "30 Days" -> 30L
+            else -> 7L
+        } * 24L * 60L * 60L * 1000L
+        billsList.toList()
+            .filter { bill ->
+                val due = parseDueDate(bill.dueDate)
+                when (activeFilter) {
+                    "Due This Week" -> due in now..(now + horizon)
+                    "Overdue" -> due < now
+                    "Paid" -> false
+                    else -> true
+                }
+            }
+            .sortedWith(
+                when (sortOrder) {
+                    "Amount (High to Low)" -> compareByDescending { it.amount }
+                    "Amount (Low to High)" -> compareBy { it.amount }
+                    "Name (A to Z)" -> compareBy { it.title.lowercase() }
+                    else -> compareBy { parseDueDate(it.dueDate) }
+                }
+            )
+    }
 
     var showAddEditDialog by remember { mutableStateOf(false) }
     var editingBill by remember { mutableStateOf<BillEntry?>(null) }
@@ -153,7 +199,7 @@ fun BillsFullScreen(
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("Save", color = Color.White)
+                            Text("Save", color = onAccentColor)
                         }
                     }
                 }
@@ -219,7 +265,31 @@ fun BillsFullScreen(
                 }
             }
 
-            if (billsList.isEmpty()) {
+            // Filter chips let the user override the saved default without leaving the screen
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf("All Bills", "Due This Week", "Overdue").forEach { option ->
+                    val selected = activeFilter == option
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (selected) SleekPrimary else SleekSurface,
+                        border = BorderStroke(1.dp, if (selected) SleekPrimary else SleekBorder),
+                        modifier = Modifier.clickable { filterOverride = option }
+                    ) {
+                        Text(
+                            text = option,
+                            fontSize = 12.sp,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (selected) onAccentColor else SleekTextSecondary,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
+                    }
+                }
+            }
+
+            if (sortedBills.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -231,8 +301,14 @@ fun BillsFullScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(AppIcons.ReceiptLong, contentDescription = null, tint = SleekTextSecondary, modifier = Modifier.size(48.dp))
-                        Text("No bills to pay", fontWeight = FontWeight.Bold, color = SleekTextPrimary, fontSize = 16.sp)
-                        Text("Tap + to add a recurring bill", color = SleekTextSecondary, fontSize = 13.sp)
+                        Text(
+                            text = if (billsList.isEmpty()) "No bills to pay" else "Nothing in this filter",
+                            fontWeight = FontWeight.Bold, color = SleekTextPrimary, fontSize = 16.sp
+                        )
+                        Text(
+                            text = if (billsList.isEmpty()) "Tap + to add a recurring bill" else "Try All Bills to see everything",
+                            color = SleekTextSecondary, fontSize = 13.sp, textAlign = TextAlign.Center
+                        )
                     }
                 }
             } else {
@@ -240,7 +316,7 @@ fun BillsFullScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(billsList, key = { it.id }) { bill ->
+                    items(sortedBills, key = { it.id }) { bill ->
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -267,7 +343,7 @@ fun BillsFullScreen(
                                 }
 
                                 Text(
-                                    text = String.format("₹%.0f", bill.amount),
+                                    text = String.format("%s%.0f", currencySymbol, bill.amount),
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 15.sp,
                                     color = SleekTextPrimary
@@ -280,7 +356,7 @@ fun BillsFullScreen(
                                     FilledTonalButton(
                                         onClick = {
                                             if (bill.amount > totalBalance) {
-                                                billErrorMessage = "Cannot pay ₹%.0f for %s: Amount exceeds available balance (₹%.0f available).".format(bill.amount, bill.title, totalBalance)
+                                                billErrorMessage = "Cannot pay %s%.0f for %s: Amount exceeds available balance (%s%.0f available).".format(currencySymbol, bill.amount, bill.title, currencySymbol, totalBalance)
                                                 return@FilledTonalButton
                                             }
                                             billsList.remove(bill)
@@ -436,7 +512,7 @@ fun RemindersFullScreen(
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("Save", color = Color.White)
+                            Text("Save", color = onAccentColor)
                         }
                     }
                 }

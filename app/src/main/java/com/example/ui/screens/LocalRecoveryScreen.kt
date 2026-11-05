@@ -70,7 +70,7 @@ fun LocalRecoveryScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        SettingsHeaderTitle("Local Recovery", onBack)
+        SettingsHeaderTitle("Local Recovery", onBack, subtitle = "Restore from an on-device snapshot")
 
         LazyColumn(
             modifier = Modifier

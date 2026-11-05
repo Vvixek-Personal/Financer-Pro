@@ -448,7 +448,7 @@ fun SavingGoalsFullScreen(
                 items(categories, key = { cat: String -> cat }) { cat: String ->
                     val isSelected = selectedCategoryFilter.equals(cat, ignoreCase = true)
                     val bgColor = if (isSelected) SleekPrimary else SleekSurface
-                    val textColor = if (isSelected) Color.White else SleekTextSecondary
+                    val textColor = if (isSelected) onAccentColor else SleekTextSecondary
                     val borderColor = if (isSelected) SleekPrimary else SleekBorder
                     val isDeletable = cat !in listOf("All", "Saving", "Investment", "Expenditure")
 
@@ -707,7 +707,7 @@ fun SavingGoalsFullScreen(
                         shape = SleekShapes.md,
                         colors = ButtonDefaults.buttonColors(containerColor = SleekPrimary)
                     ) {
-                        Text("Create", color = Color.White)
+                        Text("Create", color = onAccentColor)
                     }
                 },
                 dismissButton = {
@@ -803,7 +803,7 @@ fun SavingGoalCardItem(
 
     val formattedDate = remember(goal.targetDate) {
         if (goal.targetDate > 0) {
-            SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(goal.targetDate))
+            com.example.data.UiPrefs.formatDate(goal.targetDate)
         } else {
             "Open Goal"
         }
@@ -1574,7 +1574,7 @@ fun AddEditSavingsGoalDialog(
                 // Custom Date Button
                 val customDateText = remember(customDeadlineMs) {
                     if (customDeadlineMs != null && customDeadlineMs!! > 0L) {
-                        "📅 " + SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(customDeadlineMs!!))
+                        "📅 " + com.example.data.UiPrefs.formatDate(customDeadlineMs!!)
                     } else {
                         "📅 Choose Custom Date"
                     }
@@ -2599,7 +2599,7 @@ fun SmartFundAllocatorDialog(
                         shape = SleekShapes.md,
                         colors = ButtonDefaults.buttonColors(containerColor = SleekPrimary)
                     ) {
-                        Text("Confirm Allocation", color = Color.White)
+                        Text("Confirm Allocation", color = onAccentColor)
                     }
                 }
             }

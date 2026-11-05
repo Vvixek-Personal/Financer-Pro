@@ -37,7 +37,7 @@ fun SavingsGoalsSettingsScreen(
 
     Scaffold(
         topBar = {
-            SettingsHeaderTitle(title = "Savings Goals Settings", onBack = onBack)
+            SettingsHeaderTitle(title = "Savings Goals", onBack = onBack, subtitle = "Goal display and celebrations")
         },
         containerColor = SleekBg
     ) { paddingValues ->

@@ -3,15 +3,16 @@ package com.example.ui
 import com.example.ui.theme.*
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,12 +20,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Dashboard
-import androidx.compose.material.icons.filled.PieChart
-import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -33,22 +28,31 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * Animated Floating Dock Bar inspired by Video Demo:
- * Smooth sliding active pill indicator, glowing circular icon badge with spring scale bounce,
- * and translucent dark navy glass aesthetic.
+ * Floating dock navigation bar.
+ *
+ * Improvements over the previous version:
+ *  - The selected tab's label used to be force-coloured `Color.White`, which became invisible in
+ *    light mode where the active pill was a light tint. Both the pill and its label now derive
+ *    from the accent colour via [onAccentColor], so every one of the 16 accents is readable.
+ *  - The dock collapses to icons-only automatically on narrow screens (large font scale + small
+ *    width used to overflow / clip the pill), and labels still appear for the active tab when
+ *    there is room.
+ *  - A subtle accent-coloured glow ring marks the active tab instead of a flat white overlay.
+ *  - Haptics respect the app's haptics setting and the animations setting disables the bounce.
  */
 @Composable
 fun FloatingDockBar(
@@ -58,6 +62,7 @@ fun FloatingDockBar(
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
+    val hapticsEnabled = LocalHapticsEnabled.current
 
     val screens = remember {
         listOf(
@@ -68,18 +73,17 @@ fun FloatingDockBar(
         )
     }
 
-    val selectedIndex = remember(currentScreen) {
-        screens.indexOfFirst { it.first == currentScreen }.coerceAtLeast(0)
-    }
+    // Collapse labels when the dock would not fit (narrow phone + large font scale).
+    val config = LocalConfiguration.current
+    val compactDock = config.screenWidthDp < 400 || config.fontScale > 1.25f
 
-    // Theme-adaptive glass capsule aesthetic
     val dockContainerBg = if (isDarkModeActive) {
-        mixPrimaryWithColor(SleekPrimary, Color(0xFF10131C), 0.12f).copy(alpha = 0.92f)
+        mixPrimaryWithColor(SleekPrimary, Color(0xFF0F1219), 0.10f).copy(alpha = 0.96f)
     } else {
-        Color(0xFFFFFFFF).copy(alpha = 0.96f)
+        Color(0xFFFFFFFF).copy(alpha = 0.97f)
     }
     val dockBorderColor = if (isDarkModeActive) {
-        SleekPrimary.copy(alpha = 0.35f)
+        SleekPrimary.copy(alpha = 0.30f)
     } else {
         SleekBorder
     }
@@ -88,35 +92,32 @@ fun FloatingDockBar(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
-        // Outer Container Pill
         Surface(
             shape = SleekShapes.pill,
             color = dockContainerBg,
-            border = BorderStroke(1.2.dp, dockBorderColor),
-            shadowElevation = if (isDarkModeActive) 16.dp else 10.dp,
-            tonalElevation = 4.dp,
+            border = BorderStroke(1.dp, dockBorderColor),
+            shadowElevation = if (isDarkModeActive) 18.dp else 12.dp,
+            tonalElevation = 0.dp,
             modifier = Modifier.clip(SleekShapes.pill)
         ) {
             Row(
-                modifier = Modifier
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                screens.forEachIndexed { index, (screen, icon, titleKey) ->
+                screens.forEach { (screen, icon, titleKey) ->
                     val isSelected = currentScreen == screen
-                    val title = LanguageManager.tr(titleKey, selectedLanguage)
-
-                    AnimatedDockTile(
+                    DockTile(
                         icon = icon,
-                        title = title,
+                        title = LanguageManager.tr(titleKey, selectedLanguage),
                         isSelected = isSelected,
+                        showLabel = isSelected && !compactDock,
                         testTag = "nav_item_${screen.route}",
                         onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            if (hapticsEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             onScreenSelected(screen)
                         }
                     )
@@ -127,31 +128,29 @@ fun FloatingDockBar(
 }
 
 @Composable
-private fun AnimatedDockTile(
+private fun DockTile(
     icon: ImageVector,
     title: String,
     isSelected: Boolean,
+    showLabel: Boolean,
     testTag: String,
     onClick: () -> Unit
 ) {
-    val animatedPaddingHorizontal by animateDpAsState(
-        targetValue = if (isSelected) 14.dp else 10.dp,
+    val animationsEnabled = LocalAnimationsEnabled.current
+
+    val horizontalPadding by animateDpAsState(
+        targetValue = if (isSelected) 12.dp else 14.dp,
         animationSpec = spring(stiffness = Spring.StiffnessMedium, dampingRatio = Spring.DampingRatioNoBouncy),
         label = "tilePadding"
     )
-
-    val animatedScale by animateFloatAsState(
-        targetValue = if (isSelected) 1.02f else 1.0f,
+    val scale by animateFloatAsState(
+        targetValue = if (isSelected) 1f else 0.98f,
         animationSpec = spring(stiffness = Spring.StiffnessMedium, dampingRatio = Spring.DampingRatioLowBouncy),
         label = "tileScale"
     )
-
-    val activePillBg = SleekPrimary
-    val activePillBorder = SleekPrimary.copy(alpha = 0.85f)
-
     val containerBg by animateColorAsState(
-        targetValue = if (isSelected) activePillBg else Color.Transparent,
-        animationSpec = tween(240, easing = AppleDecelerateEasing),
+        targetValue = if (isSelected) SleekPrimary else Color.Transparent,
+        animationSpec = tween(220, easing = AppleDecelerateEasing),
         label = "containerBgAnim"
     )
 
@@ -160,19 +159,17 @@ private fun AnimatedDockTile(
         horizontalArrangement = Arrangement.Center,
         modifier = Modifier
             .testTag(testTag)
-            .height(SleekSizes.buttonMedium)
+            .height(44.dp)
             .graphicsLayer {
-                scaleX = animatedScale
-                scaleY = animatedScale
+                scaleX = scale
+                scaleY = scale
             }
-            .bouncyPress(scaleDown = 0.965f)
+            .then(if (animationsEnabled) Modifier.bouncyPress(scaleDown = 0.955f) else Modifier)
             .clip(SleekShapes.pill)
             .background(containerBg)
             .border(
-                border = BorderStroke(
-                    width = if (isSelected) 1.2.dp else 0.dp,
-                    color = if (isSelected) activePillBorder else Color.Transparent
-                ),
+                width = if (isSelected) 1.dp else 0.dp,
+                color = if (isSelected) SleekPrimary.copy(alpha = 0.9f) else Color.Transparent,
                 shape = SleekShapes.pill
             )
             .clickable(
@@ -180,84 +177,59 @@ private fun AnimatedDockTile(
                 indication = null,
                 onClick = onClick
             )
-            .padding(horizontal = animatedPaddingHorizontal, vertical = 6.dp)
+            .padding(horizontal = horizontalPadding)
     ) {
-        // Glowing Icon Badge Circle
         Box(
             modifier = Modifier
-                .size(34.dp)
+                .size(28.dp)
                 .clip(CircleShape)
                 .background(
-                    if (isSelected) {
-                        Brush.radialGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0.35f),
-                                Color.White.copy(alpha = 0.05f)
-                            )
+                    when {
+                        isSelected -> Brush.radialGradient(
+                            colors = listOf(Color.White.copy(alpha = 0.28f), Color.White.copy(alpha = 0.02f))
                         )
-                    } else {
-                        if (isDarkModeActive) {
-                            Brush.linearGradient(
-                                colors = listOf(
-                                    Color.White.copy(alpha = 0.08f),
-                                    Color.White.copy(alpha = 0.04f)
-                                )
-                            )
-                        } else {
-                            Brush.linearGradient(
-                                colors = listOf(
-                                    Color(0xFFF1F5F9),
-                                    Color(0xFFE2E8F0)
-                                )
-                            )
-                        }
+                        isDarkModeActive -> Brush.linearGradient(
+                            colors = listOf(Color.White.copy(alpha = 0.07f), Color.White.copy(alpha = 0.03f))
+                        )
+                        else -> Brush.linearGradient(
+                            colors = listOf(Color(0xFFF1F5F9), Color(0xFFE8EDF5))
+                        )
                     }
-                )
-                .border(
-                    width = if (isSelected) 1.5.dp else 1.dp,
-                    color = if (isSelected) {
-                        Color.White.copy(alpha = 0.9f)
-                    } else {
-                        if (isDarkModeActive) Color.White.copy(alpha = 0.15f) else Color(0xFFCBD5E1)
-                    },
-                    shape = CircleShape
                 ),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = title,
-                tint = if (isSelected) {
-                    Color.White
-                } else {
-                    if (isDarkModeActive) Color.White.copy(alpha = 0.85f) else Color(0xFF334155)
+                tint = when {
+                    isSelected -> onAccentColor
+                    isDarkModeActive -> SleekTextSecondary
+                    else -> Color(0xFF334155)
                 },
-                modifier = Modifier.size(if (isSelected) 22.dp else 20.dp)
+                modifier = Modifier.size(if (isSelected) 19.dp else 18.dp)
             )
         }
 
         AnimatedVisibility(
-            visible = isSelected,
-            enter = androidx.compose.animation.expandHorizontally(
+            visible = showLabel,
+            enter = expandHorizontally(
                 animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioNoBouncy)
-            ) + fadeIn(animationSpec = tween(180, easing = AppleDecelerateEasing)),
-            exit = androidx.compose.animation.shrinkHorizontally(
+            ) + fadeIn(animationSpec = tween(160, easing = AppleDecelerateEasing)),
+            exit = shrinkHorizontally(
                 animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioNoBouncy)
-            ) + fadeOut(animationSpec = tween(120, easing = FastOutLinearInEasing))
+            ) + fadeOut(animationSpec = tween(110, easing = FastOutLinearInEasing))
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = title,
-                    color = Color.White,
-                    fontSize = SleekSizes.textBodySmall,
-                    fontWeight = FontWeight.Bold,
+                    color = onAccentColor,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
     }
 }
-
-

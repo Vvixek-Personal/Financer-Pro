@@ -21,99 +21,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-@OptIn(ExperimentalSharedTransitionApi::class)
-val LocalSharedTransitionScope = staticCompositionLocalOf<SharedTransitionScope?> { null }
+// NOTE: The shared-element scaffolding that used to live here (LocalSharedTransitionScope,
+// LocalNavAnimatedVisibilityScope, Modifier.sharedExpenseBounds / sharedExpenseElement and the
+// expenseItemEnter/ExitTransition helpers) was never wired into any screen, so it was removed
+// rather than left as a trap for future readers. ExpenseUndoSnackbar below is still in use.
 
-val LocalNavAnimatedVisibilityScope = staticCompositionLocalOf<AnimatedVisibilityScope?> { null }
-
-/**
- * Modifier extension to safely bind a sharedBounds container transition
- * when within a SharedTransitionScope and AnimatedVisibilityScope.
- */
-@OptIn(ExperimentalSharedTransitionApi::class)
-@Composable
-fun Modifier.sharedExpenseBounds(
-    key: String,
-    sharedTransitionScope: SharedTransitionScope? = LocalSharedTransitionScope.current,
-    animatedVisibilityScope: AnimatedVisibilityScope? = LocalNavAnimatedVisibilityScope.current
-): Modifier {
-    return if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-        with(sharedTransitionScope) {
-            this@sharedExpenseBounds.sharedBounds(
-                rememberSharedContentState(key = key),
-                animatedVisibilityScope = animatedVisibilityScope
-            )
-        }
-    } else {
-        this
-    }
-}
-
-/**
- * Modifier extension to safely bind a sharedElement transition
- * for icons, amounts, or text badges when within a SharedTransitionScope and AnimatedVisibilityScope.
- */
-@OptIn(ExperimentalSharedTransitionApi::class)
-@Composable
-fun Modifier.sharedExpenseElement(
-    key: String,
-    sharedTransitionScope: SharedTransitionScope? = LocalSharedTransitionScope.current,
-    animatedVisibilityScope: AnimatedVisibilityScope? = LocalNavAnimatedVisibilityScope.current
-): Modifier {
-    return if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-        with(sharedTransitionScope) {
-            this@sharedExpenseElement.sharedElement(
-                rememberSharedContentState(key = key),
-                animatedVisibilityScope = animatedVisibilityScope
-            )
-        }
-    } else {
-        this
-    }
-}
-
-/**
- * Spring-based entry animation for newly added or restoring expense transactions.
- */
-fun expenseItemEnterTransition(): EnterTransition {
-    return fadeIn(animationSpec = tween(350, easing = FastOutSlowInEasing)) +
-            slideInVertically(
-                initialOffsetY = { -it / 3 },
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioLowBouncy,
-                    stiffness = Spring.StiffnessMediumLow
-                )
-            ) +
-            expandVertically(
-                expandFrom = Alignment.Top,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMediumLow
-                )
-            )
-}
-
-/**
- * Smooth shrink, slide and fade exit animation for deleting expense transactions.
- */
-fun expenseItemExitTransition(): ExitTransition {
-    return fadeOut(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
-            shrinkVertically(
-                shrinkTowards = Alignment.Top,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMedium
-                )
-            ) +
-            slideOutHorizontally(
-                targetOffsetX = { -it },
-                animationSpec = tween(280, easing = FastOutSlowInEasing)
-            )
-}
-
-/**
- * Floating Animated Undo Action Bar for newly deleted transactions.
- */
 @Composable
 fun ExpenseUndoSnackbar(
     visible: Boolean,

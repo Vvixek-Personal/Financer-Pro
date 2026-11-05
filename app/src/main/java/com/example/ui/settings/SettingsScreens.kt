@@ -80,38 +80,90 @@ enum class SettingsSubScreen {
     Privacy,
     AboutApp,
     HelpSupport,
-    DataAndStorage,
-    ThemeAndLanguage,
-    Export,
-    FaqAndHelp
+    Export
 }
 
+/**
+ * Shared header used by every settings sub-screen.
+ *
+ * The previous version had no elevation and no status-bar scrim, so on notch/cutout devices the
+ * title sat directly under the system clock, and the header's flat 1dp border clashed with the
+ * rounded cards below it. This version adds:
+ *  - a circular, pressable back button that matches the app's chip language,
+ *  - a small accent-tinted subtitle slot (optional) for context,
+ *  - a soft accent gradient hairline instead of a hard border, and
+ *  - correct status-bar handling via statusBarsPadding.
+ */
 @Composable
-fun SettingsHeaderTitle(title: String, onBack: () -> Unit) {
+fun SettingsHeaderTitle(
+    title: String,
+    onBack: () -> Unit,
+    subtitle: String? = null,
+    trailing: (@Composable () -> Unit)? = null
+) {
     Surface(
         color = SleekSurface,
-        tonalElevation = 2.dp,
-        border = BorderStroke(1.dp, SleekBorder)
+        shadowElevation = if (isDarkModeActive) 6.dp else 3.dp,
+        tonalElevation = 0.dp
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = AppIcons.ArrowBack,
-                    contentDescription = "Back",
-                    tint = SleekTextPrimary
-                )
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(SleekInputBg)
+                        .clickable { onBack() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = AppIcons.ArrowBack,
+                        contentDescription = "Back",
+                        tint = SleekTextPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = SleekTextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (!subtitle.isNullOrBlank()) {
+                        Text(
+                            text = subtitle,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = SleekTextSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                trailing?.invoke()
             }
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = SleekTextPrimary
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(
+                                Color.Transparent,
+                                SleekPrimary.copy(alpha = 0.35f),
+                                SleekBorder,
+                                Color.Transparent
+                            )
+                        )
+                    )
             )
         }
     }
@@ -120,7 +172,7 @@ fun SettingsHeaderTitle(title: String, onBack: () -> Unit) {
 // PersonalDataScreen and BadgesAndMilestonesScreen moved to PersonalDataScreen.kt
 
 
-// ComingSoonConstructionBanner moved to PersonalDataScreen.kt
+// The old "Coming soon" construction banner was removed when Badges // ComingSoonConstructionBanner moved to PersonalDataScreen.kt Milestones shipped for real.
 
 
 // ==========================================
@@ -2843,7 +2895,7 @@ fun BudgetSettingsScreen(
                                     text = cat,
                                     fontSize = 12.sp,
                                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (selected) Color.White else SleekTextPrimary,
+                                    color = if (selected) onAccentColor else SleekTextPrimary,
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                                 )
                             }
@@ -2916,7 +2968,7 @@ fun BackupRestoreScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        SettingsHeaderTitle("Backup & Restore", onBack)
+        SettingsHeaderTitle("Backup & Restore", onBack, subtitle = "Snapshots and portable backup codes")
 
         Column(
             modifier = Modifier
@@ -3218,20 +3270,36 @@ fun BackupRestoreScreen(
                     Text("Your database is also snapshot-backed on device storage.", style = MaterialTheme.typography.bodySmall, color = SleekTextSecondary)
                     Spacer(modifier = Modifier.height(6.dp))
                     Text("Last Local Snapshot: $lastBackup", style = MaterialTheme.typography.bodySmall, color = SleekPrimary)
+                    Text(
+                        text = "On-device snapshots kept: ${viewModel.autoBackupSnapshotCount()} / 7",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = SleekTextSecondary
+                    )
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    OutlinedButton(
-                        onClick = {
-                            viewModel.markBackupPerformed()
-                            Toast.makeText(context, "Local backup snapshot updated!", Toast.LENGTH_SHORT).show()
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(AppIcons.Backup, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Create Manual Local Snapshot")
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        OutlinedButton(
+                            onClick = {
+                                viewModel.markBackupPerformed()
+                                Toast.makeText(context, "Snapshot written to app storage", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(AppIcons.Backup, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Create Snapshot")
+                        }
+                        if (viewModel.autoBackupSnapshotCount() > 0) {
+                            OutlinedButton(
+                                onClick = { viewModel.deleteAutoBackups() },
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, ExpenseRed.copy(alpha = 0.5f))
+                            ) {
+                                Text("Delete", color = ExpenseRed)
+                            }
+                        }
                     }
                 }
             }
@@ -3326,9 +3394,12 @@ fun DataManagementScreen(
 ) {
     BackHandler { onBack() }
     val storageSize by viewModel.storageSize.collectAsStateWithLifecycle()
+    val dataSize by viewModel.dataSize.collectAsStateWithLifecycle()
     val accounts by viewModel.accounts.collectAsStateWithLifecycle()
     val currencyCode by viewModel.selectedCurrencyCode.collectAsStateWithLifecycle()
     val currencySymbol by viewModel.selectedCurrencySymbol.collectAsStateWithLifecycle()
+    val expenses by viewModel.expenses.collectAsStateWithLifecycle()
+    val snapshots by remember { mutableStateOf(viewModel.autoBackupSnapshotCount()) }
     val context = LocalContext.current
     var showResetDialog by remember { mutableStateOf(false) }
 
@@ -3359,7 +3430,7 @@ fun DataManagementScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        SettingsHeaderTitle("Data Management", onBack)
+        SettingsHeaderTitle("Data Management", onBack, subtitle = "Import, export and storage usage")
 
         Column(
             modifier = Modifier
@@ -3367,6 +3438,44 @@ fun DataManagementScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp)
         ) {
+            // Real usage figures — storage (database + snapshots + files) and network traffic.
+            // Both used to be computed in the ViewModel and then never shown anywhere.
+            Card(
+                colors = CardDefaults.cardColors(containerColor = SleekSurface),
+                border = BorderStroke(1.dp, SleekBorder),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("USAGE ON THIS DEVICE", fontWeight = FontWeight.Bold, color = SleekTextPrimary)
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        UsageStat("Storage used", storageSize, AppIcons.Storage, Modifier.weight(1f))
+                        UsageStat("Network used", dataSize, AppIcons.Cloud, Modifier.weight(1f))
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        UsageStat("Transactions", "${expenses.size}", AppIcons.ReceiptLong, Modifier.weight(1f))
+                        UsageStat("Snapshots", "$snapshots / 7", AppIcons.Backup, Modifier.weight(1f))
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedButton(
+                        onClick = {
+                            viewModel.refreshUsageData()
+                            snapshots = viewModel.autoBackupSnapshotCount()
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(AppIcons.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Recalculate")
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             Card(
                 colors = CardDefaults.cardColors(containerColor = SleekSurface),
                 border = BorderStroke(1.dp, SleekBorder),
@@ -3589,7 +3698,7 @@ fun DataManagementScreen(
                                         text = acc.name,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (isSelected) Color.White else SleekTextPrimary,
+                                        color = if (isSelected) onAccentColor else SleekTextPrimary,
                                         maxLines = 1
                                     )
                                     Text(
@@ -3697,7 +3806,7 @@ fun SecuritySettingsScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        SettingsHeaderTitle("Security Settings", onBack)
+        SettingsHeaderTitle("Security", onBack, subtitle = "App lock, PIN and fingerprint")
 
         Column(
             modifier = Modifier
@@ -3940,6 +4049,7 @@ fun PrivacySettingsScreen(
     BackHandler { onBack() }
 
     val privacyMode by viewModel.privacyModeEnabled.collectAsStateWithLifecycle()
+    val hideSensitive by viewModel.hideSensitiveAmounts.collectAsStateWithLifecycle()
     val isScreenshotProtected by viewModel.screenshotProtection.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
@@ -3950,7 +4060,7 @@ fun PrivacySettingsScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        SettingsHeaderTitle("Privacy Settings", onBack)
+        SettingsHeaderTitle("Privacy", onBack, subtitle = "Everything stays on this device")
 
         Column(
             modifier = Modifier
@@ -3995,6 +4105,36 @@ fun PrivacySettingsScreen(
                         Text("Mask financial numbers when sharing screens", style = MaterialTheme.typography.bodySmall, color = SleekTextSecondary)
                     }
                     Switch(checked = privacyMode, onCheckedChange = { viewModel.togglePrivacyModeEnabled(it) })
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // "Mask small amounts too" — previously this setting existed in state only and no screen
+            // could change it. It sits next to Privacy Blur Mode because the two work together.
+            Card(
+                colors = CardDefaults.cardColors(containerColor = SleekSurface),
+                border = BorderStroke(1.dp, SleekBorder),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                        Text("Also Hide Small Amounts", fontWeight = FontWeight.Bold, color = SleekTextPrimary)
+                        Text(
+                            "Masks individual transaction amounts even when the total balance is visible",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = SleekTextSecondary
+                        )
+                    }
+                    Switch(
+                        checked = hideSensitive,
+                        onCheckedChange = { viewModel.toggleHideSensitiveAmounts(it) }
+                    )
                 }
             }
 
@@ -4059,7 +4199,7 @@ fun AboutAppScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        SettingsHeaderTitle("What's New & About App", onBack)
+        SettingsHeaderTitle("About", onBack, subtitle = "Version, what's new and system details")
 
         // Segmented Tabs: Updates Timeline vs App Specs
         TabRow(
@@ -4148,14 +4288,14 @@ fun AboutAppScreen(
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text("System Architecture & Specifications", fontWeight = FontWeight.Bold, color = SleekTextPrimary)
                         HorizontalDivider(color = SleekBorder)
-                        DetailSpecRow("Platform", "Android (Jetpack Compose & Kotlin)")
-                        DetailSpecRow("Database", "Local-only Room database with on-device backups")
-                        DetailSpecRow("Screen Protection", "Android FLAG_SECURE Banking Privacy Shield")
-                        DetailSpecRow("Diagnostics", "Financial Health Score & Loan EMI Engine")
-                        DetailSpecRow("Localization", "9 Built-in Languages with native RTL")
-                        DetailSpecRow("Currencies", "100+ Global fiat currencies catalog with live forex")
-                        DetailSpecRow("Data Security", "Local Encrypted File Storage, Biometric & PIN Lock")
-                        DetailSpecRow("Target SDK", "Android 15 (API 36)")
+                        DetailSpecRow("Built with", "Kotlin & Jetpack Compose")
+                        DetailSpecRow("Storage", "Room database, on this device only")
+                        DetailSpecRow("Screen protection", "Optional screenshot blocking")
+                        DetailSpecRow("Analysis", "Health score, budgets & calculators")
+                        DetailSpecRow("Languages", "9 built-in languages, RTL aware")
+                        DetailSpecRow("Currencies", "100+ currencies with optional live rates")
+                        DetailSpecRow("App lock", "PBKDF2 PIN + fingerprint unlock")
+                        DetailSpecRow("Supports", "Android 7.0 and newer")
                     }
                 }
 
@@ -4180,54 +4320,9 @@ fun AboutAppScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // 🚚 UIVERSE.IO DELIVERY TRUCK LOADER PREVIEW CARD
-                var showTruckPreviewDialog by remember { mutableStateOf(false) }
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = SleekSurface),
-                    border = BorderStroke(1.dp, SleekBorder),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            "Delivery Truck Loading Engine",
-                            fontWeight = FontWeight.Bold,
-                            color = SleekTextPrimary
-                        )
-                        Text(
-                            "Interactive high-fidelity physics loader (Uiverse.io by vinodjangid07) used across app startup, local backups and data operations.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = SleekTextSecondary,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(14.dp))
-                        DeliveryTruckLoader(
-                            scale = 1.0f,
-                            caption = "Loading Assets & Data...",
-                            subCaption = "1s suspension bobbing • 1.4s road animation"
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        FilledTonalButton(
-                            onClick = { showTruckPreviewDialog = true },
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Icon(AppIcons.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Test Fullscreen Loading Screen")
-                        }
-                    }
-                }
-                if (showTruckPreviewDialog) {
-                    TruckLoadingDialog(
-                        isOpen = true,
-                        message = "Synchronizing Financial Vault...",
-                        subtitle = "Testing Uiverse.io delivery truck loading screen",
-                        onDismissRequest = { showTruckPreviewDialog = false }
-                    )
-                }
+                // The old "test the loading animation" developer card lived here. It was a demo of
+                // an internal loader and had no user value in an about screen, so it was removed
+                // along with its test dialog.
 
                 Spacer(modifier = Modifier.height(120.dp))
             }
@@ -4261,15 +4356,19 @@ fun HelpSupportScreen(
 
     val faqs = remember {
         listOf(
-            "How do I use Quick Shortcuts and the All Shortcuts Launcher?" to "You can access primary shortcuts directly from your Home dashboard. Tap the 'More' button to open the full-screen App Launcher with all 16+ tools, search filter, and category pills.",
-            "How do I view App Update details and release specifications?" to "Navigate to Sidebar -> What's New & About App -> Updates Timeline to inspect each release, its realtime date, and categorized specifications.",
-            "How does the Daily Streak work?" to "Every day you open the app and review or record financial activity, your streak advances! Celebrate milestones with dynamic flame bursts, unlock higher tier badges (Starter -> Bronze -> Silver -> Gold -> Platinum -> Diamond), and tap anywhere on screen to smoothly dismiss the celebration.",
-            "How do I use the interactive Calendar tab?" to "The Calendar tab provides a visual breakdown of your income and expenses day by day. Tap any day to inspect transactions, toggle month/week navigation, and use filters to analyze your cash flow across time.",
-            "How do I change the default currency?" to "Go to Sidebar -> Currency, search for your currency, and choose Option A (Keep existing) or Option B (Convert existing transactions using real rates).",
-            "Are my financial transactions safe?" to "Yes! Your entire financial database is stored 100% locally on your device with local backup & restore capabilities.",
-            "How do I manage my monthly budgets?" to "Go to Sidebar -> Budgets or the Home screen budget card to configure monthly limits and warning thresholds.",
-            "How do I lock the app with a PIN?" to "Navigate to Sidebar -> Security and tap 'Set PIN' to create a 4-digit security code.",
-            "How do I switch the application language?" to "Navigate to Sidebar -> Language and select your language. It instantly updates text across all screens."
+            "How do I add a transaction quickly?" to "Tap the + button in the Home header, or use the quick shortcuts under it. Both open the same add sheet pre-set to expense; switch to income with the toggle at the top of the sheet.",
+            "How do I change text size, or make the layout more compact?" to "Sidebar → Appearance & Theme. Text size scales the whole app instantly (it stacks on top of your phone's own font size), and Compact layout tightens padding on the sidebar and settings lists.",
+            "How does light and dark mode work?" to "Pick Light, Dark or Device in Appearance & Theme, or tap the sun/moon icon in the sidebar header to cycle through them. Device follows your phone automatically, even while the app is open.",
+            "How do I change the date format?" to "Sidebar → Date & Time. The format you choose (dd/MM/yyyy, MM/dd/yyyy or yyyy-MM-dd) is used for dates everywhere in the app, and First day of week changes how the Calendar grid is laid out.",
+            "How does the Daily Streak work?" to "Each day you open the app your streak advances. Missing a day resets it. Your streak and the badges it unlocks are shown in Sidebar → Badges and Milestone.",
+            "How do I use the Calendar tab?" to "The Calendar tab shows income and expenses day by day. Tap a day to inspect it, switch between month and week views, and use the agenda list below to search across a month.",
+            "How do I change the default currency?" to "Sidebar → Currency & Rates, then search for your currency. You can keep existing amounts as they are, or convert them using the current rates.",
+            "Are my financial transactions safe?" to "Yes. Everything is stored in a local database on this device. There is no account, no sign-in and no cloud sync. If you enable app lock, your PIN is stored only as a salted hash.",
+            "What do the automatic backups do?" to "With Automatic Daily Snapshot on, the app writes one JSON snapshot of your data per day into its private storage and keeps the newest seven. You can also create one manually or delete them all from Sidebar → Backup & Restore.",
+            "How do I manage my monthly budgets?" to "Sidebar → Budgets, or the budget card on the Home screen. You can set an overall limit plus per-category limits and warning thresholds.",
+            "How do I lock the app?" to "Sidebar → Password & Security, then Set PIN. You can also enable fingerprint unlock, choose an auto-lock delay after leaving the app, and require the PIN again after a restart.",
+            "How do I switch the application language?" to "Sidebar → Language. The change applies immediately across the app and is remembered after a restart.",
+            "Can I export my data?" to "Yes. Sidebar → Export Statements gives you a PDF statement, CSV, JSON, or a shareable image report, each filtered by date range, type and category."
         )
     }
 
@@ -4284,7 +4383,7 @@ fun HelpSupportScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        SettingsHeaderTitle("Help & Support Center", onBack)
+        SettingsHeaderTitle("Help & Support", onBack, subtitle = "Answers, and how to reach me")
 
         Column(
             modifier = Modifier
@@ -4408,7 +4507,7 @@ fun ExportDataScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        SettingsHeaderTitle("Export Statements & Reports", onBack)
+        SettingsHeaderTitle("Export", onBack, subtitle = "PDF, CSV, JSON and image reports")
 
         Column(
             modifier = Modifier
@@ -4462,7 +4561,7 @@ fun ExportDataScreen(
                                     text = option,
                                     fontSize = 11.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected) Color.White else SleekTextPrimary
+                                    color = if (isSelected) onAccentColor else SleekTextPrimary
                                 )
                             }
                         }
@@ -4609,7 +4708,7 @@ fun ExportDataScreen(
                         ) {
                             Column {
                                 Text("Income", fontSize = 9.sp, color = Color(0xFF10B981), fontWeight = FontWeight.Bold)
-                                Text("₹%,.0f".format(totalIncome), fontSize = 12.sp, color = Color(0xFF10B981), fontWeight = FontWeight.Bold)
+                                Text("${currencySymbol}%,.0f".format(totalIncome), fontSize = 12.sp, color = Color(0xFF10B981), fontWeight = FontWeight.Bold)
                             }
                         }
 
@@ -4621,7 +4720,7 @@ fun ExportDataScreen(
                         ) {
                             Column {
                                 Text("Expense", fontSize = 9.sp, color = ExpenseRed, fontWeight = FontWeight.Bold)
-                                Text("₹%,.0f".format(totalExpense), fontSize = 12.sp, color = ExpenseRed, fontWeight = FontWeight.Bold)
+                                Text("${currencySymbol}%,.0f".format(totalExpense), fontSize = 12.sp, color = ExpenseRed, fontWeight = FontWeight.Bold)
                             }
                         }
 
@@ -4633,7 +4732,7 @@ fun ExportDataScreen(
                         ) {
                             Column {
                                 Text("Net Flow", fontSize = 9.sp, color = SleekTextSecondary, fontWeight = FontWeight.Bold)
-                                Text("₹%,.0f".format(netBalance), fontSize = 12.sp, color = SleekTextPrimary, fontWeight = FontWeight.Bold)
+                                Text("${currencySymbol}%,.0f".format(netBalance), fontSize = 12.sp, color = SleekTextPrimary, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -4866,7 +4965,31 @@ fun ExportDataScreen(
     }
 }
 
-// Keep legacy screen aliases for backwards compatibility
-@Composable fun DataAndStorageScreen(viewModel: FinanceViewModel, onBack: () -> Unit) { DataManagementScreen(viewModel, onBack) }
-@Composable fun ThemeAndLanguageScreen(viewModel: FinanceViewModel, onBack: () -> Unit) { AppearanceScreen(viewModel, onBack) }
-@Composable fun FaqAndHelpScreen(viewModel: FinanceViewModel, onBack: () -> Unit) { HelpSupportScreen(viewModel, onBack) }
+// NOTE: DataAndStorageScreen / ThemeAndLanguageScreen / FaqAndHelpScreen used to live here as
+// thin aliases that simply forwarded to another screen. They were unreachable from the sidebar and
+// existed only as duplicate navigation targets, so they (and their SettingsSubScreen entries) have
+// been removed rather than left as dead routes.
+
+/** Small, theme-aware stat tile used by the Data Management usage card. */
+@Composable
+private fun UsageStat(
+    label: String,
+    value: String,
+    icon: ImageVector,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (isDarkModeActive) Color.White.copy(alpha = 0.05f) else SleekPrimary.copy(alpha = 0.06f))
+            .padding(horizontal = 10.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = null, tint = SleekPrimary, modifier = Modifier.size(16.dp))
+        Spacer(modifier = Modifier.width(8.dp))
+        Column {
+            Text(value, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = SleekTextPrimary, maxLines = 1)
+            Text(label, fontSize = 10.sp, color = SleekTextSecondary, maxLines = 1)
+        }
+    }
+}

@@ -110,7 +110,7 @@ fun DeliveryTruckLoader(
 
                 // Draw Lamp Post if visible within bounds
                 if (lampPostBaseX > -60f * scale && lampPostBaseX < w + 120f * scale) {
-                    val postColor = Color(0xFF64748B) // Slate grey post
+                    val postColor = if (isDarkModeActive) Color(0xFF64748B) else Color(0xFF475569)
                     // Vertical pole
                     drawLine(
                         color = postColor,
@@ -129,12 +129,12 @@ fun DeliveryTruckLoader(
                     }
                     drawPath(
                         path = neckPath,
-                        color = postColor,
+                        color = if (isDarkModeActive) postColor else Color(0xFF94A3B8),
                         style = Stroke(width = 2.5f * scale, cap = StrokeCap.Round)
                     )
                     // Lamp head / shade
                     drawCircle(
-                        color = Color(0xFF334155),
+                        color = if (isDarkModeActive) Color(0xFF334155) else Color(0xFF94A3B8),
                         radius = 4f * scale,
                         center = Offset(lampPostBaseX - 16f * scale, lampPostTopY + 3f * scale)
                     )
@@ -164,9 +164,12 @@ fun DeliveryTruckLoader(
                     )
                 }
 
-                // --- 2. ROAD BASE (#282828) ---
+                // --- 2. ROAD BASE ---
+                // The asphalt tone follows the theme: a light grey road on light backgrounds and a
+                // darker slab in dark mode, so the loader never looks like a black bar floating on
+                // an already-dark card.
                 drawRoundRect(
-                    color = Color(0xFF282828),
+                    color = if (isDarkModeActive) Color(0xFF2A3242) else Color(0xFFCBD5E1),
                     topLeft = Offset(0f, roadY),
                     size = Size(w, roadThickness),
                     cornerRadius = CornerRadius(3f * scale, 3f * scale)
@@ -185,7 +188,7 @@ fun DeliveryTruckLoader(
                     if (wrappedX in -dashLength..(w + dashLength)) {
                         // Road dash mark
                         drawRoundRect(
-                            color = Color(0xFFF8FAFC),
+                            color = if (isDarkModeActive) Color(0xFFF8FAFC) else Color(0xFF64748B),
                             topLeft = Offset(wrappedX, roadY - 0.5f * scale),
                             size = Size(dashLength, dashThickness),
                             cornerRadius = CornerRadius(1.5f * scale, 1.5f * scale)
@@ -234,8 +237,8 @@ fun DeliveryTruckLoader(
                         path = cargoPath,
                         brush = Brush.horizontalGradient(
                             colors = listOf(
-                                Color(0xFF0F172A), // Dark slate
-                                Color(0xFF1E293B)  // Medium slate
+                                SleekPrimary,
+                                mixPrimaryWithColor(SleekPrimary, Color.Black, 0.35f)
                             )
                         )
                     )
@@ -522,7 +525,7 @@ fun TruckLoadingScreen(
                 DeliveryTruckLoader(
                     scale = 1.15f,
                     caption = message,
-                    subCaption = subtitle ?: "Preparing your financial records safely offline"
+                    subCaption = subtitle ?: "Reading your data on this device"
                 )
             }
         }
@@ -561,7 +564,7 @@ fun TruckLoadingDialog(
                     DeliveryTruckLoader(
                         scale = 1.1f,
                         caption = message,
-                        subCaption = subtitle ?: "Please hold on while processing completes"
+                        subCaption = subtitle ?: "Please hold on a moment"
                     )
                 }
             }

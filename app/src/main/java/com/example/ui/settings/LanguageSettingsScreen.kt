@@ -51,7 +51,7 @@ fun LanguageScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        SettingsHeaderTitle("Language Settings", onBack)
+        SettingsHeaderTitle("Language", onBack, subtitle = "Applies instantly across the app")
 
         Column(modifier = Modifier.padding(20.dp)) {
             OutlinedTextField(

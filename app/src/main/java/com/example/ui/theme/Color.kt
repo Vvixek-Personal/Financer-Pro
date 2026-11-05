@@ -90,6 +90,14 @@ fun updateThemeColors(index: Int, customHue: Float) {
     activeSleekOnPrimaryContainer = opc
 }
 
+/** Lightens a colour toward white by [amount] (0..1) — used to keep accent icons readable in dark mode. */
+fun lighten(color: Color, amount: Float): Color = Color(
+    red = (color.red + (1f - color.red) * amount).coerceIn(0f, 1f),
+    green = (color.green + (1f - color.green) * amount).coerceIn(0f, 1f),
+    blue = (color.blue + (1f - color.blue) * amount).coerceIn(0f, 1f),
+    alpha = color.alpha
+)
+
 fun mixPrimaryWithColor(primary: Color, base: Color, fraction: Float): Color {
     return Color(
         red = (primary.red * fraction + base.red * (1f - fraction)).coerceIn(0f, 1f),

@@ -337,9 +337,16 @@ fun DashboardTab(
 
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(46.dp)
                         .clip(CircleShape)
-                        .background(SleekPrimaryContainer),
+                        .background(
+                            Brush.sweepGradient(
+                                listOf(SleekPrimary, SleekPrimaryContainer, SleekPrimary)
+                            )
+                        )
+                        .padding(2.dp)
+                        .clip(CircleShape)
+                        .background(SleekSurface),
                     contentAlignment = Alignment.Center
                 ) {
                     if (!profileImageUri.isNullOrBlank()) {
@@ -347,15 +354,23 @@ fun DashboardTab(
                             model = profileImageUri,
                             contentDescription = "Profile Picture",
                             contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier.fillMaxSize().clip(CircleShape)
                         )
                     } else {
-                        Image(
-                            painter = painterResource(id = R.drawable.ic_default_profile_avatar),
-                            contentDescription = "Profile",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape)
+                                .background(SleekPrimary.copy(alpha = if (isDarkModeActive) 0.24f else 0.14f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = initials.ifBlank { "U" },
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = SleekPrimary
+                            )
+                        }
                     }
                 }
                 Column {
@@ -406,7 +421,8 @@ fun DashboardTab(
                             text = "${healthScore.overallScore}",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(healthScore.ratingColorHex)
+                            color = if (isDarkModeActive) lighten(Color(healthScore.ratingColorHex), 0.25f)
+                            else Color(healthScore.ratingColorHex)
                         )
                     }
                 }
@@ -418,7 +434,7 @@ fun DashboardTab(
                     modifier = Modifier.testTag("dashboard_streak_flame_badge")
                 )
 
-                IconButton(
+                if (com.example.data.UiPrefs.quickAddEnabled) IconButton(
                     onClick = onAddExpenseClick,
                     modifier = Modifier
                         .size(48.dp)
@@ -438,7 +454,7 @@ fun DashboardTab(
                     Icon(
                         imageVector = AppIcons.Add,
                         contentDescription = "Add Expense",
-                        tint = Color.White,
+                        tint = onAccentColor,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -921,7 +937,7 @@ fun DashboardTab(
                             colors = ButtonDefaults.buttonColors(containerColor = SleekPrimary),
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("Save", color = Color.White)
+                            Text("Save", color = onAccentColor)
                         }
                     }
                 }
@@ -988,7 +1004,7 @@ fun DashboardTab(
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("Save", color = Color.White)
+                            Text("Save", color = onAccentColor)
                         }
                     }
                 }
@@ -1442,7 +1458,7 @@ fun MonthlyBudgetSnapshotCard(
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("Save", color = Color.White)
+                            Text("Save", color = onAccentColor)
                         }
                     }
                 }
@@ -1724,7 +1740,7 @@ fun ManageCategoryDialog(
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("Delete", color = Color.White)
+                            Text("Delete", color = onAccentColor)
                         }
                     }
                 } else {

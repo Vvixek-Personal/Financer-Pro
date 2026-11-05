@@ -39,7 +39,7 @@ fun DateTimeScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        SettingsHeaderTitle("Date & Time Settings", onBack)
+        SettingsHeaderTitle("Date & Time", onBack, subtitle = "How dates appear across the app")
 
         Column(
             modifier = Modifier

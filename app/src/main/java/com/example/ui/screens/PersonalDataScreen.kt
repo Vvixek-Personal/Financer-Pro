@@ -48,6 +48,7 @@ import java.util.Locale
 fun PersonalDataScreen(
     viewModel: FinanceViewModel,
     onBack: () -> Unit,
+    onNavigateToBadges: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onNavigateToAnalytics: () -> Unit = {},
     onNavigateToGoals: () -> Unit = {},
@@ -67,7 +68,7 @@ fun PersonalDataScreen(
     val savingGoals by viewModel.savingsGoals.collectAsStateWithLifecycle(emptyList())
 
     var showEditProfileDialog by remember { mutableStateOf(false) }
-    var showComingSoonDialog by remember { mutableStateOf(false) }
+    val monthlyBudget by viewModel.monthlyBudget.collectAsStateWithLifecycle()
 
     // --- REAL METRICS COMPUTATIONS ---
     val totalBalance = remember(accounts) {
@@ -224,18 +225,16 @@ fun PersonalDataScreen(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // --- LATEST ACHIEVEMENT (COMING SOON CARD) ---
-            ComingSoonTrophyCard(
+            // --- LIVE ACHIEVEMENTS (computed from this user's own records) ---
+            LiveAchievementsSection(
                 isDark = isDark,
-                onClick = { showComingSoonDialog = true }
-            )
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            // --- MY ACHIEVEMENTS (COMING SOON PREVIEWS) ---
-            MyAchievementsComingSoonSection(
-                isDark = isDark,
-                onSeeAllClick = { showComingSoonDialog = true }
+                totalTransactions = expenses.size,
+                streak = currentStreak,
+                goalsTotal = savingGoals.size,
+                goalsCompleted = savingGoals.count { it.savedAmount >= it.targetAmount && it.targetAmount > 0 },
+                budgetKept = monthlyBudget > 0 && thisMonthExpenses <= monthlyBudget,
+                hasBudget = monthlyBudget > 0,
+                onSeeAllClick = onNavigateToBadges
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -284,41 +283,6 @@ fun PersonalDataScreen(
             )
         }
 
-        // --- COMING SOON MODAL ---
-        if (showComingSoonDialog) {
-            val dialogBg = if (isDark) Color(0xFF131D24) else SleekSurface
-            val titleColor = if (isDark) Color.White else SleekTextPrimary
-            val textColor = if (isDark) Color(0xFFCBD5E1) else SleekTextSecondary
-            val confirmColor = if (isDark) Color(0xFF2DD4BF) else SleekPrimary
-
-            AlertDialog(
-                onDismissRequest = { showComingSoonDialog = false },
-                containerColor = dialogBg,
-                titleContentColor = titleColor,
-                textContentColor = textColor,
-                icon = {
-                    Icon(
-                        imageVector = AppIcons.EmojiEvents,
-                        contentDescription = null,
-                        tint = Color(0xFFF59E0B),
-                        modifier = Modifier.size(36.dp)
-                    )
-                },
-                title = {
-                    Text("Achievements & Milestones", fontWeight = FontWeight.Bold)
-                },
-                text = {
-                    Text(
-                        "We are crafting an inspiring gamified milestone system! Soon you'll unlock tier badges, track multi-month budget streaks, and celebrate financial victories."
-                    )
-                },
-                confirmButton = {
-                    TextButton(onClick = { showComingSoonDialog = false }) {
-                        Text("Awesome", color = confirmColor, fontWeight = FontWeight.Bold)
-                    }
-                }
-            )
-        }
     }
 }
 
@@ -381,25 +345,12 @@ private fun ProfileHeaderSection(
                 border = BorderStroke(2.dp, avatarBorder),
                 modifier = Modifier.fillMaxSize()
             ) {
-                if (!profileImageUri.isNullOrBlank()) {
-                    AsyncImage(
-                        model = profileImageUri,
-                        contentDescription = "Profile Avatar",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape)
-                    )
-                } else {
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_default_profile_avatar),
-                        contentDescription = "Profile Avatar",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape)
-                    )
-                }
+                com.example.ui.components.UserAvatar(
+                    userName = userName,
+                    imageUri = profileImageUri,
+                    size = 72.dp,
+                    modifier = Modifier.fillMaxSize()
+                )
             }
 
             // Edit Pencil circular badge button
@@ -643,158 +594,62 @@ private fun VerticalStatDivider(color: Color) {
 }
 
 /**
- * 🏆 LATEST ACHIEVEMENT CARD (COMING SOON)
- * Replaces the fake achievement card with a polished, high-fidelity Coming Soon banner.
- * Warm golden gradient and glowing trophy halo adapt to both light and dark backgrounds.
+ * 🏅 LIVE ACHIEVEMENTS
+ * Shows badges computed from the user's real records (transactions, streak, goals, budget).
+ * The previous version advertised five badges as "Coming Soon" and never unlocked anything —
+ * these all resolve to actual state and link through to the full Badges & Milestones screen.
  */
 @Composable
-private fun ComingSoonTrophyCard(
+private fun LiveAchievementsSection(
     isDark: Boolean,
-    onClick: () -> Unit
-) {
-    val cardBorder = if (isDark) Color(0xFFF59E0B).copy(alpha = 0.35f) else Color(0xFFFCD34D)
-    val cardGradient = if (isDark) {
-        listOf(
-            Color(0xFF281E0F),
-            Color(0xFF1E1710),
-            Color(0xFF131A1F)
-        )
-    } else {
-        listOf(
-            Color(0xFFFFFBEB),
-            Color(0xFFFEF3C7),
-            Color(0xFFFFF7ED)
-        )
-    }
-    val titleColor = if (isDark) Color.White else Color(0xFF78350F)
-    val subheadColor = if (isDark) Color(0xFFFBBF24) else Color(0xFFB45309)
-    val descColor = if (isDark) Color(0xFF94A3B8) else Color(0xFF92400E).copy(alpha = 0.85f)
-    val chipBg = if (isDark) Color(0xFFF59E0B).copy(alpha = 0.2f) else Color(0xFFF59E0B).copy(alpha = 0.18f)
-    val chipText = if (isDark) Color(0xFFFDE68A) else Color(0xFF92400E)
-    val chevronBg = if (isDark) Color(0xFF281E0F) else Color(0xFFFEF3C7)
-    val chevronTint = if (isDark) Color(0xFFF59E0B) else Color(0xFFB45309)
-
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-        border = BorderStroke(1.dp, cardBorder),
-        shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.5.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .clickable { onClick() }
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Brush.horizontalGradient(colors = cardGradient))
-                .padding(16.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                // Trophy Emblem in Golden Halo
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(
-                            Brush.radialGradient(
-                                colors = listOf(
-                                    Color(0xFFF59E0B).copy(alpha = if (isDark) 0.3f else 0.22f),
-                                    Color.Transparent
-                                )
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = AppIcons.EmojiEvents,
-                        contentDescription = null,
-                        tint = if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706),
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(14.dp))
-
-                // Texts
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "Latest Achievement",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = subheadColor
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = chipBg
-                        ) {
-                            Text(
-                                text = "COMING SOON",
-                                fontSize = 8.5.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = chipText,
-                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(2.dp))
-
-                    Text(
-                        text = "Budget Master & Trophies",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = titleColor
-                    )
-
-                    Spacer(modifier = Modifier.height(2.dp))
-
-                    Text(
-                        text = "Unlock trophies and financial milestones in upcoming updates!",
-                        fontSize = 11.sp,
-                        color = descColor,
-                        lineHeight = 14.sp
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                // Chevron icon
-                Surface(
-                    shape = CircleShape,
-                    color = chevronBg,
-                    border = BorderStroke(1.dp, if (isDark) Color.Transparent else Color(0xFFFDE68A)),
-                    modifier = Modifier.size(28.dp)
-                ) {
-                    Icon(
-                        imageVector = AppIcons.ChevronRight,
-                        contentDescription = "Details",
-                        tint = chevronTint,
-                        modifier = Modifier.padding(4.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-/**
- * 🏅 MY ACHIEVEMENTS (COMING SOON ROW)
- * 5 future badge concepts with "Coming Soon" styling.
- * High contrast on both dark obsidian and bright light surfaces.
- */
-@Composable
-private fun MyAchievementsComingSoonSection(
-    isDark: Boolean,
+    totalTransactions: Int,
+    streak: Int,
+    goalsTotal: Int,
+    goalsCompleted: Int,
+    budgetKept: Boolean,
+    hasBudget: Boolean,
     onSeeAllClick: () -> Unit
 ) {
-    val titleColor = if (isDark) Color.White else SleekTextPrimary
-    val seeAllColor = if (isDark) Color(0xFF94A3B8) else SleekPrimary
+    data class LiveBadge(
+        val icon: androidx.compose.ui.graphics.vector.ImageVector,
+        val color: Color,
+        val label: String,
+        val unlocked: Boolean
+    )
+
+    val badges = listOf(
+        LiveBadge(
+            icon = AppIcons.ReceiptLong,
+            color = Color(0xFF0284C7),
+            label = "First\nRecord",
+            unlocked = totalTransactions >= 1
+        ),
+        LiveBadge(
+            icon = AppIcons.LocalFireDepartment,
+            color = Color(0xFFF97316),
+            label = "Streak\nStarter",
+            unlocked = streak >= 3
+        ),
+        LiveBadge(
+            icon = AppIcons.VerifiedUser,
+            color = Color(0xFF16A34A),
+            label = "Budget\nKeeper",
+            unlocked = hasBudget && budgetKept
+        ),
+        LiveBadge(
+            icon = AppIcons.Savings,
+            color = Color(0xFFD97706),
+            label = "Goal\nSetter",
+            unlocked = goalsTotal >= 1
+        ),
+        LiveBadge(
+            icon = AppIcons.EmojiEvents,
+            color = Color(0xFF9333EA),
+            label = "Goal\nCrusher",
+            unlocked = goalsCompleted >= 1
+        )
+    )
+    val unlockedCount = badges.count { it.unlocked }
 
     Column(
         modifier = Modifier
@@ -806,794 +661,102 @@ private fun MyAchievementsComingSoonSection(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "My Achievements",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = titleColor
-            )
+            Column {
+                Text(
+                    text = "Achievements",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = SleekTextPrimary
+                )
+                Text(
+                    text = "$unlockedCount of ${badges.size} unlocked",
+                    fontSize = 11.sp,
+                    color = SleekTextSecondary
+                )
+            }
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (isDark) SleekPrimary.copy(alpha = 0.18f) else SleekPrimary.copy(alpha = 0.10f))
                     .clickable { onSeeAllClick() }
-                    .padding(vertical = 4.dp, horizontal = 2.dp)
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
             ) {
                 Text(
-                    text = "See All",
+                    text = "See all",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = seeAllColor
+                    color = SleekPrimary
                 )
-                Spacer(modifier = Modifier.width(2.dp))
                 Icon(
                     imageVector = AppIcons.ChevronRight,
                     contentDescription = null,
-                    tint = seeAllColor,
-                    modifier = Modifier.size(12.dp)
+                    tint = SleekPrimary,
+                    modifier = Modifier.size(14.dp)
                 )
             }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Row of 5 upcoming badges
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            AchievementBadgeItem(
-                icon = AppIcons.CalendarToday,
-                color = if (isDark) Color(0xFF10B981) else Color(0xFF059669),
-                title = "Budget\nMaster",
-                isDark = isDark
-            )
-            AchievementBadgeItem(
-                icon = AppIcons.TrendingUp,
-                color = if (isDark) Color(0xFFA855F7) else Color(0xFF9333EA),
-                title = "Expense\nAnalyzer",
-                isDark = isDark
-            )
-            AchievementBadgeItem(
-                icon = AppIcons.Star,
-                color = if (isDark) Color(0xFFF59E0B) else Color(0xFFD97706),
-                title = "Savings\nStar",
-                isDark = isDark
-            )
-            AchievementBadgeItem(
-                icon = AppIcons.LocalFireDepartment,
-                color = if (isDark) Color(0xFF38BDF8) else Color(0xFF0284C7),
-                title = "Streak\nWarrior",
-                isDark = isDark
-            )
-            AchievementBadgeItem(
-                icon = AppIcons.Lock,
-                color = if (isDark) Color(0xFF64748B) else Color(0xFF475569),
-                title = "More\nSoon...",
-                isDark = isDark
-            )
-        }
-    }
-}
-
-@Composable
-private fun AchievementBadgeItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    color: Color,
-    title: String,
-    isDark: Boolean
-) {
-    val badgeBg = if (isDark) Color(0xFF111E24) else SleekSurface
-    val badgeBorder = if (isDark) color.copy(alpha = 0.5f) else color.copy(alpha = 0.35f)
-    val badgeTitleColor = if (isDark) Color(0xFF94A3B8) else SleekTextPrimary
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.width(58.dp)
-    ) {
-        // Hexagon/Rounded Badge Box
-        Box(
-            modifier = Modifier
-                .size(46.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(badgeBg)
-                .border(1.2.dp, badgeBorder, RoundedCornerShape(14.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            // Subtle color tint inside badge
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(color.copy(alpha = if (isDark) 0.08f else 0.12f))
-            )
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier.size(22.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        Text(
-            text = title,
-            fontSize = 9.5.sp,
-            fontWeight = FontWeight.Medium,
-            color = badgeTitleColor,
-            textAlign = TextAlign.Center,
-            lineHeight = 12.sp,
-            maxLines = 2
-        )
-    }
-}
-
-/**
- * 🔥 24 DAY STREAK CARD WITH SMOOTH GOLDEN WAVE LINE
- * Live streak count and Canvas bezier wave curve with glowing yellow end dot.
- * Fully visible in both light mode and dark mode.
- */
-@Composable
-private fun ProfileStreakCard(
-    streakDays: Int,
-    isDark: Boolean
-) {
-    val cardBg = if (isDark) Color(0xFF141715) else SleekSurface
-    val cardBorder = if (isDark) Color(0xFF282516) else Color(0xFFFED7AA)
-    val flameBg = if (isDark) Color(0xFF381F0C) else Color(0xFFFFEDD5)
-    val flameBorder = if (isDark) Color(0xFFF97316).copy(alpha = 0.45f) else Color(0xFFF97316).copy(alpha = 0.6f)
-    val flameTint = if (isDark) Color(0xFFFF7A00) else Color(0xFFEA580C)
-    val titleColor = if (isDark) Color.White else SleekTextPrimary
-    val subtitleColor = if (isDark) Color(0xFFF59E0B) else Color(0xFFD97706)
-
-    Card(
-        colors = CardDefaults.cardColors(containerColor = cardBg),
-        border = BorderStroke(1.dp, cardBorder),
-        shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.5.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Glowing Flame Icon Box
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(flameBg)
-                    .border(1.dp, flameBorder, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = AppIcons.LocalFireDepartment,
-                    contentDescription = "Streak Flame",
-                    tint = flameTint,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            // Streak Texts
-            Column {
-                Text(
-                    text = "$streakDays Day Streak",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = titleColor
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "Keep going! 🔥",
-                    fontSize = 11.5.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = subtitleColor
-                )
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            // Smooth Golden Wave Line Canvas
-            Canvas(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(38.dp)
-            ) {
-                val w = size.width
-                val h = size.height
-
-                val wavePath = Path().apply {
-                    moveTo(0f, h * 0.85f)
-                    cubicTo(w * 0.22f, h * 0.95f, w * 0.28f, h * 0.4f, w * 0.48f, h * 0.55f)
-                    cubicTo(w * 0.65f, h * 0.7f, w * 0.72f, h * 0.25f, w * 0.85f, h * 0.35f)
-                    cubicTo(w * 0.92f, h * 0.4f, w * 0.96f, h * 0.12f, w - 4f, h * 0.15f)
-                }
-
-                val strokeGradient = if (isDark) {
-                    listOf(
-                        Color(0xFFF59E0B).copy(alpha = 0.2f),
-                        Color(0xFFF59E0B).copy(alpha = 0.85f),
-                        Color(0xFFFDE68A)
-                    )
-                } else {
-                    listOf(
-                        Color(0xFFD97706).copy(alpha = 0.25f),
-                        Color(0xFFD97706),
-                        Color(0xFFF59E0B)
-                    )
-                }
-
-                // Draw golden stroke
-                drawPath(
-                    path = wavePath,
-                    brush = Brush.horizontalGradient(colors = strokeGradient),
-                    style = Stroke(
-                        width = 2.8.dp.toPx(),
-                        cap = StrokeCap.Round,
-                        join = StrokeJoin.Round
-                    )
-                )
-
-                // Radiant glowing yellow end dot
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            Color(0xFFFDE68A),
-                            Color(0xFFF59E0B).copy(alpha = if (isDark) 0.4f else 0.3f),
-                            Color.Transparent
-                        ),
-                        radius = 8.dp.toPx(),
-                        center = Offset(w - 4f, h * 0.15f)
-                    ),
-                    radius = 8.dp.toPx(),
-                    center = Offset(w - 4f, h * 0.15f)
-                )
-
-                drawCircle(
-                    color = if (isDark) Color(0xFFFFFBEB) else Color(0xFFD97706),
-                    radius = 3.2.dp.toPx(),
-                    center = Offset(w - 4f, h * 0.15f)
-                )
-            }
-        }
-    }
-}
-
-/**
- * 🧭 NAVIGATION MENU CARD
- * Overall Statistics, My Goals, Export Data, Data Management
- * Perfectly balanced contrast in both light mode and dark mode.
- */
-@Composable
-private fun ProfileNavigationMenuCard(
-    isDark: Boolean,
-    onNavigateToAnalytics: () -> Unit,
-    onNavigateToGoals: () -> Unit,
-    onNavigateToExport: () -> Unit,
-    onNavigateToDataManagement: () -> Unit
-) {
-    val cardBg = if (isDark) Color(0xFF0F1A20) else SleekSurface
-    val cardBorder = if (isDark) Color(0xFF1A2A33) else SleekBorder
-    val dividerColor = if (isDark) Color(0xFF182730) else SleekBorder
-
-    Card(
-        colors = CardDefaults.cardColors(containerColor = cardBg),
-        border = BorderStroke(1.dp, cardBorder),
-        shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isDark) 0.dp else 1.5.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp)
-        ) {
-            // Option 1: Overall Statistics
-            ProfileNavigationRow(
-                icon = AppIcons.Analytics,
-                iconTint = if (isDark) Color(0xFFA855F7) else Color(0xFF9333EA),
-                iconContainerColor = if (isDark) Color(0xFF281C38) else Color(0xFFF3E8FF),
-                title = "Overall Statistics",
-                subtitle = "Your complete financial overview",
-                isDark = isDark,
-                onClick = onNavigateToAnalytics,
-                testTag = "profile_nav_statistics"
-            )
-
-            HorizontalDivider(
-                color = dividerColor,
-                thickness = 1.dp,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-
-            // Option 2: My Goals
-            ProfileNavigationRow(
-                icon = AppIcons.EmojiEvents,
-                iconTint = if (isDark) Color(0xFF10B981) else Color(0xFF059669),
-                iconContainerColor = if (isDark) Color(0xFF122C24) else Color(0xFFDCFCE7),
-                title = "My Goals",
-                subtitle = "Track your savings goals",
-                isDark = isDark,
-                onClick = onNavigateToGoals,
-                testTag = "profile_nav_goals"
-            )
-
-            HorizontalDivider(
-                color = dividerColor,
-                thickness = 1.dp,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-
-            // Option 3: Export Data
-            ProfileNavigationRow(
-                icon = AppIcons.FileDownload,
-                iconTint = if (isDark) Color(0xFF38BDF8) else Color(0xFF0284C7),
-                iconContainerColor = if (isDark) Color(0xFF142738) else Color(0xFFE0F2FE),
-                title = "Export Data",
-                subtitle = "Download your data (CSV/PDF)",
-                isDark = isDark,
-                onClick = onNavigateToExport,
-                testTag = "profile_nav_export"
-            )
-
-            HorizontalDivider(
-                color = dividerColor,
-                thickness = 1.dp,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-
-            // Option 4: Data Management
-            ProfileNavigationRow(
-                icon = AppIcons.Security,
-                iconTint = if (isDark) Color(0xFFFB7185) else Color(0xFFE11D48),
-                iconContainerColor = if (isDark) Color(0xFF341926) else Color(0xFFFFE4E6),
-                title = "Data Management",
-                subtitle = "Backup, Restore & Renew Data",
-                isDark = isDark,
-                onClick = onNavigateToDataManagement,
-                testTag = "profile_nav_data_management"
-            )
-        }
-    }
-}
-
-@Composable
-private fun ProfileNavigationRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    iconTint: Color,
-    iconContainerColor: Color,
-    title: String,
-    subtitle: String,
-    isDark: Boolean,
-    onClick: () -> Unit,
-    testTag: String
-) {
-    val titleColor = if (isDark) Color.White else SleekTextPrimary
-    val subtitleColor = if (isDark) Color(0xFF94A3B8) else SleekTextSecondary
-    val chevronTint = if (isDark) Color(0xFF64748B) else Color(0xFF94A3B8)
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .testTag(testTag)
-            .padding(horizontal = 16.dp, vertical = 13.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Icon Container Box
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(iconContainerColor),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = iconTint,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.width(14.dp))
-
-        // Title and Subtitle
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = titleColor
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = subtitle,
-                fontSize = 11.5.sp,
-                fontWeight = FontWeight.Normal,
-                color = subtitleColor
-            )
-        }
-
-        Icon(
-            imageVector = AppIcons.ChevronRight,
-            contentDescription = null,
-            tint = chevronTint,
-            modifier = Modifier.size(18.dp)
-        )
-    }
-}
-
-/**
- * ✏️ EDIT PROFILE DIALOG
- * User can edit their name and pick a new profile avatar from gallery or revert to default.
- * Theme-aware dialog styling for both light and dark modes.
- */
-@Composable
-private fun EditProfileDialog(
-    currentName: String,
-    hasCustomPhoto: Boolean,
-    isDark: Boolean,
-    onDismiss: () -> Unit,
-    onSaveName: (String) -> Unit,
-    onPickPhoto: () -> Unit,
-    onRemovePhoto: () -> Unit
-) {
-    var nameText by remember { mutableStateOf(currentName) }
-
-    val dialogBg = if (isDark) Color(0xFF131D24) else SleekSurface
-    val titleColor = if (isDark) Color.White else SleekTextPrimary
-    val textColor = if (isDark) Color(0xFFCBD5E1) else SleekTextSecondary
-    val fieldTextColor = if (isDark) Color.White else SleekTextPrimary
-    val fieldBorder = if (isDark) Color(0xFF334155) else SleekBorder
-    val primaryColor = if (isDark) Color(0xFF2DD4BF) else SleekPrimary
-    val onPrimaryColor = if (isDark) Color(0xFF0F172A) else Color.White
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = dialogBg,
-        titleContentColor = titleColor,
-        textContentColor = textColor,
-        shape = RoundedCornerShape(24.dp),
-        title = {
-            Text(
-                text = "Edit Profile",
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp
-            )
-        },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = "Personalize your display name and profile picture.",
-                    fontSize = 13.sp,
-                    color = textColor
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                OutlinedTextField(
-                    value = nameText,
-                    onValueChange = { nameText = it },
-                    label = { Text("Display Name", color = textColor) },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = fieldTextColor,
-                        unfocusedTextColor = fieldTextColor,
-                        focusedBorderColor = primaryColor,
-                        unfocusedBorderColor = fieldBorder,
-                        cursorColor = primaryColor
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+            badges.forEach { badge ->
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.width(58.dp)
                 ) {
-                    val pickColor = if (isDark) Color(0xFF38BDF8) else Color(0xFF0284C7)
-                    OutlinedButton(
-                        onClick = onPickPhoto,
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = pickColor
-                        ),
-                        border = BorderStroke(1.dp, pickColor.copy(alpha = 0.5f)),
-                        modifier = Modifier.weight(1f)
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(
+                                if (badge.unlocked) {
+                                    badge.color.copy(alpha = if (isDark) 0.22f else 0.13f)
+                                } else {
+                                    SleekTextSecondary.copy(alpha = 0.08f)
+                                }
+                            )
+                            .border(
+                                1.2.dp,
+                                if (badge.unlocked) badge.color.copy(alpha = 0.55f)
+                                else SleekBorder,
+                                RoundedCornerShape(14.dp)
+                            ),
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = AppIcons.CameraAlt,
+                            imageVector = if (badge.unlocked) badge.icon else AppIcons.Lock,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp)
+                            tint = if (badge.unlocked) badge.color else SleekTextSecondary.copy(alpha = 0.65f),
+                            modifier = Modifier.size(22.dp)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("New Photo", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
-
-                    if (hasCustomPhoto) {
-                        val resetColor = if (isDark) Color(0xFFFB7185) else Color(0xFFE11D48)
-                        OutlinedButton(
-                            onClick = onRemovePhoto,
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = resetColor
-                            ),
-                            border = BorderStroke(1.dp, resetColor.copy(alpha = 0.5f)),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("Reset Avatar", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                    }
+                    Spacer(modifier = Modifier.height(5.dp))
+                    Text(
+                        text = badge.label,
+                        fontSize = 9.5.sp,
+                        lineHeight = 11.sp,
+                        textAlign = TextAlign.Center,
+                        color = if (badge.unlocked) SleekTextPrimary else SleekTextSecondary,
+                        fontWeight = if (badge.unlocked) FontWeight.SemiBold else FontWeight.Normal
+                    )
                 }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val trimmed = nameText.trim().ifBlank { "Vivek Singh" }
-                    onSaveName(trimmed)
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = primaryColor,
-                    contentColor = onPrimaryColor
-                ),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text("Save Changes", fontWeight = FontWeight.Bold)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", color = textColor)
-            }
         }
-    )
-}
-
-/**
- * Number formatter helper
- */
-private fun formatStatNumber(amount: Double): String {
-    return if (amount >= 1_000_000) {
-        String.format(Locale.US, "%.1fM", amount / 1_000_000)
-    } else {
-        NumberFormat.getNumberInstance(Locale.US).format(amount.toLong())
     }
 }
 
 /**
  * 0️⃣-B BADGES AND MILESTONES SCREEN (Backwards compatibility)
  */
-@Composable
-fun BadgesAndMilestonesScreen(
-    viewModel: FinanceViewModel,
-    onBack: () -> Unit
-) {
-    BackHandler { onBack() }
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(SleekBg)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-    ) {
-        SettingsHeaderTitle("Badges and Milestone", onBack)
+// NOTE: BadgesAndMilestonesScreen moved to BadgesMilestonesScreen.kt and now renders a real,
+// data-driven achievement system instead of the earlier "Coming soon" construction banner.
+// The placeholder banner was removed with it because nothing else referenced it.
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            ComingSoonConstructionBanner()
-            Spacer(modifier = Modifier.height(100.dp))
-        }
-    }
-}
+// The "Coming soon" crane banner was removed once Badges & Milestones shipped as a real
+// screen; it had no remaining callers.
 
-/**
- * 🏗️ COMING SOON CONSTRUCTION BANNER (Backwards compatibility)
- */
-@Composable
-fun ComingSoonConstructionBanner(
-    modifier: Modifier = Modifier
-) {
-    val swingAngle = rememberLoopFloat(-12f, 12f, 2200, "swing", reverse = true, rest = 0f)
-    val craneHookOffsetY = rememberLoopFloat(0f, 14f, 1800, "craneY", reverse = true, rest = 0f)
-
-    Card(
-        colors = CardDefaults.cardColors(containerColor = SleekSurface),
-        border = BorderStroke(1.5.dp, SleekBorder),
-        shape = RoundedCornerShape(24.dp),
-        modifier = modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(180.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color(0xFF0F172A),
-                                Color(0xFF1E293B)
-                            )
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Canvas(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(12.dp)
-                ) {
-                    val w = size.width
-                    val h = size.height
-
-                    val buildingColor = Color(0xFF334155)
-                    val windowColor = Color(0xFF94A3B8).copy(alpha = 0.4f)
-
-                    drawRect(
-                        color = buildingColor,
-                        topLeft = Offset(w * 0.05f, h * 0.45f),
-                        size = Size(w * 0.18f, h * 0.55f)
-                    )
-                    for (r in 0..3) {
-                        for (c in 0..1) {
-                            drawRect(
-                                color = windowColor,
-                                topLeft = Offset(w * 0.08f + c * 20f, h * 0.5f + r * 22f),
-                                size = Size(12f, 14f)
-                            )
-                        }
-                    }
-
-                    drawRect(
-                        color = buildingColor,
-                        topLeft = Offset(w * 0.25f, h * 0.35f),
-                        size = Size(w * 0.22f, h * 0.65f)
-                    )
-                    for (r in 0..4) {
-                        for (c in 0..1) {
-                            drawRect(
-                                color = windowColor,
-                                topLeft = Offset(w * 0.28f + c * 24f, h * 0.4f + r * 22f),
-                                size = Size(14f, 14f)
-                            )
-                        }
-                    }
-
-                    drawRect(
-                        color = buildingColor,
-                        topLeft = Offset(w * 0.72f, h * 0.5f),
-                        size = Size(w * 0.23f, h * 0.5f)
-                    )
-                    val scaffoldColor = Color(0xFFF59E0B).copy(alpha = 0.6f)
-                    drawLine(
-                        color = scaffoldColor,
-                        start = Offset(w * 0.72f, h * 0.4f),
-                        end = Offset(w * 0.72f, h * 0.95f),
-                        strokeWidth = 3f
-                    )
-                    drawLine(
-                        color = scaffoldColor,
-                        start = Offset(w * 0.95f, h * 0.4f),
-                        end = Offset(w * 0.95f, h * 0.95f),
-                        strokeWidth = 3f
-                    )
-
-                    val craneColor = Color(0xFFF59E0B)
-                    val craneX = w * 0.55f
-                    val craneBaseY = h * 0.95f
-                    val craneTopY = h * 0.15f
-
-                    drawLine(
-                        color = craneColor,
-                        start = Offset(craneX - 6f, craneBaseY),
-                        end = Offset(craneX - 6f, craneTopY),
-                        strokeWidth = 4f
-                    )
-                    drawLine(
-                        color = craneColor,
-                        start = Offset(craneX + 6f, craneBaseY),
-                        end = Offset(craneX + 6f, craneTopY),
-                        strokeWidth = 4f
-                    )
-
-                    val jibLeft = craneX - w * 0.2f
-                    val jibRight = craneX + w * 0.35f
-                    drawLine(
-                        color = craneColor,
-                        start = Offset(jibLeft, craneTopY),
-                        end = Offset(jibRight, craneTopY),
-                        strokeWidth = 5f
-                    )
-
-                    val cableHookX = craneX + w * 0.2f
-                    val cableStartY = craneTopY
-                    val cableLength = h * 0.35f + craneHookOffsetY
-
-                    val swingRad = Math.toRadians(swingAngle.toDouble())
-                    val endHookX = (cableHookX + Math.sin(swingRad) * cableLength).toFloat()
-                    val endHookY = (cableStartY + Math.cos(swingRad) * cableLength).toFloat()
-
-                    drawLine(
-                        color = Color.White.copy(alpha = 0.8f),
-                        start = Offset(cableHookX, cableStartY),
-                        end = Offset(endHookX, endHookY),
-                        strokeWidth = 2f
-                    )
-
-                    drawCircle(
-                        color = Color(0xFFF59E0B),
-                        radius = 12f,
-                        center = Offset(endHookX, endHookY + 12f)
-                    )
-                }
-
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 12.dp)
-                        .background(Color.Black.copy(alpha = 0.65f), RoundedCornerShape(12.dp))
-                        .padding(horizontal = 16.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = AppIcons.Construction,
-                        contentDescription = null,
-                        tint = Color(0xFFF59E0B),
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Coming soon",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.White,
-                        letterSpacing = 1.sp
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "Badges and Milestone",
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
-                color = SleekTextPrimary
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "We are currently constructing your Badges and Milestones hub! Soon you will earn unlockable badges for daily savings streaks, financial milestones, and smart budgeting achievements.",
-                fontSize = 13.sp,
-                color = SleekTextSecondary,
-                lineHeight = 18.sp,
-                modifier = Modifier.padding(horizontal = 8.dp)
-            )
-        }
-    }
-}
