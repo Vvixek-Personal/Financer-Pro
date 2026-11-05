@@ -85,7 +85,7 @@ fun CurrencySettingsScreen(
 
     Scaffold(
         topBar = {
-            SettingsHeaderTitle(title = "Currency & Rates", onBack = onBack)
+            SettingsHeaderTitle(title = "Currency & Rates", onBack = onBack, subtitle = "Default currency and live exchange rates")
         },
         containerColor = SleekBg
     ) { paddingValues ->

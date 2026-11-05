@@ -114,6 +114,12 @@ object Money {
         val currency = try { Currency.getInstance(currencyCode) } catch (e: Exception) { null }
         val nf = NumberFormat.getCurrencyInstance(locale)
         if (currency != null) nf.currency = currency
+        // Honour the user's "Show cents" appearance setting. Without this the switch was purely
+        // cosmetic on a couple of screens and ignored by every Money.format call.
+        if (!UiPrefs.showCents) {
+            nf.maximumFractionDigits = 0
+            nf.minimumFractionDigits = 0
+        }
         return nf.format(toDouble(minorUnits, currencyCode))
     }
 

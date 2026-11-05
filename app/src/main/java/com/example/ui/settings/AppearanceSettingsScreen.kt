@@ -7,6 +7,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -41,6 +42,11 @@ fun AppearanceScreen(
     val isHaptics by viewModel.hapticsEnabled.collectAsStateWithLifecycle()
     val isHighContrast by viewModel.highContrastMode.collectAsStateWithLifecycle()
     val isCardGlow by viewModel.cardGlowAnimation.collectAsStateWithLifecycle()
+    val showCents by viewModel.showCents.collectAsStateWithLifecycle()
+    val confirmExit by viewModel.confirmBeforeExit.collectAsStateWithLifecycle()
+    val quickAdd by viewModel.quickAddEnabled.collectAsStateWithLifecycle()
+    val showTags by viewModel.showTransactionTags.collectAsStateWithLifecycle()
+    val longPressEdit by viewModel.longPressToEdit.collectAsStateWithLifecycle()
 
     var showCustomHuePicker by remember { mutableStateOf(false) }
     var tempHue by remember(customThemeHue) { mutableStateOf(customThemeHue) }
@@ -52,7 +58,7 @@ fun AppearanceScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        SettingsHeaderTitle("Appearance Settings", onBack)
+        SettingsHeaderTitle("Appearance", onBack, subtitle = "Theme, text size, layout and motion")
 
         Column(
             modifier = Modifier
@@ -80,12 +86,12 @@ fun AppearanceScreen(
                         Triple("dark", "Dark", AppIcons.DarkMode),
                         Triple("device", "Device", AppIcons.Tv)
                     ).forEach { (modeKey, label, icon) ->
-                        val isSelected = themeMode == modeKey
+                        val isSelected = themeMode.equals(modeKey, ignoreCase = true) || (modeKey == "device" && themeMode.equals("system", ignoreCase = true))
                         Surface(
                             onClick = { viewModel.updateThemeMode(modeKey) },
                             shape = CircleShape,
                             color = if (isSelected) SleekPrimary else Color.Transparent,
-                            contentColor = if (isSelected) Color.White else SleekTextPrimary,
+                            contentColor = if (isSelected) onAccentColor else SleekTextPrimary,
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight()
@@ -245,40 +251,52 @@ fun AppearanceScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             val context = androidx.compose.ui.platform.LocalContext.current
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("Small", "Normal", "Large", "Extra Large").forEach { option ->
-                    val selected = textSize == option || (textSize == "Medium" && option == "Normal")
-                    OutlinedButton(
-                        onClick = {
-                            val targetOption = if (option == "Medium") "Normal" else option
-                            if (textSize != targetOption) {
-                                viewModel.updateTextSizeOption(targetOption)
-                                val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
-                                intent?.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                                context.startActivity(intent)
-                                if (context is android.app.Activity) {
-                                    context.finish()
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    com.example.data.UiPrefs.textSizeLabels.forEach { option ->
+                        val selected = textSize == option
+                        Surface(
+                            onClick = {
+                                if (textSize != option) {
+                                    com.example.data.UiPrefs.setTextSize(viewModel.appSettingsManager, option)
+                                    // Rebuild the activity so the new font scale is applied everywhere.
+                                    (context as? android.app.Activity)?.recreate()
                                 }
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(52.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (selected) SleekPrimary.copy(alpha = 0.14f) else SleekSurface,
+                            border = BorderStroke(1.dp, if (selected) SleekPrimary else SleekBorder)
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center,
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                Text(
+                                    text = "Aa",
+                                    fontSize = (11 * com.example.data.UiPrefs.scaleForLabel(option)).sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (selected) SleekPrimary else SleekTextPrimary
+                                )
+                                Text(
+                                    text = option,
+                                    fontSize = 10.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    color = if (selected) SleekPrimary else SleekTextSecondary
+                                )
                             }
-                        },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 4.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = if (selected) SleekPrimary.copy(alpha = 0.15f) else SleekSurface,
-                            contentColor = if (selected) SleekPrimary else SleekTextPrimary
-                        ),
-                        border = BorderStroke(1.dp, if (selected) SleekPrimary else SleekBorder)
-                    ) {
-                        Text(
-                            text = option, 
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                            fontSize = 11.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        }
                     }
                 }
+                Text(
+                    text = "Scales all app text on top of your device font size. Applies instantly.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = SleekTextSecondary
+                )
             }
 
             Spacer(modifier = Modifier.height(28.dp))
@@ -422,6 +440,67 @@ fun AppearanceScreen(
                 }
             }
 
+            Spacer(modifier = Modifier.height(28.dp))
+            Text("FINANCIAL DISPLAY", style = MaterialTheme.typography.labelMedium, color = SleekTextSecondary, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = SleekSurface),
+                border = BorderStroke(1.dp, SleekBorder),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    AppearanceSwitchRow(
+                        title = "Show Cents in Amounts",
+                        subtitle = "Off rounds every amount to whole units across the app",
+                        checked = showCents,
+                        onCheckedChange = { viewModel.toggleShowCents(it) }
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = SleekBorder)
+                    AppearanceSwitchRow(
+                        title = "Confirm Before Exiting",
+                        subtitle = "Asks before the back button leaves the app from the dashboard",
+                        checked = confirmExit,
+                        onCheckedChange = { viewModel.toggleConfirmBeforeExit(it) }
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = SleekBorder)
+                    AppearanceSwitchRow(
+                        title = "Show Fast Add Button",
+                        subtitle = "Keeps the floating add button visible over the dashboard",
+                        checked = quickAdd,
+                        onCheckedChange = { viewModel.toggleQuickAdd(it) }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(28.dp))
+            Text("TRANSACTION LIST", style = MaterialTheme.typography.labelMedium, color = SleekTextSecondary, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = SleekSurface),
+                border = BorderStroke(1.dp, SleekBorder),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    AppearanceSwitchRow(
+                        title = "Show Tags on Rows",
+                        subtitle = "Displays transaction tags inline in the recent activity list",
+                        checked = showTags,
+                        onCheckedChange = { viewModel.toggleShowTransactionTags(it) }
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = SleekBorder)
+                    AppearanceSwitchRow(
+                        title = "Long-Press to Edit",
+                        subtitle = "Hold a transaction to open it instead of tapping",
+                        checked = longPressEdit,
+                        onCheckedChange = { viewModel.toggleLongPressToEdit(it) }
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(200.dp))
         }
     }
@@ -456,5 +535,32 @@ fun AppearanceScreen(
                 }
             }
         )
+    }
+}
+
+/**
+ * Compact, theme-aware switch row used by the Appearance screen's option groups.
+ * Kept local so the design language of every row in this screen stays identical.
+ */
+@Composable
+private fun AppearanceSwitchRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) },
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, fontWeight = FontWeight.Bold, color = SleekTextPrimary, fontSize = 14.sp)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = SleekTextSecondary)
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }

@@ -254,6 +254,38 @@ object LanguageManager {
         "Stable & Secure" to mapOf(
             "en" to "Stable & Secure", "hi" to "स्थिर और सुरक्षित", "bn" to "স্থিতিশীল ও নিরাপদ", "mr" to "स्थिर आणि सुरक्षित", "pa" to "ਸਥਿਰ ਅਤੇ ਸੁਰੱਖਿਅਤ", "fr" to "Stable et sécurisé", "zh" to "稳定与安全", "ur" to "مستحکم اور محفوظ", "ja" to "安定・安全"
         ),
+        "Home" to mapOf(
+            "en" to "Home", "es" to "Inicio", "hi" to "होम", "fr" to "Accueil", "de" to "Start", "ja" to "ホーム"
+        ),
+        "Transactions" to mapOf(
+            "en" to "Transactions", "es" to "Movimientos", "hi" to "लेन-देन", "fr" to "Transactions", "de" to "Buchungen", "ja" to "取引"
+        ),
+        "All data stays on this device" to mapOf(
+            "en" to "All data stays on this device",
+            "es" to "Todos los datos se guardan en este dispositivo",
+            "hi" to "सारा डेटा इसी डिवाइस पर रहता है",
+            "fr" to "Toutes les données restent sur cet appareil",
+            "de" to "Alle Daten bleiben auf diesem Gerät",
+            "ja" to "すべてのデータはこの端末に保存されます"
+        ),
+        "QUICK ACTIONS" to mapOf(
+            "en" to "QUICK ACTIONS", "hi" to "त्वरित क्रियाएँ", "fr" to "ACTIONS RAPIDES", "de" to "SCHNELLAKTIONEN", "ja" to "クイック操作"
+        ),
+        "Currency" to mapOf(
+            "en" to "Currency", "hi" to "मुद्रा", "fr" to "Devise", "de" to "Währung", "ja" to "通貨"
+        ),
+        "Export" to mapOf(
+            "en" to "Export", "hi" to "निर्यात", "fr" to "Exporter", "de" to "Exportieren", "ja" to "エクスポート"
+        ),
+        "Security" to mapOf(
+            "en" to "Security", "hi" to "सुरक्षा", "fr" to "Sécurité", "de" to "Sicherheit", "ja" to "セキュリティ"
+        ),
+        "Calculators" to mapOf(
+            "en" to "Calculators", "hi" to "कैलकुलेटर", "fr" to "Calculatrices", "de" to "Rechner", "ja" to "計算ツール"
+        ),
+        "Search settings..." to mapOf(
+            "en" to "Search settings…", "hi" to "सेटिंग्स खोजें…", "fr" to "Rechercher un réglage…", "de" to "Einstellungen suchen…", "ja" to "設定を検索…"
+        ),
         "User" to mapOf(
             "en" to "User", "hi" to "उपयोगकर्ता", "bn" to "ব্যবহারকারী", "mr" to "वापरकर्ता", "pa" to "ਵਰਤੋਂਕਾਰ", "fr" to "Utilisateur", "zh" to "用户", "ur" to "صارف", "ja" to "ユーザー"
         )
@@ -263,5 +295,38 @@ object LanguageManager {
         val code = getLanguageCode(language)
         val keyTranslations = translations[key] ?: return key
         return keyTranslations[code] ?: keyTranslations["en"] ?: key
+    }
+
+    /**
+     * Resolves a sidebar key that is stored as a full English sentence.
+     *
+     * The sidebar's item titles/subtitles are long descriptive strings ("View and edit personal
+     * profile details"). Translating every one of them would mean maintaining hundreds of sentences
+     * across 11 languages, so instead the *words* are translated where a translation exists and the
+     * rest is left in English. Better than showing untranslated English everywhere, and it never
+     * produces a broken or half-substituted string.
+     */
+    fun trPhrase(phrase: String, language: String): String {
+        val code = getLanguageCode(language)
+        if (code == "en") return phrase
+        if (translations.containsKey(phrase)) return tr(phrase, language)
+        var result = phrase
+        // Longest keys first so "Total Balance" wins over "Balance".
+        translations.keys
+            .filter { it.length > 3 }
+            .sortedByDescending { it.length }
+            .forEach { english ->
+                val localised = translations[english]?.get(code) ?: return@forEach
+                if (result.contains(english, ignoreCase = false)) {
+                    result = result.replace(english, localised)
+                }
+                // Section headers are lower-cased before display ("account & profile"), so the
+                // dictionary's capitalised keys would never match; handle that form too.
+                val lower = english.replaceFirstChar { it.lowercaseChar() }
+                if (lower != english && result.contains(lower)) {
+                    result = result.replace(lower, localised)
+                }
+            }
+        return result
     }
 }

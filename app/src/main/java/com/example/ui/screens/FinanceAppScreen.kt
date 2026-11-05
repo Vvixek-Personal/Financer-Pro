@@ -60,6 +60,7 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontStyle
@@ -77,10 +78,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.Expense
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
-import java.util.*
 import java.io.File
 import android.content.Context
-import kotlin.math.roundToInt
 import android.graphics.Bitmap
 import android.graphics.ImageDecoder
 import android.net.Uri
@@ -90,7 +89,6 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.launch
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import com.example.BuildConfig
@@ -304,9 +302,14 @@ val LocalAutoLockSuppressor = compositionLocalOf<() -> Unit> { {} }
 fun FinanceAppScreen(viewModel: FinanceViewModel) {
     val animPref by viewModel.isAnimationEnabled.collectAsStateWithLifecycle()
     val animEnabled = animPref && systemAnimationsAllowed()
+    val compactLayout by viewModel.isCompactLayout.collectAsStateWithLifecycle()
     CompositionLocalProvider(
         LocalAutoLockSuppressor provides { viewModel.suppressNextAutoLock() },
-        LocalAnimationsEnabled provides animEnabled
+        LocalAnimationsEnabled provides animEnabled,
+        // Haptics + compact layout are consumed through CompositionLocals so every tile in the
+        // app honours them, not just the few screens that read the ViewModel directly.
+        LocalHapticsEnabled provides viewModel.hapticsEnabled.collectAsStateWithLifecycle().value,
+        LocalCompactLayout provides compactLayout
     ) {
         val backStack = remember { mutableStateListOf<Screen>(Screen.Dashboard) }
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Dashboard) }
@@ -410,6 +413,33 @@ fun FinanceAppScreen(viewModel: FinanceViewModel) {
             backStack.size > 1 ||
             currentScreen != Screen.Dashboard
     )
+
+    // "Confirm before exiting" (Appearance > Financial display) — when on, and the user is already
+    // at the dashboard root with nothing open, ask once before letting the system close the app.
+    val confirmBeforeExit by viewModel.confirmBeforeExit.collectAsStateWithLifecycle()
+    val hostActivity = LocalContext.current as? android.app.Activity
+    var showExitConfirm by remember { mutableStateOf(false) }
+    BackHandler(enabled = !locked && !canHandleBack && confirmBeforeExit) {
+        showExitConfirm = true
+    }
+    if (showExitConfirm) {
+        AlertDialog(
+            onDismissRequest = { showExitConfirm = false },
+            title = { Text("Leave Financer?", fontWeight = FontWeight.Bold) },
+            text = { Text("Your data is saved on this device, so nothing is lost.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showExitConfirm = false
+                    hostActivity?.finish()
+                }) { Text("Exit", color = ExpenseRed, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExitConfirm = false }) { Text("Stay") }
+            },
+            containerColor = SleekSurface,
+            shape = RoundedCornerShape(20.dp)
+        )
+    }
 
     BackHandler(enabled = canHandleBack) {
         when {
@@ -865,6 +895,7 @@ fun FinanceAppScreen(viewModel: FinanceViewModel) {
                     SettingsSubScreen.PersonalData -> PersonalDataScreen(
                         viewModel = viewModel,
                         onBack = { activeSettingsSubScreen = null },
+                        onNavigateToBadges = { activeSettingsSubScreen = SettingsSubScreen.BadgesAndMilestones },
                         onOpenSettings = {
                             activeSettingsSubScreen = SettingsSubScreen.Appearance
                         },
@@ -882,7 +913,7 @@ fun FinanceAppScreen(viewModel: FinanceViewModel) {
                             activeSettingsSubScreen = SettingsSubScreen.DataManagement
                         }
                     )
-                    SettingsSubScreen.BadgesAndMilestones -> BadgesAndMilestonesScreen(
+                    SettingsSubScreen.BadgesAndMilestones -> BadgesMilestonesScreen(
                         viewModel = viewModel,
                         onBack = { activeSettingsSubScreen = null }
                     )
@@ -955,19 +986,7 @@ fun FinanceAppScreen(viewModel: FinanceViewModel) {
                         viewModel = viewModel,
                         onBack = { activeSettingsSubScreen = null }
                     )
-                    SettingsSubScreen.DataAndStorage -> DataAndStorageScreen(
-                        viewModel = viewModel,
-                        onBack = { activeSettingsSubScreen = null }
-                    )
-                    SettingsSubScreen.ThemeAndLanguage -> ThemeAndLanguageScreen(
-                        viewModel = viewModel,
-                        onBack = { activeSettingsSubScreen = null }
-                    )
                     SettingsSubScreen.Export -> ExportDataScreen(
-                        viewModel = viewModel,
-                        onBack = { activeSettingsSubScreen = null }
-                    )
-                    SettingsSubScreen.FaqAndHelp -> FaqAndHelpScreen(
                         viewModel = viewModel,
                         onBack = { activeSettingsSubScreen = null }
                     )
@@ -1028,8 +1047,8 @@ fun FinanceAppScreen(viewModel: FinanceViewModel) {
     // 🚚 Fullscreen Delivery Truck Loader for app startup
     if (isInitialAppLoading && !locked) {
         TruckLoadingScreen(
-            message = "Loading Your Financial Workspace...",
-            subtitle = "Preparing secure offline ledgers, accounts & charts"
+            message = "Getting things ready…",
+            subtitle = "Loading your transactions, budgets and goals"
         )
     }
 
@@ -1037,7 +1056,7 @@ fun FinanceAppScreen(viewModel: FinanceViewModel) {
     TruckLoadingDialog(
         isOpen = globalLoadingMessage != null && !locked,
         message = globalLoadingMessage ?: "Processing...",
-        subtitle = "Please wait while your task completes safely",
+        subtitle = "This only takes a moment",
         onDismissRequest = { viewModel.hideAppLoading() }
     )
     }

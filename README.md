@@ -10,7 +10,10 @@ A personal finance and expense-tracking Android application built with **Kotlin*
 - **Local data storage** — Uses [Room](https://developer.android.com/training/data-storage/room) for on-device persistence.
 - **Visual analytics** — Interactive charts, including custom Canvas-drawn visualizations.
 - **Modern Android UI** — Built with Jetpack Compose and Material 3.
-- **Background work** — Android WorkManager is included in the project dependencies.
+- **Background work** — WorkManager runs recurring bills, reminders and the optional daily snapshot.
+- **Light & dark** — one accent palette per theme with automatic contrast, plus a Device mode.
+- **Appearance controls** — text size, compact layout, date format, first day of week and fonts all persist and apply app-wide.
+- **Achievements** — badges computed from your own records (streaks, goals, budgets, months tracked).
 
 The app's financial records are stored locally in Room. There is no Firebase integration, cloud synchronization, remote account sign-in, or AI Advisor. Optional exchange-rate refreshes may contact the configured public rate provider; this does not upload transaction data.
 
@@ -25,6 +28,7 @@ The app's financial records are stored locally in Room. There is no Firebase int
 | Async work | Kotlin Coroutines |
 | Networking | Retrofit, OkHttp, Moshi |
 | Image loading | Coil |
+| Background work | WorkManager (recurring bills, reminders, daily snapshots) |
 | Tests | JUnit, AndroidX Test, Robolectric, Roborazzi |
 
 ## Requirements
@@ -77,9 +81,9 @@ Keep the keystore and passwords outside version control. Never publish signing c
 │   └── src/
 │       ├── main/
 │       │   ├── java/com/example/
-│       │   │   ├── api/     # API-related code
-│       │   │   ├── data/    # Data layer
-│       │   │   └── ui/      # UI layer
+│       │   │   ├── api/     # API-related code (exchange rates)
+│       │   │   ├── data/    # Room entities, DAO, repository, settings, backups
+│       │   │   └── ui/      # Compose screens, components, charts, theme
 │       │   ├── res/         # Android resources
 │       │   └── assets/      # App assets
 │       ├── test/            # Unit tests
@@ -99,6 +103,20 @@ Room schema export is enabled and schema files are stored in `app/schemas/`. Kee
 The project is configured with local unit-test and Android instrumentation-test dependencies, including JUnit, Robolectric, AndroidX Test, and Roborazzi.
 
 Run the relevant test tasks from Android Studio's Gradle tool window or your local Gradle environment. Verify both database behavior and UI flows when changing finance-related logic.
+
+## How settings are stored
+
+Every user-facing setting has one write path and one read path:
+
+1. **UI** dispatches an `AppSettingsIntent` to `AppSettingsManager`.
+2. **`AppSettingsManager`** persists it to `SharedPreferences` and exposes it in `AppSettingsState`.
+3. **`FinanceViewModel`** mirrors that state into `StateFlow`s (and, for layout-related values, into
+   `UiPrefs`) so Compose recomposes immediately.
+4. **Behaviour** reads from those flows/`UiPrefs` — never from a local copy.
+
+`UiPrefs` is also the process-wide source of truth for text scale, compact layout, date format and
+first day of week, because those need to be readable from non-Compose code (for example
+`BaseActivity.attachBaseContext` and `Money.format`).
 
 ## Privacy and data handling
 

@@ -1,4 +1,3 @@
 <resources>
-    <string name="app_name">Expense Tracker</string>
-    <string name="default_web_client_id">264405870890-financetracker.apps.googleusercontent.com</string>
+    <string name="app_name">Financer Pro</string>
 </resources>

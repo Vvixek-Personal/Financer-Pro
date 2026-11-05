@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Light theme: dark icons on light system bars. -->
+    <bool name="window_light_bars">true</bool>
+</resources>

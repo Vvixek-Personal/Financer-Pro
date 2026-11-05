@@ -55,43 +55,13 @@ fun BillsSettingsScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        Surface(
-            color = SleekSurface,
-            tonalElevation = 1.dp,
-            border = BorderStroke(1.dp, SleekBorder)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = AppIcons.ArrowBack,
-                        contentDescription = "Back",
-                        tint = SleekTextPrimary
-                    )
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Column {
-                    Text(
-                        text = "Bills & Reminders",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = SleekTextPrimary
-                    )
-                    Text(
-                        text = "Manage recurring bills, due dates & cash flow forecast",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = SleekTextSecondary,
-                        fontSize = 12.sp
-                    )
-                }
-            }
-        }
-
         var selectedTab by remember { mutableIntStateOf(0) }
+
+        SettingsHeaderTitle(
+            "Bills & Reminders",
+            onBack,
+            subtitle = "Manage recurring bills, due dates & cash flow"
+        )
 
         TabRow(
             selectedTabIndex = selectedTab,

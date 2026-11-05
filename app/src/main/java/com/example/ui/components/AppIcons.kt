@@ -30,6 +30,7 @@ object AppIcons {
     val Autorenew: ImageVector get() = Icons.Outlined.Autorenew
     val Backspace: ImageVector get() = Icons.Outlined.Backspace
     val Backup: ImageVector get() = Icons.Outlined.Backup
+    val Cloud: ImageVector get() = Icons.Outlined.Cloud
     val BarChart: ImageVector get() = Icons.Outlined.BarChart
     val BeachAccess: ImageVector get() = Icons.Outlined.BeachAccess
     val Bolt: ImageVector get() = Icons.Outlined.Bolt
@@ -61,6 +62,9 @@ object AppIcons {
     val CropFree: ImageVector get() = Icons.Outlined.CropFree
     val CurrencyExchange: ImageVector get() = Icons.Outlined.CurrencyExchange
     val DarkMode: ImageVector get() = Icons.Outlined.DarkMode
+    val Flag: ImageVector get() = Icons.Outlined.Flag
+    val VerifiedUser: ImageVector get() = Icons.Outlined.VerifiedUser
+    val MenuBookNotUsed: ImageVector get() = Icons.Outlined.MenuBook
     val Dashboard: ImageVector get() = Icons.Outlined.Dashboard
     val DateRange: ImageVector get() = Icons.Outlined.DateRange
     val Delete: ImageVector get() = Icons.Outlined.Delete

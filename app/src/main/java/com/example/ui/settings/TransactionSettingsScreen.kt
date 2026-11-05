@@ -44,7 +44,7 @@ fun TransactionSettingsScreen(
 
     Scaffold(
         topBar = {
-            SettingsHeaderTitle(title = "Transaction Preferences", onBack = onBack)
+            SettingsHeaderTitle(title = "Transactions", onBack = onBack, subtitle = "Defaults when adding a transaction")
         },
         containerColor = SleekBg
     ) { paddingValues ->

@@ -183,7 +183,7 @@ fun ExpensesTab(
                 items(categories, key = { it }) { cat ->
                     val selected = selectedCategoryFilter == cat
                     val chipBg = if (selected) SleekPrimary else SleekSurface
-                    val chipText = if (selected) Color.White else SleekTextSecondary
+                    val chipText = if (selected) onAccentColor else SleekTextSecondary
                     val chipBorder = if (!selected) BorderStroke(1.dp, SleekBorder) else null
 
                     Box(
@@ -208,6 +208,8 @@ fun ExpensesTab(
             Spacer(modifier = Modifier.height(16.dp))
 
             if (filteredExpenses.isEmpty()) {
+                val hasFilters = selectedCategoryFilter != "All" || selectedAccountIdFilter != null ||
+                    searchQuery.isNotEmpty() || selectedDateRange != null
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -216,28 +218,57 @@ fun ExpensesTab(
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.padding(horizontal = 32.dp)
                     ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = SleekSurfaceVariant,
-                            modifier = Modifier.size(56.dp)
+                        Box(
+                            modifier = Modifier
+                                .size(72.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (isDarkModeActive) SleekPrimary.copy(alpha = 0.18f)
+                                    else SleekPrimary.copy(alpha = 0.10f)
+                                ),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = AppIcons.ReceiptLong,
-                                    contentDescription = null,
-                                    tint = SleekTextSecondary,
-                                    modifier = Modifier.size(28.dp)
-                                )
-                            }
+                            Icon(
+                                imageVector = if (hasFilters) AppIcons.FilterList else AppIcons.ReceiptLong,
+                                contentDescription = null,
+                                tint = SleekPrimary,
+                                modifier = Modifier.size(32.dp)
+                            )
                         }
                         Text(
-                            text = "No transactions found",
-                            color = SleekTextSecondary,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontSize = 14.sp
+                            text = if (hasFilters) "Nothing matches these filters" else "No transactions yet",
+                            color = SleekTextPrimary,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 16.sp
                         )
+                        Text(
+                            text = if (hasFilters)
+                                "Try clearing the search or picking a different category."
+                            else
+                                "Add your first income or expense and your history will appear here.",
+                            color = SleekTextSecondary,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontSize = 13.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        if (hasFilters) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            OutlinedButton(
+                                onClick = {
+                                    selectedCategoryFilter = "All"
+                                    selectedAccountIdFilter = null
+                                    searchQuery = ""
+                                    viewModel.setDateRange(null, null)
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, SleekPrimary.copy(alpha = 0.6f))
+                            ) {
+                                Text("Clear filters", color = SleekPrimary, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
                     }
                 }
             } else {
@@ -417,7 +448,7 @@ fun Image1TransactionRow(
             .fillMaxWidth()
             .combinedClickable(
                 onClick = onClick,
-                onLongClick = onLongClick
+                onLongClick = if (com.example.data.UiPrefs.longPressToEdit) onLongClick else null
             )
     ) {
         Row(
@@ -488,8 +519,14 @@ fun Image1TransactionRow(
                 isIncome -> "+"
                 else -> "-"
             }
+            // Privacy: when "Also hide small amounts" is on, individual rows stay masked even
+            // though the headline balance may be visible.
             Text(
-                text = String.format("%s%s%,.2f", sign, currencySymbol, expense.amount),
+                text = if (com.example.data.UiPrefs.maskRowAmounts) {
+                    "$currencySymbol ••••"
+                } else {
+                    String.format("%s%s%,.2f", sign, currencySymbol, expense.amount)
+                },
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = accentColor
@@ -520,7 +557,7 @@ fun DateRangePickerDialog(
         })
     }
 
-    val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
+    val dateFormatter = remember(com.example.data.UiPrefs.dateFormat) { com.example.data.UiPrefs.formatter() }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -587,7 +624,7 @@ fun DateRangePickerDialog(
                         colors = ButtonDefaults.buttonColors(containerColor = SleekPrimary),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Apply", color = Color.White)
+                        Text("Apply", color = onAccentColor)
                     }
                 }
             }

@@ -17,6 +17,8 @@ import com.example.data.*
 import com.example.data.realExpense
 import com.example.data.realIncome
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -612,20 +614,35 @@ class FinanceViewModel(
     }
 
     // Appearance & Layout Preferences
-    private val _textSizeOption = MutableStateFlow("Medium")
+    private val _textSizeOption = MutableStateFlow(appSettingsManager.state.value.textSize)
     val textSizeOption: StateFlow<String> = _textSizeOption.asStateFlow()
 
-    private val _isCompactLayout = MutableStateFlow(false)
+    private val _isCompactLayout = MutableStateFlow(appSettingsManager.state.value.compactLayout)
     val isCompactLayout: StateFlow<Boolean> = _isCompactLayout.asStateFlow()
 
     private val _isAnimationEnabled = MutableStateFlow(appSettingsManager.state.value.isAnimationEnabled)
     val isAnimationEnabled: StateFlow<Boolean> = _isAnimationEnabled.asStateFlow()
 
+    private val _showCents = MutableStateFlow(appSettingsManager.state.value.showCents)
+    val showCents: StateFlow<Boolean> = _showCents.asStateFlow()
+
+    private val _confirmBeforeExit = MutableStateFlow(appSettingsManager.state.value.confirmBeforeExit)
+    val confirmBeforeExit: StateFlow<Boolean> = _confirmBeforeExit.asStateFlow()
+
+    private val _quickAddEnabled = MutableStateFlow(appSettingsManager.state.value.quickAddEnabled)
+    val quickAddEnabled: StateFlow<Boolean> = _quickAddEnabled.asStateFlow()
+
+    private val _showTransactionTags = MutableStateFlow(appSettingsManager.state.value.showTransactionTags)
+    val showTransactionTags: StateFlow<Boolean> = _showTransactionTags.asStateFlow()
+
+    private val _longPressToEdit = MutableStateFlow(appSettingsManager.state.value.longPressToEdit)
+    val longPressToEdit: StateFlow<Boolean> = _longPressToEdit.asStateFlow()
+
     // Date & Time Preferences
-    private val _dateFormat = MutableStateFlow("dd/MM/yyyy")
+    private val _dateFormat = MutableStateFlow(appSettingsManager.state.value.dateFormat)
     val dateFormat: StateFlow<String> = _dateFormat.asStateFlow()
 
-    private val _firstDayOfWeek = MutableStateFlow("Monday")
+    private val _firstDayOfWeek = MutableStateFlow(appSettingsManager.state.value.firstDayOfWeek)
     val firstDayOfWeek: StateFlow<String> = _firstDayOfWeek.asStateFlow()
 
     // Bill Preferences
@@ -781,6 +798,7 @@ class FinanceViewModel(
 
     fun togglePrivacyReveal() {
         _privacyRevealOverride.value = !_privacyRevealOverride.value
+        syncRowMask()
     }
 
     // Last-used category per transaction type, for "Remember Last Category".
@@ -800,9 +818,6 @@ class FinanceViewModel(
 
     private val _toastMessage = MutableStateFlow<String?>(null)
     val toastMessage: StateFlow<String?> = _toastMessage.asStateFlow()
-
-    private val _lastDeletedExpenses = MutableStateFlow<List<Expense>>(emptyList())
-    val lastDeletedExpenses: StateFlow<List<Expense>> = _lastDeletedExpenses.asStateFlow()
 
     private val _undoDeleteVisible = MutableStateFlow(false)
     val undoDeleteVisible: StateFlow<Boolean> = _undoDeleteVisible.asStateFlow()
@@ -869,6 +884,10 @@ class FinanceViewModel(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), defaultIncomeCategories)
 
     init {
+        // Seed process-wide UI preferences before the first frame so text scale, density and
+        // date formatting are correct on a cold start instead of flicking to the defaults.
+        com.example.data.UiPrefs.syncFrom(appSettingsManager.state.value)
+
         checkAndCalculateDailyStreak()
 
         try {
@@ -879,6 +898,23 @@ class FinanceViewModel(
             }
         } catch (e: Exception) {
             Log.w(TAG, "Failed to schedule recurring worker or process rules in init", e)
+        }
+
+        // Real automatic snapshots: when the setting is on, write at most one snapshot per
+        // calendar day. This runs off the main thread and never blocks the first frame.
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                if (appSettingsManager.state.value.autoBackupEnabled) {
+                    val written = com.example.data.AutoBackupManager.ensureTodaySnapshot(getApplication())
+                    if (written != null) {
+                        val stamp = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date())
+                        sharedPrefs.edit().putString("last_backup_timestamp", stamp).apply()
+                        withContext(Dispatchers.Main) { _lastBackupTimestamp.value = stamp }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Automatic snapshot failed", e)
+            }
         }
 
         viewModelScope.launch {
@@ -916,6 +952,17 @@ class FinanceViewModel(
                 _billAutoMarkPaid.value = settings.billAutoMarkPaid
                 _autoBackupEnabled.value = settings.autoBackupEnabled
                 _lastBackupTimestamp.value = settings.lastBackupTimestamp
+                _textSizeOption.value = settings.textSize
+                _isCompactLayout.value = settings.compactLayout
+                _dateFormat.value = settings.dateFormat
+                _firstDayOfWeek.value = settings.firstDayOfWeek
+                _showCents.value = settings.showCents
+                _confirmBeforeExit.value = settings.confirmBeforeExit
+                _quickAddEnabled.value = settings.quickAddEnabled
+                _showTransactionTags.value = settings.showTransactionTags
+                _longPressToEdit.value = settings.longPressToEdit
+                com.example.data.UiPrefs.syncFrom(settings)
+                syncRowMask()
             }
         }
         _userName.value = sharedPrefs.getString("user_name", "Vivek Singh") ?: "Vivek Singh"
@@ -1105,6 +1152,29 @@ class FinanceViewModel(
         appSettingsManager.dispatch(AppSettingsIntent.UpdateThemeMode(mode))
     }
 
+    /** Cycles Light -> Dark -> Device. Used by the sidebar and dashboard header quick action. */
+    /** Resolves whether the app is currently showing a dark palette, honouring "device" mode. */
+    fun isAppDarkTheme(): Boolean {
+        return when (_themeMode.value.lowercase()) {
+            "dark" -> true
+            "light" -> false
+            else -> {
+                val uiMode = getApplication<Application>().resources.configuration.uiMode
+                (uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+                    android.content.res.Configuration.UI_MODE_NIGHT_YES
+            }
+        }
+    }
+
+    fun cycleThemeMode() {
+        val next = when (_themeMode.value.lowercase()) {
+            "light" -> "dark"
+            "dark" -> "device"
+            else -> "light"
+        }
+        updateThemeMode(next)
+    }
+
     fun toggleFollowDeviceColors(enabled: Boolean) {
         _isFollowDeviceColors.value = enabled
         sharedPrefs.edit().putBoolean("follow_device_colors", enabled).apply()
@@ -1220,12 +1290,37 @@ class FinanceViewModel(
 
     fun updateTextSizeOption(option: String) {
         _textSizeOption.value = option
-        sharedPrefs.edit().putString("text_size_option", option).apply()
+        com.example.data.UiPrefs.setTextSize(appSettingsManager, option)
     }
 
     fun toggleCompactLayout(enabled: Boolean) {
         _isCompactLayout.value = enabled
-        sharedPrefs.edit().putBoolean("is_compact_layout", enabled).apply()
+        com.example.data.UiPrefs.setCompactLayout(appSettingsManager, enabled)
+    }
+
+    fun toggleShowCents(enabled: Boolean) {
+        _showCents.value = enabled
+        com.example.data.UiPrefs.setShowCents(appSettingsManager, enabled)
+    }
+
+    fun toggleConfirmBeforeExit(enabled: Boolean) {
+        _confirmBeforeExit.value = enabled
+        com.example.data.UiPrefs.setConfirmBeforeExit(appSettingsManager, enabled)
+    }
+
+    fun toggleQuickAdd(enabled: Boolean) {
+        _quickAddEnabled.value = enabled
+        appSettingsManager.dispatch(AppSettingsIntent.UpdateQuickAdd(enabled))
+    }
+
+    fun toggleShowTransactionTags(enabled: Boolean) {
+        _showTransactionTags.value = enabled
+        appSettingsManager.dispatch(AppSettingsIntent.UpdateShowTransactionTags(enabled))
+    }
+
+    fun toggleLongPressToEdit(enabled: Boolean) {
+        _longPressToEdit.value = enabled
+        appSettingsManager.dispatch(AppSettingsIntent.UpdateLongPressToEdit(enabled))
     }
 
     fun toggleAnimationEnabled(enabled: Boolean) {
@@ -1300,17 +1395,25 @@ class FinanceViewModel(
 
     fun updateDateFormat(fmt: String) {
         _dateFormat.value = fmt
-        sharedPrefs.edit().putString("date_format", fmt).apply()
+        com.example.data.UiPrefs.setDateFormat(appSettingsManager, fmt)
     }
 
     fun updateFirstDayOfWeek(day: String) {
         _firstDayOfWeek.value = day
-        sharedPrefs.edit().putString("first_day_of_week", day).apply()
+        com.example.data.UiPrefs.setFirstDayOfWeek(appSettingsManager, day)
     }
 
     fun updateBillReminderTiming(timing: String) {
         _billReminderTiming.value = timing
-        sharedPrefs.edit().putString("bill_reminder_timing", timing).apply()
+        appSettingsManager.dispatch(AppSettingsIntent.UpdateBillReminderTiming(timing))
+        // Reschedule existing reminders so the new lead time applies immediately.
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                RecurringBillReminderScheduler.rescheduleAll(getApplication())
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to reschedule reminders after timing change", e)
+            }
+        }
     }
 
     fun toggleBillOverdueAlert(enabled: Boolean) {
@@ -1531,12 +1634,37 @@ class FinanceViewModel(
         sharedPrefs.edit().putBoolean("group_by_date", enabled).apply()
     }
 
+    /**
+     * Writes an actual snapshot file to the app's private storage and records the timestamp.
+     * Previously this only formatted a string and stored it — no backup existed afterwards.
+     */
     fun markBackupPerformed() {
-        val sdf = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault())
-        val now = sdf.format(Date())
-        _lastBackupTimestamp.value = now
-        sharedPrefs.edit().putString("last_backup_timestamp", now).apply()
-        _toastMessage.value = "Backup created successfully"
+        viewModelScope.launch(Dispatchers.IO) {
+            val file = com.example.data.AutoBackupManager.writeSnapshotNow(getApplication())
+            val stamp = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date())
+            if (file != null) {
+                sharedPrefs.edit().putString("last_backup_timestamp", stamp).apply()
+                appSettingsManager.dispatch(AppSettingsIntent.SetLastBackupTimestamp(stamp))
+            }
+            withContext(Dispatchers.Main) {
+                _lastBackupTimestamp.value = if (file != null) stamp else _lastBackupTimestamp.value
+                _toastMessage.value = if (file != null) "Snapshot saved on this device" else "Could not write snapshot"
+            }
+        }
+    }
+
+    fun autoBackupSnapshotCount(): Int = com.example.data.AutoBackupManager.listSnapshots(getApplication()).size
+
+    fun deleteAutoBackups() {
+        viewModelScope.launch(Dispatchers.IO) {
+            com.example.data.AutoBackupManager.clearAll(getApplication())
+            sharedPrefs.edit().putString("last_backup_timestamp", "Never").apply()
+            appSettingsManager.dispatch(AppSettingsIntent.SetLastBackupTimestamp("Never"))
+            withContext(Dispatchers.Main) {
+                _lastBackupTimestamp.value = "Never"
+                _toastMessage.value = "Automatic snapshots deleted"
+            }
+        }
     }
 
     fun toggleAutoBackupEnabled(enabled: Boolean) {
@@ -1585,6 +1713,7 @@ class FinanceViewModel(
         _hideSensitiveAmounts.value = enabled
         sharedPrefs.edit().putBoolean("hide_sensitive_amounts", enabled).apply()
         appSettingsManager.dispatch(AppSettingsIntent.SetHideSensitiveAmounts(enabled))
+        syncRowMask()
     }
 
     fun togglePrivacyModeEnabled(enabled: Boolean) {
@@ -1594,6 +1723,17 @@ class FinanceViewModel(
         // Reset session reveal whenever the feature itself is toggled, so
         // turning it off-then-on again doesn't leave amounts pre-revealed.
         _privacyRevealOverride.value = false
+        syncRowMask()
+    }
+
+    /**
+     * Transaction rows mask their amount when either privacy blur mode is on (and not revealed) or
+     * the user asked to hide small amounts. This is the single place that flag is computed.
+     */
+    private fun syncRowMask() {
+        com.example.data.UiPrefs.setMaskRowAmounts(
+            _hideSensitiveAmounts.value || (_privacyModeEnabled.value && !_privacyRevealOverride.value)
+        )
     }
 
     fun toggleScreenshotProtection(enabled: Boolean) {
@@ -1646,6 +1786,13 @@ class FinanceViewModel(
         appSettingsManager.dispatch(AppSettingsIntent.UpdateBillReminderTiming(timing))
         appSettingsManager.dispatch(AppSettingsIntent.UpdateBillReminderPreferredTime(preferredTime))
         appSettingsManager.dispatch(AppSettingsIntent.UpdateBillAutoMarkPaid(autoMarkPaid))
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                RecurringBillReminderScheduler.rescheduleAll(getApplication())
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to reschedule reminders after preference change", e)
+            }
+        }
     }
 
     fun addCustomCategory(category: String, type: String = "EXPENSE") {
@@ -1843,8 +1990,10 @@ class FinanceViewModel(
 
     fun deleteExpense(expense: Expense) {
         viewModelScope.launch {
+            // Auto-expire the undo affordance so it cannot resurrect a delete minutes later.
+            scheduleUndoExpiry()
             repository.deleteExpense(expense)
-            _lastDeletedExpenses.value = listOf(expense)
+            _undoSnapshot = listOf(expense)
             _undoDeleteMessage.value = "Deleted ${expense.category} (${_selectedCurrencySymbol.value}${String.format(Locale.getDefault(), "%,.2f", expense.amount)})"
             _undoDeleteVisible.value = true
         }
@@ -1855,7 +2004,7 @@ class FinanceViewModel(
             val exp = repository.getExpenseById(id)
             repository.deleteExpenseById(id)
             if (exp != null) {
-                _lastDeletedExpenses.value = listOf(exp)
+                _undoSnapshot = listOf(exp)
                 _undoDeleteMessage.value = "Deleted ${exp.category} (${_selectedCurrencySymbol.value}${String.format(Locale.getDefault(), "%,.2f", exp.amount)})"
                 _undoDeleteVisible.value = true
             }
@@ -1866,20 +2015,20 @@ class FinanceViewModel(
         if (expensesList.isEmpty()) return
         viewModelScope.launch {
             expensesList.forEach { repository.deleteExpense(it) }
-            _lastDeletedExpenses.value = expensesList
+            _undoSnapshot = expensesList
             _undoDeleteMessage.value = "Deleted ${expensesList.size} transactions"
             _undoDeleteVisible.value = true
         }
     }
 
     fun undoDeleteExpense() {
-        val toRestore = _lastDeletedExpenses.value
+        val toRestore = _undoSnapshot
         if (toRestore.isEmpty()) return
         viewModelScope.launch {
             toRestore.forEach { expense ->
                 repository.insertExpense(expense)
             }
-            _lastDeletedExpenses.value = emptyList()
+            _undoSnapshot = emptyList()
             _undoDeleteVisible.value = false
             _toastMessage.value = if (toRestore.size == 1) "Transaction restored" else "${toRestore.size} transactions restored"
             recordDailyTransactionActivity()
@@ -1888,7 +2037,26 @@ class FinanceViewModel(
 
     fun dismissUndoDelete() {
         _undoDeleteVisible.value = false
-        _lastDeletedExpenses.value = emptyList()
+        _undoSnapshot = emptyList()
+    }
+
+    /**
+     * Backing store for the "transaction deleted — Undo" snackbar. Exposed as a plain property
+     * (not a StateFlow) because only the snackbar reads it; the previous extra StateFlow was never
+     * collected anywhere.
+     */
+    private var _undoSnapshot: List<Expense> = emptyList()
+
+    private var undoJob: Job? = null
+
+    /** Shows the undo bar for 5 seconds, then forgets the snapshot. */
+    private fun scheduleUndoExpiry() {
+        undoJob?.cancel()
+        undoJob = viewModelScope.launch {
+            delay(5000)
+            _undoDeleteVisible.value = false
+            _undoSnapshot = emptyList()
+        }
     }
 
     fun transferFunds(

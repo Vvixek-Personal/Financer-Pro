@@ -44,6 +44,16 @@ data class AppSettingsState(
     val billAutoMarkPaid: Boolean = false,
     val autoBackupEnabled: Boolean = false,
     val lastBackupTimestamp: String = "Never",
+    val textSize: String = "Normal",
+    val compactLayout: Boolean = false,
+    val dateFormat: String = "dd/MM/yyyy",
+    val firstDayOfWeek: String = "Monday",
+    val showCents: Boolean = true,
+    val confirmBeforeExit: Boolean = false,
+    val quickAddEnabled: Boolean = true,
+    val showTransactionTags: Boolean = true,
+    val longPressToEdit: Boolean = true,
+    val defaultReminderLeadDays: Int = 1,
 )
 
 sealed class AppSettingsIntent {
@@ -74,6 +84,17 @@ sealed class AppSettingsIntent {
     data class SetHideSensitiveAmounts(val enabled: Boolean) : AppSettingsIntent()
     data class SetLockOnRestart(val enabled: Boolean) : AppSettingsIntent()
     data class SetAutoBackupEnabled(val enabled: Boolean) : AppSettingsIntent()
+    data class SetLastBackupTimestamp(val value: String) : AppSettingsIntent()
+    data class UpdateTextSize(val label: String) : AppSettingsIntent()
+    data class UpdateCompactLayout(val enabled: Boolean) : AppSettingsIntent()
+    data class UpdateDateFormat(val format: String) : AppSettingsIntent()
+    data class UpdateFirstDayOfWeek(val day: String) : AppSettingsIntent()
+    data class UpdateShowCents(val enabled: Boolean) : AppSettingsIntent()
+    data class UpdateConfirmBeforeExit(val enabled: Boolean) : AppSettingsIntent()
+    data class UpdateQuickAdd(val enabled: Boolean) : AppSettingsIntent()
+    data class UpdateShowTransactionTags(val enabled: Boolean) : AppSettingsIntent()
+    data class UpdateLongPressToEdit(val enabled: Boolean) : AppSettingsIntent()
+    data class UpdateDefaultReminderLeadDays(val days: Int) : AppSettingsIntent()
     object ReloadStateAfterWipe : AppSettingsIntent()
     data class UpdateAnimationEnabled(val enabled: Boolean) : AppSettingsIntent()
 }
@@ -159,6 +180,16 @@ class AppSettingsManager private constructor(private val context: Context) {
             autoBackupEnabled = prefs.getBoolean("auto_backup_enabled", false),
             lastBackupTimestamp = prefs.getString("last_backup_timestamp", "Never") ?: "Never",
             isAnimationEnabled = prefs.getBoolean("animations_enabled", true),
+            textSize = prefs.getString("text_size_option", "Normal") ?: "Normal",
+            compactLayout = prefs.getBoolean("is_compact_layout", false),
+            dateFormat = prefs.getString("date_format", "dd/MM/yyyy") ?: "dd/MM/yyyy",
+            firstDayOfWeek = prefs.getString("first_day_of_week", "Monday") ?: "Monday",
+            showCents = prefs.getBoolean("show_cents", true),
+            confirmBeforeExit = prefs.getBoolean("confirm_before_exit", false),
+            quickAddEnabled = prefs.getBoolean("quick_add_enabled", true),
+            showTransactionTags = prefs.getBoolean("show_transaction_tags", true),
+            longPressToEdit = prefs.getBoolean("long_press_to_edit", true),
+            defaultReminderLeadDays = prefs.getInt("default_reminder_lead_days", 1),
         )
     }
 
@@ -361,6 +392,50 @@ class AppSettingsManager private constructor(private val context: Context) {
             is AppSettingsIntent.ResetPinLockout -> {
                 resetPinLockoutAndAttempts()
                 _state.value.copy(pinLockoutUntil = 0L)
+            }
+            is AppSettingsIntent.SetLastBackupTimestamp -> {
+                prefs.edit().putString("last_backup_timestamp", intent.value).apply()
+                _state.value.copy(lastBackupTimestamp = intent.value)
+            }
+            is AppSettingsIntent.UpdateTextSize -> {
+                prefs.edit().putString("text_size_option", intent.label).apply()
+                _state.value.copy(textSize = intent.label)
+            }
+            is AppSettingsIntent.UpdateCompactLayout -> {
+                prefs.edit().putBoolean("is_compact_layout", intent.enabled).apply()
+                _state.value.copy(compactLayout = intent.enabled)
+            }
+            is AppSettingsIntent.UpdateDateFormat -> {
+                prefs.edit().putString("date_format", intent.format).apply()
+                _state.value.copy(dateFormat = intent.format)
+            }
+            is AppSettingsIntent.UpdateFirstDayOfWeek -> {
+                prefs.edit().putString("first_day_of_week", intent.day).apply()
+                _state.value.copy(firstDayOfWeek = intent.day)
+            }
+            is AppSettingsIntent.UpdateShowCents -> {
+                prefs.edit().putBoolean("show_cents", intent.enabled).apply()
+                _state.value.copy(showCents = intent.enabled)
+            }
+            is AppSettingsIntent.UpdateConfirmBeforeExit -> {
+                prefs.edit().putBoolean("confirm_before_exit", intent.enabled).apply()
+                _state.value.copy(confirmBeforeExit = intent.enabled)
+            }
+            is AppSettingsIntent.UpdateQuickAdd -> {
+                prefs.edit().putBoolean("quick_add_enabled", intent.enabled).apply()
+                _state.value.copy(quickAddEnabled = intent.enabled)
+            }
+            is AppSettingsIntent.UpdateShowTransactionTags -> {
+                prefs.edit().putBoolean("show_transaction_tags", intent.enabled).apply()
+                _state.value.copy(showTransactionTags = intent.enabled)
+            }
+            is AppSettingsIntent.UpdateLongPressToEdit -> {
+                prefs.edit().putBoolean("long_press_to_edit", intent.enabled).apply()
+                _state.value.copy(longPressToEdit = intent.enabled)
+            }
+            is AppSettingsIntent.UpdateDefaultReminderLeadDays -> {
+                prefs.edit().putInt("default_reminder_lead_days", intent.days).apply()
+                _state.value.copy(defaultReminderLeadDays = intent.days)
             }
             is AppSettingsIntent.ReloadStateAfterWipe -> {
                 loadInitialState()

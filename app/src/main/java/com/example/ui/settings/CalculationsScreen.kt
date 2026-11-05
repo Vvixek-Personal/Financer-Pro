@@ -69,7 +69,7 @@ fun CalculationsScreen(
 
     Scaffold(
         topBar = {
-            SettingsHeaderTitle(title = "Financial Calculators", onBack = onBack)
+            SettingsHeaderTitle(title = "Calculators", onBack = onBack, subtitle = "Loans, growth, splits and big purchases")
         },
         containerColor = SleekBg
     ) { paddingValues ->
@@ -454,7 +454,7 @@ private fun SplitBillCalculatorTool(viewModel: FinanceViewModel) {
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = if (isSelected) SleekPrimary else SleekSurface,
-                            contentColor = if (isSelected) Color.White else SleekTextPrimary
+                            contentColor = if (isSelected) onAccentColor else SleekTextPrimary
                         ),
                         border = BorderStroke(1.dp, if (isSelected) SleekPrimary else SleekBorder),
                         contentPadding = PaddingValues(0.dp)
@@ -563,7 +563,7 @@ private fun PercentageCalculatorTool() {
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = if (isSelected) SleekPrimary else SleekSurface,
-                        contentColor = if (isSelected) Color.White else SleekTextPrimary
+                        contentColor = if (isSelected) onAccentColor else SleekTextPrimary
                     ),
                     border = BorderStroke(1.dp, if (isSelected) SleekPrimary else SleekBorder)
                 ) {
@@ -2290,7 +2290,7 @@ private fun DebtPayoffPlannerTool(viewModel: FinanceViewModel) {
                     shape = SleekShapes.md,
                     colors = ButtonDefaults.buttonColors(containerColor = SleekPrimary)
                 ) {
-                    Text("Add", color = Color.White)
+                    Text("Add", color = onAccentColor)
                 }
             },
             dismissButton = {

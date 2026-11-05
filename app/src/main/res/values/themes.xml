@@ -1,5 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.MyApplication" parent="android:Theme.DeviceDefault.NoActionBar" />
+    <!--
+      DayNight parent so the platform window (splash, recents thumbnail, system bar scrims)
+      follows the app's light/dark mode. With the previous DeviceDefault.NoActionBar parent the
+      window background stayed light regardless of the in-app theme, which caused a white flash
+      before Compose drew its first frame in dark mode.
+    -->
+    <style name="Theme.MyApplication" parent="android:Theme.DeviceDefault.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">@bool/window_light_bars</item>
+        <item name="android:windowLightNavigationBar">@bool/window_light_bars</item>
+    </style>
+
 </resources>

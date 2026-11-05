@@ -56,7 +56,8 @@ fun CategoryExpensePieChart(
     categoryColors: Map<String, Color>,
     modifier: Modifier = Modifier,
     chartRadius: Dp = 210.dp,
-    sliceBorderColor: Color = SleekSurface
+    sliceBorderColor: Color = SleekSurface,
+    currencySymbol: String = "₹"
 ) {
     var isDonutMode by remember { mutableStateOf(false) }
     var selectedCategory by remember { mutableStateOf<String?>(null) }
@@ -187,7 +188,7 @@ fun CategoryExpensePieChart(
                         Icon(
                             AppIcons.PieChart,
                             contentDescription = "Pie Chart",
-                            tint = if (!isDonutMode) Color.White else SleekTextSecondary,
+                            tint = if (!isDonutMode) onAccentColor else SleekTextSecondary,
                             modifier = Modifier.size(SleekSizes.iconMicro)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
@@ -195,7 +196,7 @@ fun CategoryExpensePieChart(
                             "Pie",
                             fontSize = SleekSizes.textCaption,
                             fontWeight = FontWeight.Bold,
-                            color = if (!isDonutMode) Color.White else SleekTextSecondary,
+                            color = if (!isDonutMode) onAccentColor else SleekTextSecondary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -214,7 +215,7 @@ fun CategoryExpensePieChart(
                         Icon(
                             AppIcons.DonutLarge,
                             contentDescription = "Donut Chart",
-                            tint = if (isDonutMode) Color.White else SleekTextSecondary,
+                            tint = if (isDonutMode) onAccentColor else SleekTextSecondary,
                             modifier = Modifier.size(SleekSizes.iconMicro)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
@@ -222,7 +223,7 @@ fun CategoryExpensePieChart(
                             "Donut",
                             fontSize = SleekSizes.textCaption,
                             fontWeight = FontWeight.Bold,
-                            color = if (isDonutMode) Color.White else SleekTextSecondary,
+                            color = if (isDonutMode) onAccentColor else SleekTextSecondary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -396,7 +397,7 @@ fun CategoryExpensePieChart(
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
-                                text = String.format(Locale.getDefault(), "₹%,.0f", selAmount),
+                                text = String.format(Locale.getDefault(), "%s%,.0f", currencySymbol, selAmount),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = SleekTextPrimary,
                                 fontWeight = FontWeight.Bold
@@ -414,7 +415,7 @@ fun CategoryExpensePieChart(
                                 color = SleekTextSecondary
                             )
                             Text(
-                                text = String.format(Locale.getDefault(), "₹%,.0f", totalExpense),
+                                text = String.format(Locale.getDefault(), "%s%,.0f", currencySymbol, totalExpense),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = SleekTextPrimary,
                                 fontWeight = FontWeight.Bold
@@ -486,7 +487,7 @@ fun CategoryExpensePieChart(
                             Spacer(modifier = Modifier.width(8.dp))
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(
-                                    text = String.format(Locale.getDefault(), "₹%,.2f", catAmount),
+                                    text = String.format(Locale.getDefault(), "%s%,.2f", currencySymbol, catAmount),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = SleekTextPrimary,
@@ -572,7 +573,7 @@ fun CategoryExpensePieChart(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = String.format(Locale.getDefault(), "₹%,.2f", sum),
+                                    text = String.format(Locale.getDefault(), "%s%,.2f", currencySymbol, sum),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = SleekTextPrimary,
                                     fontWeight = FontWeight.Bold,

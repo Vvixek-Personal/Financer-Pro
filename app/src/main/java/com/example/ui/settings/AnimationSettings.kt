@@ -53,6 +53,17 @@ val SmoothStandardEasing: Easing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f)
 /** True only when the in-app switch is ON and Android's animator scale is not 0. */
 val LocalAnimationsEnabled = compositionLocalOf { true }
 
+/**
+ * True when the user has haptics enabled in Settings > Appearance. Provided once at the app root
+ * so every tappable tile can honour it instead of only a handful of screens checking
+ * viewModel.hapticsEnabled individually (which left most of the app buzzing while the switch was
+ * off).
+ */
+val LocalHapticsEnabled = compositionLocalOf { true }
+
+/** True when the user turned on "Reduce motion" style compact layout (Appearance > Compact). */
+val LocalCompactLayout = compositionLocalOf { false }
+
 @Composable
 fun systemAnimationsAllowed(): Boolean {
     val resolver = LocalContext.current.contentResolver

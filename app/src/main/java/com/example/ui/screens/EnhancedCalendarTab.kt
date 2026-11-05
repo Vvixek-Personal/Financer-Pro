@@ -104,7 +104,16 @@ fun EnhancedCalendarTab(
     var showMonthTransactionsSheet by remember { mutableStateOf(false) }
     var weekSlideDirection by remember { mutableIntStateOf(1) }
 
-    val daysOfWeek = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+    // Weekday header must start on the user's configured first day (Date & Time settings).
+    // It was hard-coded to Sunday while the grid maths always offset from Monday, so the header
+    // and the dates underneath disagreed by one column for every user.
+    val firstWeekdayIndex = when (com.example.data.UiPrefs.firstDayOfWeek) {
+        "Sunday" -> Calendar.SUNDAY
+        "Saturday" -> Calendar.SATURDAY
+        else -> Calendar.MONDAY
+    } - 1 // Calendar.SUNDAY == 1, so subtract to get a 0-based index
+    val allDays = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+    val daysOfWeek = allDays.drop(firstWeekdayIndex) + allDays.take(firstWeekdayIndex)
 
     val selectedDateMillis = remember(activeYear, activeMonth, selectedDayOfMonth) {
         val maxDay = Calendar.getInstance().apply {
@@ -354,7 +363,7 @@ fun EnhancedCalendarTab(
                         label = "pillColor"
                     )
                     val animatedTextColor by animateColorAsState(
-                        targetValue = if (isSelected) Color.White else SleekTextSecondary,
+                        targetValue = if (isSelected) onAccentColor else SleekTextSecondary,
                         animationSpec = tween(250),
                         label = "pillTextColor"
                     )
@@ -598,9 +607,9 @@ fun EnhancedCalendarTab(
                                     set(Calendar.MONTH, pageMonth)
                                     set(Calendar.DAY_OF_MONTH, 1)
                                 }
-                                val firstDayOfWeek = firstDayCal.get(Calendar.DAY_OF_WEEK)
+                                val firstDayOfWeekNum = firstDayCal.get(Calendar.DAY_OF_WEEK)
                                 val daysInMonth = firstDayCal.getActualMaximum(Calendar.DAY_OF_MONTH)
-                                val dayOffset = firstDayOfWeek - 1
+                                val dayOffset = ((firstDayOfWeekNum - firstWeekdayIndex - 1) % 7 + 7) % 7
 
                                 if (targetMode == CalendarDisplayMode.WEEK) {
                                     // RULE: "in week one use the same logic of old one swiping just change the day and would automatically when changed into another month and do not show week 1 week 2 buttons. also add animations"

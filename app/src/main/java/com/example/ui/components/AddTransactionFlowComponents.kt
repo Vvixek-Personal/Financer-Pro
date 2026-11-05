@@ -991,7 +991,7 @@ fun SelectCategorySheet(
                             text = "Expense Categories",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isExpTab) Color.White else SleekTextSecondary
+                            color = if (isExpTab) onAccentColor else SleekTextSecondary
                         )
                     }
 
@@ -1012,7 +1012,7 @@ fun SelectCategorySheet(
                             text = "Income Categories",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isIncTab) Color.White else SleekTextSecondary
+                            color = if (isIncTab) onAccentColor else SleekTextSecondary
                         )
                     }
                 }
@@ -1271,7 +1271,7 @@ fun TransferAccountSelectorCard(
                                     text = acc.name,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isSelected) Color.White else SleekTextPrimary,
+                                    color = if (isSelected) onAccentColor else SleekTextPrimary,
                                     maxLines = 1
                                 )
                                 Text(
@@ -1326,7 +1326,7 @@ fun TransferAccountSelectorCard(
                                     text = acc.name,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isSelected) Color.White else SleekTextPrimary,
+                                    color = if (isSelected) onAccentColor else SleekTextPrimary,
                                     maxLines = 1
                                 )
                                 Text(

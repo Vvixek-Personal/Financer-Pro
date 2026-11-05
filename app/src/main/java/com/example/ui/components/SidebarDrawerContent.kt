@@ -21,7 +21,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -141,9 +143,12 @@ fun SidebarGroupCard(
                             .clickable { item.onClick() }
                             .padding(horizontal = 16.dp, vertical = 14.dp)
                     ) {
-                        val badgeBg = if (isDarkModeActive) item.iconColor.copy(alpha = 0.16f) else item.iconBgColor
-                        val badgeBorder = if (isDarkModeActive) item.iconColor.copy(alpha = 0.35f) else item.iconColor.copy(alpha = 0.22f)
-                        val badgeTint = if (isDarkModeActive) item.iconColor.copy(alpha = 0.95f) else item.iconColor
+                        // Light mode keeps the soft pastel badge; dark mode uses a translucent tint of the
+                        // same accent (the pastel fills were blinding on a near-black background) while
+                        // nudging the icon brighter so it still reads against the dark card.
+                        val badgeBg = if (isDarkModeActive) item.iconColor.copy(alpha = 0.18f) else item.iconBgColor
+                        val badgeBorder = if (isDarkModeActive) item.iconColor.copy(alpha = 0.38f) else item.iconColor.copy(alpha = 0.22f)
+                        val badgeTint = if (isDarkModeActive) lighten(item.iconColor, 0.22f) else item.iconColor
                         Box(
                             modifier = Modifier
                                 .size(40.dp)
@@ -161,7 +166,7 @@ fun SidebarGroupCard(
                         }
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = LanguageManager.tr(item.titleKey, selectedLanguage),
+                                text = LanguageManager.trPhrase(item.titleKey, selectedLanguage),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.SemiBold,
                                 color = SleekTextPrimary,
@@ -170,7 +175,7 @@ fun SidebarGroupCard(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = LanguageManager.tr(item.subtitleKey, selectedLanguage),
+                                text = LanguageManager.trPhrase(item.subtitleKey, selectedLanguage),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = SleekTextSecondary,
                                 fontSize = 12.sp,
@@ -213,6 +218,10 @@ fun SidebarDrawerContent(
     val profileImageUri by viewModel.userProfileImageUri.collectAsStateWithLifecycle()
     val currentStreak by viewModel.currentStreak.collectAsStateWithLifecycle()
     val isPrivacyMode by viewModel.privacyModeEnabled.collectAsStateWithLifecycle()
+    val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+    val hapticsEnabled = LocalHapticsEnabled.current
+    val haptic = LocalHapticFeedback.current
+    val compact = LocalCompactLayout.current
 
     var searchQuery by remember { mutableStateOf("") }
 
@@ -465,7 +474,7 @@ fun SidebarDrawerContent(
                 .statusBarsPadding()
                 .navigationBarsPadding()
                 .verticalScroll(rememberScrollState())
-                .padding(20.dp)
+                .padding(if (compact) 12.dp else 20.dp)
         ) {
         // Top Close & App Brand Header Row
         Row(
@@ -493,7 +502,7 @@ fun SidebarDrawerContent(
                 }
                 Column {
                     Text(
-                        text = "Finance Tracker Pro",
+                        text = "Financer Pro",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = SleekTextPrimary
@@ -510,6 +519,29 @@ fun SidebarDrawerContent(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                IconButton(
+                    onClick = {
+                        if (hapticsEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        viewModel.cycleThemeMode()
+                    },
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(SleekPrimary.copy(alpha = if (isDarkModeActive) 0.22f else 0.12f))
+                        .bouncyPress()
+                ) {
+                    Icon(
+                        imageVector = when (themeMode.lowercase()) {
+                            "dark" -> AppIcons.DarkMode
+                            "device", "system" -> AppIcons.Tv
+                            else -> AppIcons.LightMode
+                        },
+                        contentDescription = "Toggle light, dark or device theme (currently ${themeMode})",
+                        tint = SleekPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
                 IconButton(
                     onClick = onToggleFullscreen,
                     modifier = Modifier
@@ -582,21 +614,12 @@ fun SidebarDrawerContent(
                         .background(SleekPrimaryContainer),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (!profileImageUri.isNullOrBlank()) {
-                        AsyncImage(
-                            model = profileImageUri,
-                            contentDescription = "Profile Picture",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        Image(
-                            painter = painterResource(id = R.drawable.ic_default_profile_avatar),
-                            contentDescription = "Profile",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
+                    UserAvatar(
+                        userName = userName,
+                        imageUri = profileImageUri,
+                        size = 62.dp,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
@@ -618,28 +641,28 @@ fun SidebarDrawerContent(
                     ) {
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = Color(0xFFFFF7ED),
+                            color = if (isDarkModeActive) Color(0xFFF97316).copy(alpha = 0.18f) else Color(0xFFFFF7ED),
                             border = BorderStroke(1.dp, Color(0xFFF97316).copy(alpha = 0.5f))
                         ) {
                             Text(
                                 text = "🔥 $currentStreak " + LanguageManager.tr("Day Streak", selectedLanguage),
                                 fontSize = 10.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFFC2410C),
+                                color = if (isDarkModeActive) Color(0xFFFDBA74) else Color(0xFFC2410C),
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
                         }
 
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = Color(0xFFECFDF5),
+                            color = if (isDarkModeActive) Color(0xFF10B981).copy(alpha = 0.16f) else Color(0xFFECFDF5),
                             border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.4f))
                         ) {
                             Text(
                                 text = "🛡️ " + LanguageManager.tr("100% Offline", selectedLanguage),
                                 fontSize = 10.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF047857),
+                                color = if (isDarkModeActive) Color(0xFF6EE7B7) else Color(0xFF047857),
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
                         }
@@ -802,8 +825,8 @@ fun SidebarDrawerContent(
         // Calculate total matched items for search empty state
         val totalMatched = allSections.sumOf { (_, items) ->
             if (searchQuery.isBlank()) items.size else items.count {
-                val title = LanguageManager.tr(it.titleKey, selectedLanguage)
-                val sub = LanguageManager.tr(it.subtitleKey, selectedLanguage)
+                val title = LanguageManager.trPhrase(it.titleKey, selectedLanguage)
+                val sub = LanguageManager.trPhrase(it.subtitleKey, selectedLanguage)
                 title.contains(searchQuery, ignoreCase = true) || sub.contains(searchQuery, ignoreCase = true)
             }
         }
@@ -847,8 +870,8 @@ fun SidebarDrawerContent(
                 items
             } else {
                 items.filter {
-                    val title = LanguageManager.tr(it.titleKey, selectedLanguage)
-                    val sub = LanguageManager.tr(it.subtitleKey, selectedLanguage)
+                    val title = LanguageManager.trPhrase(it.titleKey, selectedLanguage)
+                    val sub = LanguageManager.trPhrase(it.subtitleKey, selectedLanguage)
                     title.contains(searchQuery, ignoreCase = true) ||
                     sub.contains(searchQuery, ignoreCase = true)
                 }
@@ -878,28 +901,11 @@ fun SidebarDrawerContent(
                 style = MaterialTheme.typography.labelMedium,
                 color = SleekTextSecondary
             )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = "Created with",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = SleekTextSecondary
-                )
-                Icon(
-                    imageVector = AppIcons.Favorite,
-                    contentDescription = "Love",
-                    tint = Color(0xFFE11D48),
-                    modifier = Modifier.size(14.dp)
-                )
-                Text(
-                    text = "by Vivek",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = SleekTextSecondary,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+            Text(
+                text = LanguageManager.tr("All data stays on this device", selectedLanguage),
+                style = MaterialTheme.typography.labelSmall,
+                color = SleekTextSecondary
+            )
         }
         
         Spacer(modifier = Modifier.height(120.dp))

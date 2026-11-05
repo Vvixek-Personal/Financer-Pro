@@ -366,7 +366,7 @@ fun EditExpenseDialog(
                             .weight(1f)
                             .heightIn(min = 48.dp)
                     ) {
-                        Text("Save", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Save", color = onAccentColor, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -410,26 +410,27 @@ fun OnboardingNameDialog(
                     .padding(28.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // A friendly app mark rather than a stock portrait of a stranger.
                 Box(
                     modifier = Modifier
                         .size(76.dp)
                         .clip(CircleShape)
-                        .background(SleekPrimaryContainer)
+                        .background(SleekPrimary.copy(alpha = if (isDarkModeActive) 0.22f else 0.12f))
                         .border(2.dp, SleekBorder, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_default_profile_avatar),
-                        contentDescription = "Welcome User",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
+                    Icon(
+                        imageVector = AppIcons.Savings,
+                        contentDescription = null,
+                        tint = SleekPrimary,
+                        modifier = Modifier.size(36.dp)
                     )
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
 
                 Text(
-                    text = "Welcome to Finance",
+                    text = "Welcome to Financer Pro",
                     style = MaterialTheme.typography.headlineSmall,
                     color = SleekTextPrimary,
                     fontWeight = FontWeight.Bold,
@@ -627,7 +628,7 @@ fun CreateCategoryDialog(
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Add", color = Color.White)
+                        Text("Add", color = onAccentColor)
                     }
                 }
             }
@@ -716,7 +717,7 @@ fun AdjustBudgetDialog(
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Save", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text("Save", color = onAccentColor, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -734,7 +735,7 @@ fun DateRangeReportModalDialog(
     var startDate by remember { mutableStateOf(initialStartDate) }
     var endDate by remember { mutableStateOf(initialEndDate) }
     val context = LocalContext.current
-    val dateSdf = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
+    val dateSdf = remember(com.example.data.UiPrefs.dateFormat) { com.example.data.UiPrefs.formatter() }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -1042,7 +1043,7 @@ fun EditNameDialog(
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Save", color = Color.White)
+                        Text("Save", color = onAccentColor)
                     }
                 }
             }
