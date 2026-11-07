@@ -26,7 +26,7 @@ val onAccentColor: Color
 
 /** Subtle elevated fill used for chips, inputs and secondary surfaces. */
 val SleekInputBg: Color
-    get() = if (isDarkModeActive) Color(0xFF1B1F2A).copy(alpha = 0.85f) else Color(0xFFF3F5FA)
+    get() = if (isDarkModeActive) Color(0xFF1B1E24) else Color(0xFFF3F5FA)
 
 @Composable
 fun MyApplicationTheme(
