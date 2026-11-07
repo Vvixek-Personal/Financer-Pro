@@ -45,7 +45,7 @@ fun getPresetThemeColors(index: Int, customHue: Float): Triple<Color, Color, Col
 }
 
 var isDarkModeActive by mutableStateOf(false)
-var themeModeState by mutableStateOf("light") // "light", "dark", "device"
+var themeModeState by mutableStateOf("dark") // "light", "dark", "device"
 var isFollowDeviceColorsState by mutableStateOf(false)
 var isHighContrastActive by mutableStateOf(false)
 
