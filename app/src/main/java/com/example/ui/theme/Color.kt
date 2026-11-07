@@ -8,9 +8,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
 // Sleek Interface Theme Colors (Backed by dynamic Compose states)
-var activeSleekPrimary by mutableStateOf(Color(0xFF0061A4))
-var activeSleekPrimaryContainer by mutableStateOf(Color(0xFFD3E4FF))
-var activeSleekOnPrimaryContainer by mutableStateOf(Color(0xFF001D36))
+var activeSleekPrimary by mutableStateOf(Color(0xFFA8B7F2))
+var activeSleekPrimaryContainer by mutableStateOf(Color(0xFF30384F))
+var activeSleekOnPrimaryContainer by mutableStateOf(Color(0xFFE4E9FF))
 
 val SleekPrimary: Color get() = activeSleekPrimary
 val SleekPrimaryContainer: Color get() = activeSleekPrimaryContainer
@@ -19,7 +19,7 @@ val SleekOnPrimaryContainer: Color get() = activeSleekOnPrimaryContainer
 // Predefined Themes Palette
 fun getPresetThemeColors(index: Int, customHue: Float): Triple<Color, Color, Color> {
     return when (index) {
-        0 -> Triple(Color(0xFF0061A4), Color(0xFFD3E4FF), Color(0xFF001D36)) // Classic Blue
+        0 -> Triple(Color(0xFFA8B7F2), Color(0xFF30384F), Color(0xFFE4E9FF)) // Vector Lavender
         1 -> Triple(Color(0xFF5A6370), Color(0xFFE2E8F0), Color(0xFF1E293B)) // Slate Grey
         2 -> Triple(Color(0xFF1A365D), Color(0xFFDBEAFE), Color(0xFF1E3A8A)) // Navy Blue
         3 -> Triple(Color(0xFF2B4C7E), Color(0xFFDCE6F1), Color(0xFF1A3050)) // Steel Blue
@@ -108,19 +108,19 @@ fun mixPrimaryWithColor(primary: Color, base: Color, fraction: Float): Color {
 }
 
 val SleekBg: Color get() = if (isDarkModeActive) {
-    mixPrimaryWithColor(activeSleekPrimary, Color(0xFF0B0D13), 0.05f)
+    mixPrimaryWithColor(activeSleekPrimary, Color(0xFF121418), 0.05f)
 } else {
     mixPrimaryWithColor(activeSleekPrimary, Color(0xFFF7F8FC), 0.04f)
 }
 
 val SleekSurface: Color get() = if (isDarkModeActive) {
-    mixPrimaryWithColor(activeSleekPrimary, Color(0xFF151822), 0.07f)
+    mixPrimaryWithColor(activeSleekPrimary, Color(0xFF1B1E24), 0.07f)
 } else {
     Color(0xFFFFFFFF)
 }
 
 val SleekSurfaceElevated: Color get() = if (isDarkModeActive) {
-    mixPrimaryWithColor(activeSleekPrimary, Color(0xFF1D212E), 0.09f)
+    mixPrimaryWithColor(activeSleekPrimary, Color(0xFF242830), 0.09f)
 } else {
     Color(0xFFFFFFFF)
 }
@@ -130,31 +130,31 @@ val SleekSurfaceVariant: Color get() = SleekSurfaceElevated
 val SleekBorder: Color get() = if (isHighContrastActive) {
     if (isDarkModeActive) Color(0xFF64748B) else Color(0xFF334155)
 } else if (isDarkModeActive) {
-    Color(0xFF242836)
+    Color(0x1FFFFFFF)
 } else {
     Color(0xFFE4E7F0)
 }
 
 val SleekTextPrimary: Color get() = if (isDarkModeActive) {
-    Color(0xFFF8FAFC)
+    Color(0xFFF1F2F4)
 } else {
     Color(0xFF0F172A)
 }
 
 val SleekTextSecondary: Color get() = if (isDarkModeActive) {
-    Color(0xFF94A3B8)
+    Color(0xFFA6ABB6)
 } else {
     Color(0xFF64748B)
 }
 
 val SleekGlassBg: Color get() = if (isDarkModeActive) {
-    Color(0xFF151822).copy(alpha = 0.82f)
+    Color(0xFF1B1E24).copy(alpha = 0.94f)
 } else {
     Color(0xFFFFFFFF).copy(alpha = 0.88f)
 }
 
 val SleekGlassBorder: Color get() = if (isDarkModeActive) {
-    Color(0xFFFFFFFF).copy(alpha = 0.09f)
+    Color(0xFFFFFFFF).copy(alpha = 0.08f)
 } else {
     Color(0xFF000000).copy(alpha = 0.07f)
 }
