@@ -180,7 +180,7 @@ class FinanceViewModel(
     private val _customThemeHue = MutableStateFlow(200f)
     val customThemeHue: StateFlow<Float> = _customThemeHue.asStateFlow()
 
-    private val _themeMode = MutableStateFlow("light")
+    private val _themeMode = MutableStateFlow("dark")
     val themeMode: StateFlow<String> = _themeMode.asStateFlow()
 
     private val _isFollowDeviceColors = MutableStateFlow(false)
@@ -1081,7 +1081,7 @@ class FinanceViewModel(
         LanguageManager.applyAppLocale(getApplication(), _selectedLanguage.value)
         
         // Load Theme Mode & Follow Device Colors
-        val defaultMode = if (sharedPrefs.getBoolean("dark_mode_active", false)) "dark" else "light"
+        val defaultMode = if (sharedPrefs.contains("dark_mode_active")) { if (sharedPrefs.getBoolean("dark_mode_active", false)) "dark" else "light" } else "dark"
         val savedMode = sharedPrefs.getString("theme_mode", defaultMode) ?: defaultMode
         _themeMode.value = savedMode
         com.example.ui.theme.themeModeState = savedMode
