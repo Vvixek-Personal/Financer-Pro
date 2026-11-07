@@ -604,7 +604,7 @@ fun FinanceAppScreen(viewModel: FinanceViewModel) {
         ) {
         val drawerParallaxProgress by animateFloatAsState(
             targetValue = if (drawerState.targetValue == DrawerValue.Open) 1f else 0f,
-            animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+            animationSpec = tween(durationMillis = VectorMotion.standardMillis, easing = VectorMotion.easeOut),
             label = "drawer_parallax"
         )
         Scaffold(
@@ -640,18 +640,18 @@ fun FinanceAppScreen(viewModel: FinanceViewModel) {
 
                         (slideInHorizontally(
                             initialOffsetX = { (it * slideOffsetFraction).roundToInt() },
-                            animationSpec = tween(durationMillis = 280, easing = AppleDecelerateEasing)
+                            animationSpec = tween(durationMillis = VectorMotion.standardMillis, easing = VectorMotion.easeOut)
                         ) + fadeIn(
-                            animationSpec = tween(durationMillis = 240, easing = AppleDecelerateEasing)
+                            animationSpec = tween(durationMillis = VectorMotion.standardMillis, easing = VectorMotion.easeOut)
                         ) + scaleIn(
                             initialScale = 0.985f,
-                            animationSpec = tween(durationMillis = 280, easing = AppleDecelerateEasing)
+                            animationSpec = tween(durationMillis = VectorMotion.standardMillis, easing = VectorMotion.easeOut)
                         )) togetherWith (
                             slideOutHorizontally(
                                 targetOffsetX = { (-it * slideOffsetFraction).roundToInt() },
-                                animationSpec = tween(durationMillis = 220, easing = AppleDecelerateEasing)
+                                animationSpec = tween(durationMillis = VectorMotion.fastMillis, easing = VectorMotion.easeInOut)
                             ) + fadeOut(
-                                animationSpec = tween(durationMillis = 180, easing = FastOutLinearInEasing)
+                                animationSpec = tween(durationMillis = VectorMotion.instantMillis, easing = VectorMotion.easeIn)
                             )
                         )
                     } else {
