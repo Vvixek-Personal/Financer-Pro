@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 data class AppSettingsState(
     val appPin: String? = null,
     val isAnimationEnabled: Boolean = true,
-    val themeMode: String = "SYSTEM",
+    val themeMode: String = "DARK",
     val themeIndex: Int = 0,
     val language: String = "English",
     val userName: String = "",
@@ -169,7 +169,7 @@ class AppSettingsManager private constructor(private val context: Context) {
             isAppLocked = !rawPin.isNullOrBlank(),
             pinLockoutUntil = initialLockoutWall,
             language = prefs.getString("language", prefs.getString("selected_language", "English")) ?: "English",
-            themeMode = prefs.getString("theme_mode", "SYSTEM") ?: "SYSTEM",
+            themeMode = prefs.getString("theme_mode", if (prefs.contains("dark_mode_active")) { if (prefs.getBoolean("dark_mode_active", false)) "dark" else "light" } else "dark") ?: "dark",
             themeIndex = prefs.getInt("theme_index", 0),
             customThemeHue = prefs.getFloat("custom_theme_hue", 210f),
             isFollowDeviceColors = prefs.getBoolean("follow_device_colors", false),
