@@ -1195,22 +1195,42 @@ fun TrendsCustomCanvas(
                     center = selectedPoint
                 )
 
-                // Value floating pill tag above selected point
+                // Value floating pill tag above selected point with premium rounded badge
                 val valStr = "$currencySymbol%,.0f".format(data[selectedIndex].totalSpent)
-                val bubblePaint = Paint().apply {
-                    color = primaryColor.toArgb()
+                val bubbleTextPaint = Paint().apply {
+                    color = if (isDark) Color.White.toArgb() else Color(0xFF0F172A).toArgb()
                     textSize = density.run { 10.sp.toPx() }
                     typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
                     textAlign = Paint.Align.CENTER
                     isAntiAlias = true
                 }
-                val bubbleY = (selectedPoint.y - 14f).coerceAtLeast(paddingTop + 10f)
+
+                val textWidth = bubbleTextPaint.measureText(valStr)
+                val pillWidth = (textWidth + 20f).coerceAtLeast(54f)
+                val pillHeight = 26f
+                val pillY = (selectedPoint.y - 28f).coerceAtLeast(paddingTop)
+                val pillLeft = (selectedPoint.x - pillWidth / 2f).coerceIn(paddingStart, size.width - paddingEnd - pillWidth)
+
+                // Drop subtle glow / pill background
+                drawRoundRect(
+                    color = if (isDark) Color(0xFF0F172A) else Color.White,
+                    topLeft = Offset(pillLeft, pillY),
+                    size = Size(pillWidth, pillHeight),
+                    cornerRadius = CornerRadius(12f, 12f)
+                )
+                drawRoundRect(
+                    color = primaryColor.copy(alpha = 0.8f),
+                    topLeft = Offset(pillLeft, pillY),
+                    size = Size(pillWidth, pillHeight),
+                    cornerRadius = CornerRadius(12f, 12f),
+                    style = Stroke(width = 1.2f)
+                )
 
                 drawContext.canvas.nativeCanvas.drawText(
                     valStr,
-                    selectedPoint.x,
-                    bubbleY,
-                    bubblePaint
+                    pillLeft + pillWidth / 2f,
+                    pillY + pillHeight / 2f + density.run { 3.5.sp.toPx() },
+                    bubbleTextPaint
                 )
             }
         }

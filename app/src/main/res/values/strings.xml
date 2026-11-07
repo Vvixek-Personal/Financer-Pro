@@ -1,3 +1,11 @@
 <resources>
     <string name="app_name">Financer Pro</string>
+    <string name="shortcut_add_expense_short">Add Expense</string>
+    <string name="shortcut_add_expense_long">Log new expense transaction</string>
+    <string name="shortcut_add_income_short">Add Income</string>
+    <string name="shortcut_add_income_long">Log new income transaction</string>
+    <string name="shortcut_analytics_short">Analytics</string>
+    <string name="shortcut_analytics_long">View financial analytics and cashflow</string>
+    <string name="shortcut_calendar_short">Calendar</string>
+    <string name="shortcut_calendar_long">View transaction calendar and bills</string>
 </resources>

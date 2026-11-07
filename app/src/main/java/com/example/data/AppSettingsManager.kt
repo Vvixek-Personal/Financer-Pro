@@ -54,6 +54,15 @@ data class AppSettingsState(
     val showTransactionTags: Boolean = true,
     val longPressToEdit: Boolean = true,
     val defaultReminderLeadDays: Int = 1,
+    val defaultTxType: String = "EXPENSE",
+    val rememberLastCategory: Boolean = true,
+    val confirmTxDelete: Boolean = true,
+    val groupByDate: Boolean = true,
+    val defaultAnalyticsPeriod: String = "7D",
+    val defaultAnalyticsMode: String = "QUICK_STATS",
+    val budgetWarningThresholdPercent: Int = 80,
+    val autoSuggestCategory: Boolean = true,
+    val soundFeedbackEnabled: Boolean = false,
 )
 
 sealed class AppSettingsIntent {
@@ -95,6 +104,15 @@ sealed class AppSettingsIntent {
     data class UpdateShowTransactionTags(val enabled: Boolean) : AppSettingsIntent()
     data class UpdateLongPressToEdit(val enabled: Boolean) : AppSettingsIntent()
     data class UpdateDefaultReminderLeadDays(val days: Int) : AppSettingsIntent()
+    data class UpdateDefaultTxType(val type: String) : AppSettingsIntent()
+    data class UpdateRememberLastCategory(val enabled: Boolean) : AppSettingsIntent()
+    data class UpdateConfirmTxDelete(val enabled: Boolean) : AppSettingsIntent()
+    data class UpdateGroupByDate(val enabled: Boolean) : AppSettingsIntent()
+    data class UpdateDefaultAnalyticsPeriod(val period: String) : AppSettingsIntent()
+    data class UpdateDefaultAnalyticsMode(val mode: String) : AppSettingsIntent()
+    data class UpdateBudgetWarningThresholdPercent(val percent: Int) : AppSettingsIntent()
+    data class UpdateAutoSuggestCategory(val enabled: Boolean) : AppSettingsIntent()
+    data class UpdateSoundFeedbackEnabled(val enabled: Boolean) : AppSettingsIntent()
     object ReloadStateAfterWipe : AppSettingsIntent()
     data class UpdateAnimationEnabled(val enabled: Boolean) : AppSettingsIntent()
 }
@@ -190,6 +208,15 @@ class AppSettingsManager private constructor(private val context: Context) {
             showTransactionTags = prefs.getBoolean("show_transaction_tags", true),
             longPressToEdit = prefs.getBoolean("long_press_to_edit", true),
             defaultReminderLeadDays = prefs.getInt("default_reminder_lead_days", 1),
+            defaultTxType = prefs.getString("default_tx_type", "EXPENSE") ?: "EXPENSE",
+            rememberLastCategory = prefs.getBoolean("remember_last_category", true),
+            confirmTxDelete = prefs.getBoolean("confirm_tx_delete", true),
+            groupByDate = prefs.getBoolean("group_by_date", true),
+            defaultAnalyticsPeriod = prefs.getString("default_analytics_period", "7D") ?: "7D",
+            defaultAnalyticsMode = prefs.getString("default_analytics_mode", "QUICK_STATS") ?: "QUICK_STATS",
+            budgetWarningThresholdPercent = prefs.getInt("budget_warning_threshold_pct", 80),
+            autoSuggestCategory = prefs.getBoolean("auto_suggest_category", true),
+            soundFeedbackEnabled = prefs.getBoolean("sound_feedback_enabled", false),
         )
     }
 
@@ -436,6 +463,42 @@ class AppSettingsManager private constructor(private val context: Context) {
             is AppSettingsIntent.UpdateDefaultReminderLeadDays -> {
                 prefs.edit().putInt("default_reminder_lead_days", intent.days).apply()
                 _state.value.copy(defaultReminderLeadDays = intent.days)
+            }
+            is AppSettingsIntent.UpdateDefaultTxType -> {
+                prefs.edit().putString("default_tx_type", intent.type).apply()
+                _state.value.copy(defaultTxType = intent.type)
+            }
+            is AppSettingsIntent.UpdateRememberLastCategory -> {
+                prefs.edit().putBoolean("remember_last_category", intent.enabled).apply()
+                _state.value.copy(rememberLastCategory = intent.enabled)
+            }
+            is AppSettingsIntent.UpdateConfirmTxDelete -> {
+                prefs.edit().putBoolean("confirm_tx_delete", intent.enabled).apply()
+                _state.value.copy(confirmTxDelete = intent.enabled)
+            }
+            is AppSettingsIntent.UpdateGroupByDate -> {
+                prefs.edit().putBoolean("group_by_date", intent.enabled).apply()
+                _state.value.copy(groupByDate = intent.enabled)
+            }
+            is AppSettingsIntent.UpdateDefaultAnalyticsPeriod -> {
+                prefs.edit().putString("default_analytics_period", intent.period).apply()
+                _state.value.copy(defaultAnalyticsPeriod = intent.period)
+            }
+            is AppSettingsIntent.UpdateDefaultAnalyticsMode -> {
+                prefs.edit().putString("default_analytics_mode", intent.mode).apply()
+                _state.value.copy(defaultAnalyticsMode = intent.mode)
+            }
+            is AppSettingsIntent.UpdateBudgetWarningThresholdPercent -> {
+                prefs.edit().putInt("budget_warning_threshold_pct", intent.percent).apply()
+                _state.value.copy(budgetWarningThresholdPercent = intent.percent)
+            }
+            is AppSettingsIntent.UpdateAutoSuggestCategory -> {
+                prefs.edit().putBoolean("auto_suggest_category", intent.enabled).apply()
+                _state.value.copy(autoSuggestCategory = intent.enabled)
+            }
+            is AppSettingsIntent.UpdateSoundFeedbackEnabled -> {
+                prefs.edit().putBoolean("sound_feedback_enabled", intent.enabled).apply()
+                _state.value.copy(soundFeedbackEnabled = intent.enabled)
             }
             is AppSettingsIntent.ReloadStateAfterWipe -> {
                 loadInitialState()

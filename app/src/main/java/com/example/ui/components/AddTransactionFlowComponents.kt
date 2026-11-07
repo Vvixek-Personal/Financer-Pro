@@ -75,6 +75,7 @@ fun AddExpenseDialog(
     rememberLastCategory: Boolean = true,
     lastUsedExpenseCategory: String? = null,
     lastUsedIncomeCategory: String? = null,
+    autoSuggestCategory: Boolean = true,
     gstReserveAmount: Double = 0.0,
     monthlySafeAmount: Double = 0.0,
     currencySymbol: String = "₹",
@@ -680,10 +681,47 @@ fun AddExpenseDialog(
                                 .testTag("expense_note_input")
                         )
 
+                        val activeCategoryList = if (type == "INCOME") {
+                            if (incomeCategories.isNotEmpty()) incomeCategories else listOf("Salary", "Freelance", "Investments", "Gifts", "Others")
+                        } else {
+                            if (expenseCategories.isNotEmpty()) expenseCategories else categories
+                        }
+                        val suggestedCat = if (autoSuggestCategory) {
+                            suggestCategoryFromNote(note, activeCategoryList)
+                        } else null
+
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp, end = 4.dp),
-                            horizontalArrangement = Arrangement.End
+                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
+                            if (suggestedCat != null && !suggestedCat.equals(category, ignoreCase = true)) {
+                                Surface(
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        category = suggestedCat
+                                    },
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = SleekPrimaryContainer.copy(alpha = 0.5f),
+                                    border = BorderStroke(1.dp, SleekPrimary.copy(alpha = 0.4f))
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text("✨", fontSize = 11.sp)
+                                        Text(
+                                            text = "Suggest: $suggestedCat",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = SleekPrimary
+                                        )
+                                    }
+                                }
+                            } else {
+                                Spacer(modifier = Modifier.width(1.dp))
+                            }
                             Text(
                                 text = "${note.length}/100",
                                 fontSize = 12.sp,
@@ -1351,5 +1389,36 @@ fun TransferAccountSelectorCard(
             }
         }
     }
+}
+
+/**
+ * Suggests an appropriate category based on keywords in the transaction note.
+ */
+fun suggestCategoryFromNote(note: String, availableCategories: List<String>): String? {
+    if (note.isBlank() || availableCategories.isEmpty()) return null
+    val lower = note.lowercase()
+
+    val keywordMap = mapOf(
+        listOf("coffee", "cafe", "tea", "starbucks", "food", "burger", "pizza", "lunch", "dinner", "breakfast", "meal", "restaurant", "swiggy", "zomato", "grocer", "supermarket", "snack") to listOf("Food", "Groceries", "Dining", "Meals"),
+        listOf("uber", "ola", "taxi", "cab", "metro", "bus", "train", "flight", "fuel", "petrol", "diesel", "gas", "parking", "toll", "commute") to listOf("Transport", "Transportation", "Travel", "Fuel"),
+        listOf("amazon", "flipkart", "shopping", "clothes", "shirt", "pant", "shoes", "mall", "purchase", "order") to listOf("Shopping", "Personal", "Clothing"),
+        listOf("electricity", "water", "wifi", "internet", "broadband", "recharge", "mobile", "phone", "bill", "rent", "maintenance", "gas bill") to listOf("Bills", "Utilities", "Housing", "Rent"),
+        listOf("movie", "cinema", "netflix", "spotify", "prime", "game", "gaming", "concert", "theatre", "fun") to listOf("Entertainment", "Leisure", "Subscriptions"),
+        listOf("doctor", "medicine", "pharmacy", "hospital", "clinic", "dental", "dentist", "health", "gym", "fitness", "workout") to listOf("Health", "Medical", "Healthcare", "Fitness"),
+        listOf("salary", "payroll", "wage", "stipend", "bonus", "earnings") to listOf("Salary", "Income", "Paycheck"),
+        listOf("freelance", "client", "gig", "contract", "upwork", "fiverr") to listOf("Freelance", "Side Hustle", "Business", "Income"),
+        listOf("dividend", "stock", "mutual fund", "interest", "crypto", "bitcoin", "returns") to listOf("Investment", "Investments", "Dividends")
+    )
+
+    for ((keywords, targetCategoryNames) in keywordMap) {
+        if (keywords.any { lower.contains(it) }) {
+            // Find first matching category available in the current categories list
+            for (target in targetCategoryNames) {
+                val found = availableCategories.find { it.equals(target, ignoreCase = true) }
+                if (found != null) return found
+            }
+        }
+    }
+    return null
 }
 

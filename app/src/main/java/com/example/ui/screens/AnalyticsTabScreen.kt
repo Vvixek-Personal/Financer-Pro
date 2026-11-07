@@ -66,22 +66,32 @@ fun AnalyticsTab(
     val statsCurrencyCode by viewModel.statsCurrencyCode.collectAsStateWithLifecycle()
     val statsCurrencySymbol by viewModel.statsCurrencySymbol.collectAsStateWithLifecycle()
 
+    val prefDefaultPeriod by viewModel.defaultAnalyticsPeriod.collectAsStateWithLifecycle()
+    val prefDefaultMode by viewModel.defaultAnalyticsMode.collectAsStateWithLifecycle()
+
     val context = LocalContext.current
     val sharedPrefs = remember(context) {
         context.getSharedPreferences(com.example.data.AppSettingsManager.PREFS_NAME, Context.MODE_PRIVATE)
     }
     val timeFilters = listOf("7D", "1M", "6M", "1Y", "All")
-    var selectedTimeFilter by remember {
-        val savedPreset = sharedPrefs.getString("analytics_time_filter", "7D") ?: "7D"
+    var selectedTimeFilter by remember(prefDefaultPeriod) {
+        val savedPreset = sharedPrefs.getString("analytics_time_filter", prefDefaultPeriod) ?: prefDefaultPeriod
         val effectivePreset = if (savedPreset == "30D") "1M" else savedPreset
-        mutableStateOf(if (effectivePreset in timeFilters || effectivePreset == "Custom") effectivePreset else "7D")
+        mutableStateOf(if (effectivePreset in timeFilters || effectivePreset == "Custom") effectivePreset else prefDefaultPeriod)
     }
     var customStartDateMs by remember { mutableStateOf<Long?>(null) }
     var customEndDateMs by remember { mutableStateOf<Long?>(null) }
     var showCustomDateRangePicker by remember { mutableStateOf(false) }
 
     var showExportDialog by remember { mutableStateOf(false) }
-    var analyticsMode by rememberSaveable { mutableStateOf(AnalyticsViewMode.QUICK_STATS) }
+    val initialMode = remember(prefDefaultMode) {
+        when (prefDefaultMode) {
+            "DEEP_ANALYTICS" -> AnalyticsViewMode.DEEP_ANALYTICS
+            "TRENDS_CASHFLOW" -> AnalyticsViewMode.TRENDS_CASHFLOW
+            else -> AnalyticsViewMode.QUICK_STATS
+        }
+    }
+    var analyticsMode by rememberSaveable(prefDefaultMode) { mutableStateOf(initialMode) }
 
     var inspectionMetric by remember { mutableStateOf<MetricInspectionData?>(null) }
     var activeCategoryDrillDown by remember { mutableStateOf<CategoryTrendSummary?>(null) }

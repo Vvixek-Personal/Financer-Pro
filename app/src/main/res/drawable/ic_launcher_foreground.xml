@@ -1,27 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  Adaptive-icon foreground: a simple ascending bars + spark mark drawn as a vector so the launcher
-  icon stays crisp at every density and never depends on a raster snapshot of a profile picture.
--->
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M36,62 h7 a2,2 0 0 1 2,2 v12 a2,2 0 0 1 -2,2 h-7 a2,2 0 0 1 -2,-2 v-12 a2,2 0 0 1 2,-2 z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M50,54 h7 a2,2 0 0 1 2,2 v20 a2,2 0 0 1 -2,2 h-7 a2,2 0 0 1 -2,-2 v-20 a2,2 0 0 1 2,-2 z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M64,44 h7 a2,2 0 0 1 2,2 v30 a2,2 0 0 1 -2,2 h-7 a2,2 0 0 1 -2,-2 v-30 a2,2 0 0 1 2,-2 z" />
-    <path
-        android:fillColor="#00000000"
-        android:pathData="M40,44 L54,34 L68,38 L74,26"
-        android:strokeColor="#99FFFFFF"
-        android:strokeWidth="3"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
-</vector>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:width="66dp"
+        android:height="66dp"
+        android:drawable="@drawable/app_launcher_icon_asset"
+        android:gravity="center" />
+</layer-list>

@@ -1829,85 +1829,143 @@ fun AllShortcutsTabScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        SettingsHeaderTitle("All Shortcuts & Actions", onBack)
+        SettingsHeaderTitle("All Shortcuts & Tools", onBack)
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             Text("QUICK TRANSACTIONS", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = SleekTextSecondary)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(onClick = onAddExpense, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = ExpenseRed), shape = RoundedCornerShape(14.dp)) {
-                    Icon(AppIcons.Add, contentDescription = null, tint = Color.White)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Add Expense", color = Color.White)
+                Button(
+                    onClick = onAddExpense,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = ExpenseRed),
+                    shape = RoundedCornerShape(16.dp),
+                    contentPadding = PaddingValues(vertical = 12.dp)
+                ) {
+                    Icon(AppIcons.TrendingDown, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Add Expense", color = Color.White, fontWeight = FontWeight.Bold)
                 }
-                Button(onClick = onAddIncome, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)), shape = RoundedCornerShape(14.dp)) {
-                    Icon(AppIcons.Add, contentDescription = null, tint = Color.White)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Add Income", color = Color.White)
+                Button(
+                    onClick = onAddIncome,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = IncomeGreen),
+                    shape = RoundedCornerShape(16.dp),
+                    contentPadding = PaddingValues(vertical = 12.dp)
+                ) {
+                    Icon(AppIcons.TrendingUp, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Add Income", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
 
-            Text("TOOLS & UTILITIES", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = SleekTextSecondary)
+            Text("CALCULATORS & UTILITIES", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = SleekTextSecondary)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(onClick = onQuickSplit, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, SleekBorder)) {
-                    Icon(AppIcons.ReceiptLong, contentDescription = null, tint = SleekPrimary)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Quick Split", color = SleekTextPrimary)
+                OutlinedButton(
+                    onClick = onQuickSplit,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.2.dp, Color(0xFF6366F1).copy(alpha = 0.4f)),
+                    colors = ButtonDefaults.outlinedButtonColors(containerColor = Color(0xFF6366F1).copy(alpha = 0.08f)),
+                    contentPadding = PaddingValues(vertical = 12.dp)
+                ) {
+                    Icon(AppIcons.CallSplit, contentDescription = null, tint = Color(0xFF6366F1), modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Quick Split", color = SleekTextPrimary, fontWeight = FontWeight.SemiBold)
                 }
-                OutlinedButton(onClick = onQuickConvert, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, SleekBorder)) {
-                    Icon(AppIcons.SwapHoriz, contentDescription = null, tint = SleekPrimary)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Currency", color = SleekTextPrimary)
+                OutlinedButton(
+                    onClick = onQuickConvert,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.2.dp, Color(0xFF0EA5E9).copy(alpha = 0.4f)),
+                    colors = ButtonDefaults.outlinedButtonColors(containerColor = Color(0xFF0EA5E9).copy(alpha = 0.08f)),
+                    contentPadding = PaddingValues(vertical = 12.dp)
+                ) {
+                    Icon(AppIcons.CurrencyExchange, contentDescription = null, tint = Color(0xFF0EA5E9), modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Currency", color = SleekTextPrimary, fontWeight = FontWeight.SemiBold)
                 }
             }
 
-            Text("MANAGEMENT", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = SleekTextSecondary)
+            Text("FINANCIAL MANAGEMENT", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = SleekTextSecondary)
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                ShortcutMenuRow("Saving Goals", "Track targets and contributions", AppIcons.Savings, onViewGoals)
-                ShortcutMenuRow("Transactions Ledger", "View and filter all records", AppIcons.ReceiptLong, onNavigateToExpenses)
-                ShortcutMenuRow("Analytics & Reports", "Charts, cash flow and breakdowns", AppIcons.Analytics, onNavigateToAnalytics)
-                ShortcutMenuRow("Bills & Subscriptions", "Manage recurring charges", AppIcons.CalendarToday, onBillsClick)
-                ShortcutMenuRow("Reminders & Alerts", "Payment notifications", AppIcons.Notifications, onReminderClick)
-                ShortcutMenuRow("Monthly Budget", "Set and manage spending limits", AppIcons.AccountBalanceWallet, onAdjustBudget)
-                ShortcutMenuRow("Activity Streak ($currentStreak days)", "View streak progress", AppIcons.LocalFireDepartment, onOpenStreak)
+                ShortcutMenuRow("Saving Goals", "Track targets and deposits", AppIcons.Savings, Color(0xFFF59E0B), onViewGoals)
+                ShortcutMenuRow("Transactions Ledger", "View, filter and edit all records", AppIcons.ReceiptLong, Color(0xFF3B82F6), onNavigateToExpenses)
+                ShortcutMenuRow("Analytics & Trends", "Inspect spending patterns, cash flow & health", AppIcons.Analytics, Color(0xFF8B5CF6), onNavigateToAnalytics)
+                ShortcutMenuRow("Bills & Subscriptions", if (hasBillDueToday) "⚠️ Bill due today!" else "Manage recurring monthly charges", AppIcons.CalendarToday, Color(0xFFEC4899), onBillsClick)
+                ShortcutMenuRow("Reminders & Alerts", "Scheduled bill and due date alerts", AppIcons.Notifications, Color(0xFF10B981), onReminderClick)
+                ShortcutMenuRow("Monthly Budget", "Set planned spending caps", AppIcons.AccountBalanceWallet, Color(0xFF14B8A6), onAdjustBudget)
+                ShortcutMenuRow("Activity Streak ($currentStreak days)", "Daily habit tracker and consistency", AppIcons.LocalFireDepartment, Color(0xFFF97316), onOpenStreak)
+            }
+
+            Text("QUICK SETTINGS SHORTCUTS", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = SleekTextSecondary)
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                ShortcutMenuRow("Net Worth & Assets", "Manage accounts, balance and assets", AppIcons.AccountBalance, Color(0xFF06B6D4)) {
+                    onOpenSettingsSubScreen(SettingsSubScreen.NetWorthAssets)
+                }
+                ShortcutMenuRow("Category Manager", "Customize and create icons", AppIcons.Category, Color(0xFF8B5CF6)) {
+                    onOpenSettingsSubScreen(SettingsSubScreen.CategoriesTags)
+                }
+                ShortcutMenuRow("Security & Passcode", "Lock app with PIN or Biometrics", AppIcons.Security, Color(0xFF6366F1)) {
+                    onOpenSettingsSubScreen(SettingsSubScreen.Security)
+                }
+                ShortcutMenuRow("Export & Backups", "Save CSV, JSON and graphic reports", AppIcons.FileDownload, Color(0xFF10B981)) {
+                    onOpenSettingsSubScreen(SettingsSubScreen.BackupRestore)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun ShortcutMenuRow(title: String, subtitle: String, icon: ImageVector, onClick: () -> Unit) {
+private fun ShortcutMenuRow(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    iconColor: Color = SleekPrimary,
+    onClick: () -> Unit
+) {
+    val haptic = LocalHapticFeedback.current
     Card(
-        onClick = onClick,
+        onClick = {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            onClick()
+        },
         colors = CardDefaults.cardColors(containerColor = SleekSurface),
         border = BorderStroke(1.dp, SleekBorder),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            modifier = Modifier.padding(14.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.weight(1f)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                modifier = Modifier.weight(1f)
+            ) {
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
-                        .background(SleekPrimaryContainer, CircleShape),
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(iconColor.copy(alpha = 0.15f))
+                        .border(1.dp, iconColor.copy(alpha = 0.35f), RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(icon, contentDescription = null, tint = SleekPrimary, modifier = Modifier.size(20.dp))
+                    Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(22.dp))
                 }
                 Column {
-                    Text(title, fontWeight = FontWeight.Bold, color = SleekTextPrimary)
-                    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = SleekTextSecondary)
+                    Text(title, fontWeight = FontWeight.Bold, color = SleekTextPrimary, fontSize = 14.sp)
+                    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = SleekTextSecondary, fontSize = 12.sp)
                 }
             }
-            Icon(AppIcons.ChevronRight, contentDescription = null, tint = SleekTextSecondary)
+            Icon(AppIcons.ChevronRight, contentDescription = null, tint = SleekTextSecondary, modifier = Modifier.size(18.dp))
         }
     }
 }

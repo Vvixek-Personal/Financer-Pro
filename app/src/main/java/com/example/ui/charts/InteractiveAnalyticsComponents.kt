@@ -527,6 +527,22 @@ fun InteractiveScorecardRow(
 ) {
     val haptic = LocalHapticFeedback.current
 
+    val animIncome by animateFloatAsState(
+        targetValue = comparison.currentIncome.toFloat(),
+        animationSpec = tween(500, easing = FastOutSlowInEasing),
+        label = "anim_income"
+    )
+    val animSpent by animateFloatAsState(
+        targetValue = comparison.currentSpent.toFloat(),
+        animationSpec = tween(500, easing = FastOutSlowInEasing),
+        label = "anim_spent"
+    )
+    val animNetFlow by animateFloatAsState(
+        targetValue = comparison.currentNetFlow.toFloat(),
+        animationSpec = tween(500, easing = FastOutSlowInEasing),
+        label = "anim_net_flow"
+    )
+
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -569,7 +585,7 @@ fun InteractiveScorecardRow(
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "$currencySymbol%,.0f".format(comparison.currentIncome),
+                    text = "$currencySymbol%,.0f".format(animIncome),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = IncomeGreen
@@ -622,7 +638,7 @@ fun InteractiveScorecardRow(
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "$currencySymbol%,.0f".format(comparison.currentSpent),
+                    text = "$currencySymbol%,.0f".format(animSpent),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = ExpenseRed
@@ -673,9 +689,9 @@ fun InteractiveScorecardRow(
                     Icon(AppIcons.OpenInFull, contentDescription = "Enlarge", tint = SleekTextSecondary, modifier = Modifier.size(12.dp))
                 }
                 Spacer(modifier = Modifier.height(4.dp))
-                val isPositive = comparison.currentNetFlow >= 0
+                val isPositive = animNetFlow >= 0
                 Text(
-                    text = if (isPositive) "+$currencySymbol%,.0f".format(comparison.currentNetFlow) else "-$currencySymbol%,.0f".format(abs(comparison.currentNetFlow)),
+                    text = if (isPositive) "+$currencySymbol%,.0f".format(animNetFlow) else "-$currencySymbol%,.0f".format(abs(animNetFlow)),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = if (isPositive) IncomeGreen else ExpenseRed
@@ -856,6 +872,12 @@ fun CategoryTrendsSection(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
+                                    val targetFill = (item.percentageOfTotal / 100.0).toFloat().coerceIn(0.02f, 1f)
+                                    val animBarFill by animateFloatAsState(
+                                        targetValue = targetFill,
+                                        animationSpec = tween(550, easing = FastOutSlowInEasing),
+                                        label = "cat_bar_${item.category}"
+                                    )
                                     Box(
                                         modifier = Modifier
                                             .weight(1f)
@@ -866,7 +888,7 @@ fun CategoryTrendsSection(
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxHeight()
-                                                .fillMaxWidth((item.percentageOfTotal / 100.0).toFloat().coerceIn(0.02f, 1f))
+                                                .fillMaxWidth(animBarFill)
                                                 .background(color)
                                         )
                                     }
@@ -1524,7 +1546,12 @@ fun SpendingPatternDetectionSection(
                             verticalAlignment = Alignment.Bottom
                         ) {
                             pattern.dayAverages.forEach { (day, amount) ->
-                                val ratio = (amount / maxDayVal).toFloat().coerceIn(0.08f, 1f)
+                                val targetRatio = (amount / maxDayVal).toFloat().coerceIn(0.08f, 1f)
+                                val animRatio by animateFloatAsState(
+                                    targetValue = targetRatio,
+                                    animationSpec = tween(500, easing = FastOutSlowInEasing),
+                                    label = "day_bar_$day"
+                                )
                                 val isPeak = day == pattern.peakDayName
 
                                 Column(
@@ -1543,7 +1570,7 @@ fun SpendingPatternDetectionSection(
                                     Box(
                                         modifier = Modifier
                                             .width(22.dp)
-                                            .height((56 * ratio).dp)
+                                            .height((56 * animRatio).dp)
                                             .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
                                             .background(
                                                 if (isPeak) Brush.verticalGradient(

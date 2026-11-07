@@ -84,6 +84,8 @@ class MainActivity : BaseActivity() {
             }
         }
 
+        handleShortcutIntent(intent)
+
         setContent {
             MyApplicationTheme {
                 // Re-apply the system bar icon colours whenever the in-app theme resolves, since
@@ -105,6 +107,20 @@ class MainActivity : BaseActivity() {
                 }
                 FinanceAppScreen(viewModel = viewModel)
             }
+        }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleShortcutIntent(intent)
+    }
+
+    private fun handleShortcutIntent(intent: android.content.Intent?) {
+        val shortcutAction = intent?.getStringExtra("action_shortcut")
+        if (!shortcutAction.isNullOrBlank()) {
+            viewModel.setPendingShortcutAction(shortcutAction)
+            intent.removeExtra("action_shortcut")
         }
     }
 

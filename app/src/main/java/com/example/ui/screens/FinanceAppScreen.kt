@@ -252,6 +252,11 @@ fun getCategoryIcon(category: String, customMap: Map<String, String> = emptyMap(
         "piechart", "budget" -> return AppIcons.PieChart
         "receipt", "tax" -> return AppIcons.Receipt
         "laptop", "computer" -> return AppIcons.Laptop
+        "beachaccess", "vacation", "holiday" -> return AppIcons.BeachAccess
+        "shoppingbag" -> return AppIcons.ShoppingBag
+        "payments", "cash" -> return AppIcons.Payments
+        "security", "insurance", "shield" -> return AppIcons.Security
+        "autograph", "growth", "stocks" -> return AppIcons.AutoGraph
         "category" -> return AppIcons.Category
     }
 
@@ -312,6 +317,7 @@ fun FinanceAppScreen(viewModel: FinanceViewModel) {
         LocalCompactLayout provides compactLayout
     ) {
         val backStack = remember { mutableStateListOf<Screen>(Screen.Dashboard) }
+    val appContext = LocalContext.current
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Dashboard) }
     val expenses by viewModel.expenses.collectAsStateWithLifecycle()
     val filteredExpenses by viewModel.filteredExpenses.collectAsStateWithLifecycle()
@@ -347,12 +353,38 @@ fun FinanceAppScreen(viewModel: FinanceViewModel) {
     var recordedTransactionInfo by remember { mutableStateOf<RecordedTransactionInfo?>(null) }
 
     var activeSettingsSubScreen by remember { mutableStateOf<SettingsSubScreen?>(null) }
+    val confirmTxDelete by viewModel.confirmTxDelete.collectAsStateWithLifecycle()
+    var expensePendingDelete by remember { mutableStateOf<Expense?>(null) }
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     var drawerFullscreen by remember { mutableStateOf(false) }
     val haptic = LocalHapticFeedback.current
     val hapticsEnabled by viewModel.hapticsEnabled.collectAsStateWithLifecycle()
+
+    val pendingShortcut by viewModel.pendingShortcutAction.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingShortcut) {
+        val action = pendingShortcut ?: return@LaunchedEffect
+        when (action) {
+            "add_expense" -> {
+                customTxTypeForAddDialog = "EXPENSE"
+                prefilledDateForAddDialog = null
+                showAddExpenseDialog = true
+            }
+            "add_income" -> {
+                customTxTypeForAddDialog = "INCOME"
+                prefilledDateForAddDialog = null
+                showAddExpenseDialog = true
+            }
+            "open_analytics" -> {
+                currentScreen = Screen.Analytics
+            }
+            "open_calendar" -> {
+                currentScreen = Screen.Calendar
+            }
+        }
+        viewModel.clearPendingShortcutAction()
+    }
 
     // Always reopen at normal width
     LaunchedEffect(drawerState.currentValue) {
@@ -697,6 +729,7 @@ fun FinanceAppScreen(viewModel: FinanceViewModel) {
                 val gstRateForDialog by viewModel.gstRatePercent.collectAsStateWithLifecycle()
                 val isMonthlySafeEnabledForDialog by viewModel.isMonthlySafeEnabled.collectAsStateWithLifecycle()
                 val monthlySafeAmountForDialog by viewModel.monthlySafeAmount.collectAsStateWithLifecycle()
+                val autoSuggestCategory by viewModel.autoSuggestCategory.collectAsStateWithLifecycle()
                 AddExpenseDialog(
                     prefilledDate = prefilledDateForAddDialog,
                     categories = allCategories,
@@ -708,6 +741,7 @@ fun FinanceAppScreen(viewModel: FinanceViewModel) {
                     rememberLastCategory = rememberLastCategory,
                     lastUsedExpenseCategory = lastUsedExpenseCategory,
                     lastUsedIncomeCategory = lastUsedIncomeCategory,
+                    autoSuggestCategory = autoSuggestCategory,
                     gstReserveAmount = if (isGstEnabledForDialog) viewModel.getGstReserveAmount() else 0.0,
                     monthlySafeAmount = if (isMonthlySafeEnabledForDialog) monthlySafeAmountForDialog else 0.0,
                     currencySymbol = currencySymbol,
@@ -735,6 +769,12 @@ fun FinanceAppScreen(viewModel: FinanceViewModel) {
                         )
                     },
                     onConfirm = { amount, category, date, note, imagePath, type ->
+                        if (viewModel.soundFeedbackEnabled.value) {
+                            try {
+                                val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager
+                                audioManager?.playSoundEffect(android.media.AudioManager.FX_KEY_CLICK, 0.7f)
+                            } catch (_: Exception) {}
+                        }
                         viewModel.addExpense(amount, category, date, note, imagePath, type, selectedCurrencyCode)
                         viewModel.refreshUsageData()
                         showAddExpenseDialog = false
@@ -796,9 +836,56 @@ fun FinanceAppScreen(viewModel: FinanceViewModel) {
                         val target = viewingDetailExpense
                         viewingDetailExpense = null
                         if (target != null) {
-                            viewModel.deleteExpense(target)
+                            if (confirmTxDelete) {
+                                expensePendingDelete = target
+                            } else {
+                                viewModel.deleteExpense(target)
+                            }
                         }
                     }
+                )
+            }
+
+            val pendingDel = expensePendingDelete
+            if (pendingDel != null) {
+                AlertDialog(
+                    onDismissRequest = { expensePendingDelete = null },
+                    title = {
+                        Text("Delete Transaction?", fontWeight = FontWeight.Bold, color = SleekTextPrimary)
+                    },
+                    text = {
+                        Text(
+                            text = "Are you sure you want to delete this ${pendingDel.category} entry of $currencySymbol%,.2f? You can also undo this action within 5 seconds.".format(pendingDel.amount),
+                            color = SleekTextSecondary,
+                            fontSize = 14.sp
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                val toDelete = expensePendingDelete
+                                expensePendingDelete = null
+                                if (toDelete != null) {
+                                    viewModel.deleteExpense(toDelete)
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = ExpenseRed),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Delete", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    dismissButton = {
+                        OutlinedButton(
+                            onClick = { expensePendingDelete = null },
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, SleekBorder)
+                        ) {
+                            Text("Cancel", color = SleekTextPrimary)
+                        }
+                    },
+                    containerColor = SleekSurface,
+                    shape = RoundedCornerShape(20.dp)
                 )
             }
 

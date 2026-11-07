@@ -39,6 +39,10 @@ fun TransactionSettingsScreen(
     val highAmountEnabled by viewModel.highAmountWarningEnabled.collectAsStateWithLifecycle()
     val highAmountThreshold by viewModel.highAmountThreshold.collectAsStateWithLifecycle()
     val currencySymbol by viewModel.selectedCurrencySymbol.collectAsStateWithLifecycle()
+    val autoSuggestCategory by viewModel.autoSuggestCategory.collectAsStateWithLifecycle()
+    val defaultAnalyticsPeriod by viewModel.defaultAnalyticsPeriod.collectAsStateWithLifecycle()
+    val defaultAnalyticsMode by viewModel.defaultAnalyticsMode.collectAsStateWithLifecycle()
+    val soundFeedbackEnabled by viewModel.soundFeedbackEnabled.collectAsStateWithLifecycle()
 
     var thresholdInput by remember(highAmountThreshold) { mutableStateOf(highAmountThreshold.toInt().toString()) }
 
@@ -137,6 +141,110 @@ fun TransactionSettingsScreen(
                         Switch(
                             checked = rememberLastCategory,
                             onCheckedChange = { viewModel.toggleRememberLastCategory(it) }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                    HorizontalDivider(color = SleekBorder, thickness = 0.8.dp)
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Smart Category Auto-Suggest", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = SleekTextPrimary)
+                            Text("Infer categories from transaction descriptions (e.g. 'Coffee', 'Uber')", style = MaterialTheme.typography.bodySmall, color = SleekTextSecondary)
+                        }
+                        Switch(
+                            checked = autoSuggestCategory,
+                            onCheckedChange = { viewModel.toggleAutoSuggestCategory(it) }
+                        )
+                    }
+                }
+            }
+
+            // Analytics & Feedback Defaults Card
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = SleekSurface),
+                border = BorderStroke(1.dp, SleekBorder),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Analytics & Experience",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = SleekTextPrimary
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text("Default Analytics Period", style = MaterialTheme.typography.bodySmall, color = SleekTextSecondary)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf("7D", "1M", "6M", "1Y", "All").forEach { period ->
+                            val isSelected = defaultAnalyticsPeriod.equals(period, ignoreCase = true)
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { viewModel.updateDefaultAnalyticsPeriod(period) },
+                                label = { Text(period, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = SleekPrimary,
+                                    selectedLabelColor = Color.White
+                                )
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                    HorizontalDivider(color = SleekBorder, thickness = 0.8.dp)
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text("Default Analytics View Mode", style = MaterialTheme.typography.bodySmall, color = SleekTextSecondary)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(
+                            "QUICK_STATS" to "Quick Stats",
+                            "DEEP_ANALYTICS" to "Deep Insights",
+                            "TRENDS_CASHFLOW" to "Trends"
+                        ).forEach { (modeKey, label) ->
+                            val isSelected = defaultAnalyticsMode.equals(modeKey, ignoreCase = true)
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { viewModel.updateDefaultAnalyticsMode(modeKey) },
+                                label = { Text(label, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = SleekPrimary,
+                                    selectedLabelColor = Color.White
+                                )
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                    HorizontalDivider(color = SleekBorder, thickness = 0.8.dp)
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Audio Click Feedback", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = SleekTextPrimary)
+                            Text("Play subtle system audio click on key actions", style = MaterialTheme.typography.bodySmall, color = SleekTextSecondary)
+                        }
+                        Switch(
+                            checked = soundFeedbackEnabled,
+                            onCheckedChange = { viewModel.toggleSoundFeedbackEnabled(it) }
                         )
                     }
                 }

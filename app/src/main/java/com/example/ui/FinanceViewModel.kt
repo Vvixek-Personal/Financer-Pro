@@ -446,6 +446,18 @@ class FinanceViewModel(
         _showStreakDialog.value = true
     }
 
+    // Android Launcher App Shortcuts pending action
+    private val _pendingShortcutAction = MutableStateFlow<String?>(null)
+    val pendingShortcutAction: StateFlow<String?> = _pendingShortcutAction.asStateFlow()
+
+    fun setPendingShortcutAction(action: String?) {
+        _pendingShortcutAction.value = action
+    }
+
+    fun clearPendingShortcutAction() {
+        _pendingShortcutAction.value = null
+    }
+
     private fun checkAndCalculateDailyStreak() {
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val todayStr = sdf.format(Date())
@@ -743,8 +755,23 @@ class FinanceViewModel(
     private val _confirmTxDelete = MutableStateFlow(true)
     val confirmTxDelete: StateFlow<Boolean> = _confirmTxDelete.asStateFlow()
 
-    private val _groupByDate = MutableStateFlow(true)
+    private val _groupByDate = MutableStateFlow(appSettingsManager.state.value.groupByDate)
     val groupByDate: StateFlow<Boolean> = _groupByDate.asStateFlow()
+
+    private val _defaultAnalyticsPeriod = MutableStateFlow(appSettingsManager.state.value.defaultAnalyticsPeriod)
+    val defaultAnalyticsPeriod: StateFlow<String> = _defaultAnalyticsPeriod.asStateFlow()
+
+    private val _defaultAnalyticsMode = MutableStateFlow(appSettingsManager.state.value.defaultAnalyticsMode)
+    val defaultAnalyticsMode: StateFlow<String> = _defaultAnalyticsMode.asStateFlow()
+
+    private val _budgetWarningThresholdPercent = MutableStateFlow(appSettingsManager.state.value.budgetWarningThresholdPercent)
+    val budgetWarningThresholdPercent: StateFlow<Int> = _budgetWarningThresholdPercent.asStateFlow()
+
+    private val _autoSuggestCategory = MutableStateFlow(appSettingsManager.state.value.autoSuggestCategory)
+    val autoSuggestCategory: StateFlow<Boolean> = _autoSuggestCategory.asStateFlow()
+
+    private val _soundFeedbackEnabled = MutableStateFlow(appSettingsManager.state.value.soundFeedbackEnabled)
+    val soundFeedbackEnabled: StateFlow<Boolean> = _soundFeedbackEnabled.asStateFlow()
 
     // Security & Privacy Preferences
     private val _lockOnRestart = MutableStateFlow(true)
@@ -961,6 +988,15 @@ class FinanceViewModel(
                 _quickAddEnabled.value = settings.quickAddEnabled
                 _showTransactionTags.value = settings.showTransactionTags
                 _longPressToEdit.value = settings.longPressToEdit
+                _defaultTxType.value = settings.defaultTxType
+                _rememberLastCategory.value = settings.rememberLastCategory
+                _confirmTxDelete.value = settings.confirmTxDelete
+                _groupByDate.value = settings.groupByDate
+                _defaultAnalyticsPeriod.value = settings.defaultAnalyticsPeriod
+                _defaultAnalyticsMode.value = settings.defaultAnalyticsMode
+                _budgetWarningThresholdPercent.value = settings.budgetWarningThresholdPercent
+                _autoSuggestCategory.value = settings.autoSuggestCategory
+                _soundFeedbackEnabled.value = settings.soundFeedbackEnabled
                 com.example.data.UiPrefs.syncFrom(settings)
                 syncRowMask()
             }
@@ -1616,22 +1652,47 @@ class FinanceViewModel(
 
     fun updateDefaultTxType(type: String) {
         _defaultTxType.value = type
-        sharedPrefs.edit().putString("default_tx_type", type).apply()
+        appSettingsManager.dispatch(AppSettingsIntent.UpdateDefaultTxType(type))
     }
 
     fun toggleRememberLastCategory(enabled: Boolean) {
         _rememberLastCategory.value = enabled
-        sharedPrefs.edit().putBoolean("remember_last_category", enabled).apply()
+        appSettingsManager.dispatch(AppSettingsIntent.UpdateRememberLastCategory(enabled))
     }
 
     fun toggleConfirmTxDelete(enabled: Boolean) {
         _confirmTxDelete.value = enabled
-        sharedPrefs.edit().putBoolean("confirm_tx_delete", enabled).apply()
+        appSettingsManager.dispatch(AppSettingsIntent.UpdateConfirmTxDelete(enabled))
     }
 
     fun toggleGroupByDate(enabled: Boolean) {
         _groupByDate.value = enabled
-        sharedPrefs.edit().putBoolean("group_by_date", enabled).apply()
+        appSettingsManager.dispatch(AppSettingsIntent.UpdateGroupByDate(enabled))
+    }
+
+    fun updateDefaultAnalyticsPeriod(period: String) {
+        _defaultAnalyticsPeriod.value = period
+        appSettingsManager.dispatch(AppSettingsIntent.UpdateDefaultAnalyticsPeriod(period))
+    }
+
+    fun updateDefaultAnalyticsMode(mode: String) {
+        _defaultAnalyticsMode.value = mode
+        appSettingsManager.dispatch(AppSettingsIntent.UpdateDefaultAnalyticsMode(mode))
+    }
+
+    fun updateBudgetWarningThresholdPercent(percent: Int) {
+        _budgetWarningThresholdPercent.value = percent
+        appSettingsManager.dispatch(AppSettingsIntent.UpdateBudgetWarningThresholdPercent(percent))
+    }
+
+    fun toggleAutoSuggestCategory(enabled: Boolean) {
+        _autoSuggestCategory.value = enabled
+        appSettingsManager.dispatch(AppSettingsIntent.UpdateAutoSuggestCategory(enabled))
+    }
+
+    fun toggleSoundFeedbackEnabled(enabled: Boolean) {
+        _soundFeedbackEnabled.value = enabled
+        appSettingsManager.dispatch(AppSettingsIntent.UpdateSoundFeedbackEnabled(enabled))
     }
 
     /**
