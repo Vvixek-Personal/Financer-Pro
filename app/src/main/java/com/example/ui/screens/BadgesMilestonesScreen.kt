@@ -111,7 +111,7 @@ private fun buildAchievements(
             id = "txn_250",
             title = "Ledger Master",
             description = "Track 250 transactions",
-            icon = AppIcons.MenuBookNotUsed,
+            icon = AppIcons.MenuBook,
             accent = Color(0xFF4F46E5),
             progress = p(totalTransactions, 250),
             progressLabel = "$totalTransactions of 250"

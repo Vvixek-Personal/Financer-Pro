@@ -258,6 +258,12 @@ fun getCategoryIcon(category: String, customMap: Map<String, String> = emptyMap(
         "security", "insurance", "shield" -> return AppIcons.Security
         "autograph", "growth", "stocks" -> return AppIcons.AutoGraph
         "category" -> return AppIcons.Category
+        "autorenew", "subscription", "recurring" -> return AppIcons.Autorenew
+        "calculate", "calculator", "math" -> return AppIcons.Calculate
+        "accountbalancewallet", "wallet" -> return AppIcons.AccountBalanceWallet
+        "favorite", "heart" -> return AppIcons.Favorite
+        "notifications", "alert" -> return AppIcons.Notifications
+        "verifieduser", "verified" -> return AppIcons.VerifiedUser
     }
 
     // 2. Keyword heuristic matching

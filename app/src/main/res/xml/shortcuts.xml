@@ -8,7 +8,7 @@
         android:shortcutLongLabel="@string/shortcut_add_expense_long">
         <intent
             android:action="android.intent.action.VIEW"
-            android:targetPackage="com.example"
+            android:targetPackage="com.aistudio.financetracker.vmpzqd"
             android:targetClass="com.example.MainActivity">
             <extra android:name="action_shortcut" android:value="add_expense" />
         </intent>
@@ -23,7 +23,7 @@
         android:shortcutLongLabel="@string/shortcut_add_income_long">
         <intent
             android:action="android.intent.action.VIEW"
-            android:targetPackage="com.example"
+            android:targetPackage="com.aistudio.financetracker.vmpzqd"
             android:targetClass="com.example.MainActivity">
             <extra android:name="action_shortcut" android:value="add_income" />
         </intent>
@@ -38,7 +38,7 @@
         android:shortcutLongLabel="@string/shortcut_analytics_long">
         <intent
             android:action="android.intent.action.VIEW"
-            android:targetPackage="com.example"
+            android:targetPackage="com.aistudio.financetracker.vmpzqd"
             android:targetClass="com.example.MainActivity">
             <extra android:name="action_shortcut" android:value="open_analytics" />
         </intent>
@@ -52,7 +52,7 @@
         android:shortcutLongLabel="@string/shortcut_calendar_long">
         <intent
             android:action="android.intent.action.VIEW"
-            android:targetPackage="com.example"
+            android:targetPackage="com.aistudio.financetracker.vmpzqd"
             android:targetClass="com.example.MainActivity">
             <extra android:name="action_shortcut" android:value="open_calendar" />
         </intent>

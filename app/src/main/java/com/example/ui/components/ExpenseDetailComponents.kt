@@ -477,7 +477,6 @@ fun ExpenseDetailContent(
                                 // Avatar circle
                                 val avatarBg = if (isIncome) incomeGreen.copy(alpha = 0.15f) else expenseRed.copy(alpha = 0.15f)
                                 val avatarTint = if (isIncome) incomeGreen else expenseRed
-                                val emoji = getCategoryEmoji(expense.category, categoryIcons)
 
                                 Box(
                                     modifier = Modifier
@@ -486,16 +485,12 @@ fun ExpenseDetailContent(
                                         .background(avatarBg),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    if (emoji.isNotBlank()) {
-                                        Text(text = emoji, fontSize = 22.sp)
-                                    } else {
-                                        Icon(
-                                            imageVector = getCategoryIcon(expense.category, categoryIcons),
-                                            contentDescription = expense.category,
-                                            tint = avatarTint,
-                                            modifier = Modifier.size(26.dp)
-                                        )
-                                    }
+                                    Icon(
+                                        imageVector = getCategoryIcon(expense.category, categoryIcons),
+                                        contentDescription = expense.category,
+                                        tint = avatarTint,
+                                        modifier = Modifier.size(26.dp)
+                                    )
                                 }
 
                                 Column(modifier = Modifier.weight(1f)) {

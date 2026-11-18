@@ -1120,9 +1120,11 @@ fun EnhancedCalendarTab(
                                     .background(catColor.copy(alpha = 0.15f)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(
-                                    text = getCategoryEmoji(expense.category, categoryIcons),
-                                    fontSize = 18.sp
+                                Icon(
+                                    imageVector = getCategoryIcon(expense.category, categoryIcons),
+                                    contentDescription = expense.category,
+                                    tint = catColor,
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
 
@@ -1462,7 +1464,21 @@ fun AgendaAllTransactionsView(
                                         .padding(10.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(getCategoryEmoji(tx.category, categoryIcons), fontSize = 16.sp)
+                                    val txColor = getCategoryColor(tx.category)
+                                    Box(
+                                        modifier = Modifier
+                                            .size(30.dp)
+                                            .clip(CircleShape)
+                                            .background(txColor.copy(alpha = 0.14f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = getCategoryIcon(tx.category, categoryIcons),
+                                            contentDescription = tx.category,
+                                            tint = txColor,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
                                     Spacer(modifier = Modifier.width(10.dp))
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
@@ -1755,7 +1771,21 @@ fun MonthTransactionsModalSheet(
                                 .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(getCategoryEmoji(tx.category, categoryIcons), fontSize = 18.sp)
+                            val txColor = getCategoryColor(tx.category)
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .background(txColor.copy(alpha = 0.14f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = getCategoryIcon(tx.category, categoryIcons),
+                                    contentDescription = tx.category,
+                                    tint = txColor,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                             Spacer(modifier = Modifier.width(10.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(

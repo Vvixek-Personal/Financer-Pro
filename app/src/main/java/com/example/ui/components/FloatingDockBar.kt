@@ -66,10 +66,10 @@ fun FloatingDockBar(
 
     val screens = remember {
         listOf(
-            Triple(Screen.Dashboard, AppIcons.Dashboard, "Home"),
-            Triple(Screen.Expenses, AppIcons.ReceiptLong, "Transactions"),
-            Triple(Screen.Analytics, AppIcons.PieChart, "Analytics"),
-            Triple(Screen.Calendar, AppIcons.CalendarMonth, "Calendar")
+            DockNavItem(Screen.Dashboard, AppIcons.Dashboard, AppIcons.Filled.Dashboard, "Home"),
+            DockNavItem(Screen.Expenses, AppIcons.ReceiptLong, AppIcons.Filled.ReceiptLong, "Transactions"),
+            DockNavItem(Screen.Analytics, AppIcons.PieChart, AppIcons.Filled.PieChart, "Analytics"),
+            DockNavItem(Screen.Calendar, AppIcons.CalendarMonth, AppIcons.Filled.CalendarMonth, "Calendar")
         )
     }
 
@@ -108,17 +108,17 @@ fun FloatingDockBar(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                screens.forEach { (screen, icon, titleKey) ->
-                    val isSelected = currentScreen == screen
+                screens.forEach { item ->
+                    val isSelected = currentScreen == item.screen
                     DockTile(
-                        icon = icon,
-                        title = LanguageManager.tr(titleKey, selectedLanguage),
+                        icon = if (isSelected) item.filledIcon else item.outlinedIcon,
+                        title = LanguageManager.tr(item.titleKey, selectedLanguage),
                         isSelected = isSelected,
                         showLabel = isSelected && !compactDock,
-                        testTag = "nav_item_${screen.route}",
+                        testTag = "nav_item_${item.screen.route}",
                         onClick = {
                             if (hapticsEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onScreenSelected(screen)
+                            onScreenSelected(item.screen)
                         }
                     )
                 }
@@ -126,6 +126,13 @@ fun FloatingDockBar(
         }
     }
 }
+
+private data class DockNavItem(
+    val screen: Screen,
+    val outlinedIcon: ImageVector,
+    val filledIcon: ImageVector,
+    val titleKey: String
+)
 
 @Composable
 private fun DockTile(

@@ -521,7 +521,6 @@ fun AddExpenseDialog(
                             }
                         )
                     } else {
-                        val categoryEmoji = getCategoryEmoji(category, categoryIcons)
                         Card(
                             shape = SleekShapes.card,
                             colors = CardDefaults.cardColors(containerColor = SleekBg),
@@ -1370,7 +1369,6 @@ fun CategoryGridSection(
             ) {
                 rowItems.forEach { cat ->
                     val isSelected = cat == selectedCategory
-                    val emoji = getCategoryEmoji(cat, categoryIcons)
 
                     val catIcon = getCategoryIcon(cat, categoryIcons)
                     val catColor = getCategoryColor(cat)

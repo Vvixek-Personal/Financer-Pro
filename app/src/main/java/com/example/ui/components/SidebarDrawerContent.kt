@@ -644,13 +644,25 @@ fun SidebarDrawerContent(
                             color = if (isDarkModeActive) Color(0xFFF97316).copy(alpha = 0.18f) else Color(0xFFFFF7ED),
                             border = BorderStroke(1.dp, Color(0xFFF97316).copy(alpha = 0.5f))
                         ) {
-                            Text(
-                                text = "🔥 $currentStreak " + LanguageManager.tr("Day Streak", selectedLanguage),
-                                fontSize = 10.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isDarkModeActive) Color(0xFFFDBA74) else Color(0xFFC2410C),
+                            val streakColor = if (isDarkModeActive) Color(0xFFFDBA74) else Color(0xFFC2410C)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp),
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
+                            ) {
+                                Icon(
+                                    imageVector = AppIcons.LocalFireDepartment,
+                                    contentDescription = null,
+                                    tint = streakColor,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Text(
+                                    text = "$currentStreak " + LanguageManager.tr("Day Streak", selectedLanguage),
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = streakColor
+                                )
+                            }
                         }
 
                         Surface(
@@ -658,13 +670,25 @@ fun SidebarDrawerContent(
                             color = if (isDarkModeActive) Color(0xFF10B981).copy(alpha = 0.16f) else Color(0xFFECFDF5),
                             border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.4f))
                         ) {
-                            Text(
-                                text = "🛡️ " + LanguageManager.tr("100% Offline", selectedLanguage),
-                                fontSize = 10.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isDarkModeActive) Color(0xFF6EE7B7) else Color(0xFF047857),
+                            val offlineColor = if (isDarkModeActive) Color(0xFF6EE7B7) else Color(0xFF047857)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp),
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
+                            ) {
+                                Icon(
+                                    imageVector = AppIcons.Shield,
+                                    contentDescription = null,
+                                    tint = offlineColor,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Text(
+                                    text = LanguageManager.tr("100% Offline", selectedLanguage),
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = offlineColor
+                                )
+                            }
                         }
                     }
                 }

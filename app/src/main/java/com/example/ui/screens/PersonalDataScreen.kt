@@ -394,16 +394,19 @@ private fun ProfileHeaderSection(
 
                 Spacer(modifier = Modifier.width(6.dp))
 
-                // Crown Icon Badge 👑
+                // Pro Achievement Badge
                 Surface(
                     shape = RoundedCornerShape(6.dp),
                     color = if (isDark) Color(0xFFF59E0B).copy(alpha = 0.16f) else Color(0xFFFEF3C7),
                     border = BorderStroke(1.dp, if (isDark) Color(0xFFF59E0B).copy(alpha = 0.4f) else Color(0xFFF59E0B).copy(alpha = 0.6f))
                 ) {
-                    Text(
-                        text = "👑",
-                        fontSize = 11.sp,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                    Icon(
+                        imageVector = AppIcons.EmojiEvents,
+                        contentDescription = "Pro",
+                        tint = if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706),
+                        modifier = Modifier
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                            .size(12.dp)
                     )
                 }
 

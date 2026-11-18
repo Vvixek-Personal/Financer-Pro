@@ -1087,11 +1087,22 @@ fun CategoriesTagsScreen(
                             "Event" to AppIcons.Event,
                             "Construction" to AppIcons.Construction,
                             "Security" to AppIcons.Security,
-                            "Star" to AppIcons.Star
+                            "Star" to AppIcons.Star,
+                            "Autorenew" to AppIcons.Autorenew,
+                            "Category" to AppIcons.Category,
+                            "AccountBalanceWallet" to AppIcons.AccountBalanceWallet,
+                            "Calculate" to AppIcons.Calculate,
+                            "Favorite" to AppIcons.Favorite,
+                            "Notifications" to AppIcons.Notifications,
+                            "VerifiedUser" to AppIcons.VerifiedUser
                         )
                     }
                     var selectedIconName by remember(editingCat) {
-                        mutableStateOf(categoryIcons[editingCat] ?: "Restaurant")
+                        val currentVector = getCategoryIcon(editingCat!!, categoryIcons)
+                        val matchedName = categoryIcons[editingCat]
+                            ?: availableIcons.firstOrNull { it.second == currentVector }?.first
+                            ?: "Category"
+                        mutableStateOf(matchedName)
                     }
 
                     Column(
@@ -2166,22 +2177,14 @@ fun BudgetSettingsScreen(
                             }
                         }
 
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Switch(
-                                checked = masterWarnings,
-                                onCheckedChange = { enable ->
-                                    viewModel.toggleBudgetWarning(80, enable)
-                                    viewModel.toggleBudgetWarning(90, enable)
-                                    viewModel.toggleBudgetWarning(100, enable)
-                                }
-                            )
-                            Icon(
-                                imageVector = AppIcons.ChevronRight,
-                                contentDescription = null,
-                                tint = SleekTextSecondary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
+                        Switch(
+                            checked = masterWarnings,
+                            onCheckedChange = { enable ->
+                                viewModel.toggleBudgetWarning(80, enable)
+                                viewModel.toggleBudgetWarning(90, enable)
+                                viewModel.toggleBudgetWarning(100, enable)
+                            }
+                        )
                     }
 
                     HorizontalDivider(color = SleekBorder.copy(alpha = 0.6f), modifier = Modifier.padding(vertical = 4.dp))
@@ -2229,18 +2232,10 @@ fun BudgetSettingsScreen(
                             }
                         }
 
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Switch(
-                                checked = warn80,
-                                onCheckedChange = { viewModel.toggleBudgetWarning(80, it) }
-                            )
-                            Icon(
-                                imageVector = AppIcons.ChevronRight,
-                                contentDescription = null,
-                                tint = SleekTextSecondary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
+                        Switch(
+                            checked = warn80,
+                            onCheckedChange = { viewModel.toggleBudgetWarning(80, it) }
+                        )
                     }
 
                     HorizontalDivider(color = SleekBorder.copy(alpha = 0.6f), modifier = Modifier.padding(vertical = 4.dp))
@@ -2288,18 +2283,10 @@ fun BudgetSettingsScreen(
                             }
                         }
 
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Switch(
-                                checked = warn90,
-                                onCheckedChange = { viewModel.toggleBudgetWarning(90, it) }
-                            )
-                            Icon(
-                                imageVector = AppIcons.ChevronRight,
-                                contentDescription = null,
-                                tint = SleekTextSecondary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
+                        Switch(
+                            checked = warn90,
+                            onCheckedChange = { viewModel.toggleBudgetWarning(90, it) }
+                        )
                     }
 
                     HorizontalDivider(color = SleekBorder.copy(alpha = 0.6f), modifier = Modifier.padding(vertical = 4.dp))
@@ -2347,18 +2334,10 @@ fun BudgetSettingsScreen(
                             }
                         }
 
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Switch(
-                                checked = warn100,
-                                onCheckedChange = { viewModel.toggleBudgetWarning(100, it) }
-                            )
-                            Icon(
-                                imageVector = AppIcons.ChevronRight,
-                                contentDescription = null,
-                                tint = SleekTextSecondary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
+                        Switch(
+                            checked = warn100,
+                            onCheckedChange = { viewModel.toggleBudgetWarning(100, it) }
+                        )
                     }
 
                     HorizontalDivider(color = SleekBorder.copy(alpha = 0.6f), modifier = Modifier.padding(vertical = 8.dp))

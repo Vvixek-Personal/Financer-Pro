@@ -3,6 +3,7 @@ package com.example.ui
 import com.example.ui.theme.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.*
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.ui.graphics.vector.ImageVector
 
@@ -64,7 +65,7 @@ object AppIcons {
     val DarkMode: ImageVector get() = Icons.Outlined.DarkMode
     val Flag: ImageVector get() = Icons.Outlined.Flag
     val VerifiedUser: ImageVector get() = Icons.Outlined.VerifiedUser
-    val MenuBookNotUsed: ImageVector get() = Icons.Outlined.MenuBook
+    val MenuBook: ImageVector get() = Icons.Outlined.MenuBook
     val Dashboard: ImageVector get() = Icons.Outlined.Dashboard
     val DateRange: ImageVector get() = Icons.Outlined.DateRange
     val Delete: ImageVector get() = Icons.Outlined.Delete
@@ -193,4 +194,23 @@ object AppIcons {
     val Whatshot: ImageVector get() = Icons.Outlined.Whatshot
     val Work: ImageVector get() = Icons.Outlined.Work
     val ZoomIn: ImageVector get() = Icons.Outlined.ZoomIn
+
+    /**
+     * Filled icon variants for active navigation tabs and high-emphasis selected states.
+     */
+    object Filled {
+        val AccountBalanceWallet: ImageVector get() = Icons.Filled.AccountBalanceWallet
+        val Analytics: ImageVector get() = Icons.Filled.Analytics
+        val CalendarMonth: ImageVector get() = Icons.Filled.CalendarMonth
+        val CheckCircle: ImageVector get() = Icons.Filled.CheckCircle
+        val Dashboard: ImageVector get() = Icons.Filled.Dashboard
+        val Favorite: ImageVector get() = Icons.Filled.Favorite
+        val Home: ImageVector get() = Icons.Filled.Home
+        val Notifications: ImageVector get() = Icons.Filled.Notifications
+        val PieChart: ImageVector get() = Icons.Filled.PieChart
+        val ReceiptLong: ImageVector get() = Icons.Filled.ReceiptLong
+        val Savings: ImageVector get() = Icons.Filled.Savings
+        val Settings: ImageVector get() = Icons.Filled.Settings
+        val Star: ImageVector get() = Icons.Filled.Star
+    }
 }

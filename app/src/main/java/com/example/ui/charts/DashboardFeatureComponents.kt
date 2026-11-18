@@ -1368,7 +1368,12 @@ fun SavingsGoalsMiniCarouselWidget(
                             .background(Color(0xFFF59E0B).copy(alpha = 0.15f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("🎯", fontSize = 22.sp)
+                        Icon(
+                            imageVector = AppIcons.TrackChanges,
+                            contentDescription = "Financial Goals",
+                            tint = Color(0xFFF59E0B),
+                            modifier = Modifier.size(22.dp)
+                        )
                     }
                     Column {
                         Text(

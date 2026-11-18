@@ -417,7 +417,13 @@ fun DashboardTab(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
                     ) {
-                        Text(text = "🧠", fontSize = 12.sp)
+                        Icon(
+                            imageVector = AppIcons.HealthAndSafety,
+                            contentDescription = "Health Score",
+                            tint = if (isDarkModeActive) lighten(Color(healthScore.ratingColorHex), 0.25f)
+                            else Color(healthScore.ratingColorHex),
+                            modifier = Modifier.size(14.dp)
+                        )
                         Text(
                             text = "${healthScore.overallScore}",
                             fontSize = 13.sp,
@@ -1598,7 +1604,8 @@ fun CategorySelectorGrid(
     ) {
         categories.forEach { cat ->
             val isSelected = cat == selectedCategory
-            val emoji = getCategoryEmoji(cat, categoryIcons)
+            val catIcon = getCategoryIcon(cat, categoryIcons)
+            val catColor = categoryColors[cat] ?: getCategoryColor(cat)
             
             val isDefault = listOf("Food", "Travel", "Rent", "Utilities", "Entertainment", "Shopping", "Persons", "Others", "Salary", "Freelance", "Investments", "Gifts").contains(cat)
             
@@ -1631,7 +1638,12 @@ fun CategorySelectorGrid(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text(emoji, fontSize = 16.sp)
+                    Icon(
+                        imageVector = catIcon,
+                        contentDescription = null,
+                        tint = if (isSelected) SleekPrimary else catColor,
+                        modifier = Modifier.size(16.dp)
+                    )
                     Text(
                         text = cat,
                         style = MaterialTheme.typography.bodyMedium,

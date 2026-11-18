@@ -1576,9 +1576,9 @@ fun AddEditSavingsGoalDialog(
                 // Custom Date Button
                 val customDateText = remember(customDeadlineMs) {
                     if (customDeadlineMs != null && customDeadlineMs!! > 0L) {
-                        "📅 " + com.example.data.UiPrefs.formatDate(customDeadlineMs!!)
+                        com.example.data.UiPrefs.formatDate(customDeadlineMs!!)
                     } else {
-                        "📅 Choose Custom Date"
+                        "Choose Custom Date"
                     }
                 }
                 val isCustomSelected = selectedPresetMonths == -1
@@ -1609,6 +1609,13 @@ fun AddEditSavingsGoalDialog(
                     ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
+                    Icon(
+                        imageVector = AppIcons.CalendarToday,
+                        contentDescription = null,
+                        tint = if (isCustomSelected) SleekPrimary else SleekTextSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = customDateText,
                         fontSize = SleekSizes.textBodySmall,

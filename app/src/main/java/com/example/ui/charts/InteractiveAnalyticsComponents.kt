@@ -755,7 +755,8 @@ fun CategoryTrendsSection(
     currencySymbol: String,
     categoryColors: Map<String, Color>,
     onCategoryClick: (CategoryTrendSummary) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    categoryIcons: Map<String, String> = emptyMap()
 ) {
     Card(
         shape = RoundedCornerShape(24.dp),
@@ -837,9 +838,11 @@ fun CategoryTrendsSection(
                                     .border(1.dp, color.copy(alpha = 0.3f), RoundedCornerShape(10.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(
-                                    text = getCategoryEmoji(item.category),
-                                    fontSize = 16.sp
+                                Icon(
+                                    imageVector = getCategoryIcon(item.category, categoryIcons),
+                                    contentDescription = item.category,
+                                    tint = color,
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
 
@@ -1485,7 +1488,12 @@ fun SpendingPatternDetectionSection(
                                 .background(Color(0xFFEA580C).copy(alpha = 0.18f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("🔥", fontSize = 20.sp)
+                            Icon(
+                                imageVector = AppIcons.LocalFireDepartment,
+                                contentDescription = null,
+                                tint = Color(0xFFEA580C),
+                                modifier = Modifier.size(22.dp)
+                            )
                         }
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
@@ -1848,7 +1856,8 @@ fun CategoryDrillDownDialog(
     item: CategoryTrendSummary,
     currencySymbol: String,
     onDismiss: () -> Unit,
-    onExpenseClick: (Expense) -> Unit
+    onExpenseClick: (Expense) -> Unit,
+    categoryIcons: Map<String, String> = emptyMap()
 ) {
     Dialog(
         onDismissRequest = onDismiss,
@@ -1877,7 +1886,22 @@ fun CategoryDrillDownDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text(getCategoryEmoji(item.category), fontSize = 26.sp)
+                        val drillColor = getCategoryColor(item.category)
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(drillColor.copy(alpha = 0.16f))
+                                .border(1.dp, drillColor.copy(alpha = 0.3f), RoundedCornerShape(12.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = getCategoryIcon(item.category, categoryIcons),
+                                contentDescription = item.category,
+                                tint = drillColor,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
                         Column {
                             Text(item.category, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = SleekTextPrimary)
                             Text("Category Drill-Down Analytics", fontSize = 11.sp, color = SleekTextSecondary)

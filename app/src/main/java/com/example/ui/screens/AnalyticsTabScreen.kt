@@ -232,7 +232,8 @@ fun AnalyticsTab(
             item = drillDownItem,
             currencySymbol = currencySymbol,
             onDismiss = { activeCategoryDrillDown = null },
-            onExpenseClick = onExpenseClick
+            onExpenseClick = onExpenseClick,
+            categoryIcons = categoryIcons
         )
     }
 
@@ -597,7 +598,8 @@ fun AnalyticsTab(
                             categoryTrends = categoryTrends,
                             currencySymbol = currencySymbol,
                             categoryColors = categoryColors,
-                            onCategoryClick = { activeCategoryDrillDown = it }
+                            onCategoryClick = { activeCategoryDrillDown = it },
+                            categoryIcons = categoryIcons
                         )
 
                         BudgetPerformanceSection(
@@ -818,7 +820,7 @@ fun AnalyticsPeriodTransactionsCard(
                         val isExpense = exp.type != "INCOME" && exp.category != "Locked Savings"
                         val amountColor = if (isExpense) Color(0xFFEF4444) else Color(0xFF10B981)
                         val sign = if (isExpense) "-" else "+"
-                        val emoji = getCategoryEmoji(exp.category, categoryIcons)
+                        val catIcon = getCategoryIcon(exp.category, categoryIcons)
                         val dateStr = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault()).format(Date(exp.date))
 
                         Surface(
@@ -852,7 +854,12 @@ fun AnalyticsPeriodTransactionsCard(
                                             .background(amountColor.copy(alpha = 0.12f)),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Text(text = emoji.ifBlank { if (isExpense) "💸" else "💰" }, fontSize = 16.sp)
+                                        Icon(
+                                            imageVector = catIcon,
+                                            contentDescription = exp.category,
+                                            tint = amountColor,
+                                            modifier = Modifier.size(18.dp)
+                                        )
                                     }
                                     Column {
                                         Text(
