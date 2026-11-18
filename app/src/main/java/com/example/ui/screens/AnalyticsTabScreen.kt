@@ -68,6 +68,7 @@ fun AnalyticsTab(
 
     val prefDefaultPeriod by viewModel.defaultAnalyticsPeriod.collectAsStateWithLifecycle()
     val prefDefaultMode by viewModel.defaultAnalyticsMode.collectAsStateWithLifecycle()
+    val budgetWarningThresholdPercent by viewModel.budgetWarningThresholdPercent.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val sharedPrefs = remember(context) {
@@ -284,7 +285,8 @@ fun AnalyticsTab(
                                 categoryFilterStr = "All Categories",
                                 amountSaved = (comparisonSummary.currentIncome - comparisonSummary.currentSpent).coerceAtLeast(0.0),
                                 monthsOverBudget = 0,
-                                includeDetailedTxns = true
+                                includeDetailedTxns = true,
+                                currencyCode = statsCurrencyCode
                             )
                             showExportDialog = false
                         },
@@ -292,9 +294,9 @@ fun AnalyticsTab(
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(AppIcons.PictureAsPdf, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(AppIcons.PictureAsPdf, contentDescription = null, tint = onAccentColor, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Export PDF Document", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text("Export PDF Document", color = onAccentColor, fontWeight = FontWeight.Bold)
                     }
 
                     OutlinedButton(
@@ -324,7 +326,8 @@ fun AnalyticsTab(
                                 expenses = filteredPeriodExpenses,
                                 dateRangeStr = "$selectedTimeFilter ($dateRangeLabel)",
                                 typeFilterStr = "All Transactions",
-                                categoryFilterStr = "All Categories"
+                                categoryFilterStr = "All Categories",
+                                currencyCode = statsCurrencyCode
                             )
                             showExportDialog = false
                         },
@@ -344,7 +347,8 @@ fun AnalyticsTab(
                                 expenses = filteredPeriodExpenses,
                                 dateRangeStr = "Period ($selectedTimeFilter)",
                                 typeFilterStr = "All Transactions",
-                                categoryFilterStr = "All Categories"
+                                categoryFilterStr = "All Categories",
+                                currencyCode = statsCurrencyCode
                             )
                             showExportDialog = false
                         },
@@ -598,7 +602,8 @@ fun AnalyticsTab(
 
                         BudgetPerformanceSection(
                             budgetPerformance = budgetPerformance,
-                            currencySymbol = currencySymbol
+                            currencySymbol = currencySymbol,
+                            warningThresholdPercent = budgetWarningThresholdPercent
                         )
 
                         AccountWiseAnalyticsSection(

@@ -82,6 +82,7 @@ fun DashboardTab(
     val currencySymbol by viewModel.selectedCurrencySymbol.collectAsStateWithLifecycle()
     val selectedCurrencyCode by viewModel.selectedCurrencyCode.collectAsStateWithLifecycle()
     val billShowUpcomingDashboard by viewModel.billShowUpcomingDashboard.collectAsStateWithLifecycle()
+    val budgetWarningThresholdPercent by viewModel.budgetWarningThresholdPercent.collectAsStateWithLifecycle()
     val profileImageUri by viewModel.userProfileImageUri.collectAsStateWithLifecycle()
     val currentStreak by viewModel.currentStreak.collectAsStateWithLifecycle()
     val showStreakDialog by viewModel.showStreakDialog.collectAsStateWithLifecycle()
@@ -537,7 +538,11 @@ fun DashboardTab(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = if (shouldHideBalance) "$currencySymbol ••••••" else String.format(Locale.getDefault(), "%s%s%,.2f", if (animatedBalance >= 0) "" else "-", currencySymbol, Math.abs(animatedBalance)),
+                    text = if (shouldHideBalance) "$currencySymbol ••••••" else com.example.data.UiPrefs.formatAmount(
+                        amount = animatedBalance.toDouble(),
+                        symbol = currencySymbol,
+                        negativeSign = animatedBalance < 0f
+                    ),
                     style = MaterialTheme.typography.displayMedium,
                     color = SleekTextPrimary,
                     fontWeight = FontWeight.SemiBold,
@@ -547,7 +552,7 @@ fun DashboardTab(
                 if (totalSavingsGoalsMoney > 0) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = if (shouldHideBalance) "Includes $currencySymbol•••• in savings goals" else String.format(Locale.getDefault(), "Includes %s%,.0f in savings goals", currencySymbol, totalSavingsGoalsMoney),
+                        text = if (shouldHideBalance) "Includes $currencySymbol•••• in savings goals" else "Includes ${com.example.data.UiPrefs.formatAmount(totalSavingsGoalsMoney, currencySymbol)} in savings goals",
                         color = SleekTextSecondary,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Normal
@@ -587,7 +592,7 @@ fun DashboardTab(
                                 fontSize = 12.sp
                             )
                             Text(
-                                text = if (shouldHideBalance) "$currencySymbol••••" else String.format(Locale.getDefault(), "%s%,.0f", currencySymbol, animatedIncome),
+                                text = if (shouldHideBalance) "$currencySymbol••••" else com.example.data.UiPrefs.formatAmount(animatedIncome.toDouble(), currencySymbol),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = SleekTextPrimary,
                                 fontWeight = FontWeight.SemiBold,
@@ -621,7 +626,7 @@ fun DashboardTab(
                                 fontSize = 12.sp
                             )
                             Text(
-                                text = if (shouldHideBalance) "$currencySymbol••••" else String.format(Locale.getDefault(), "%s%,.0f", currencySymbol, animatedExpense),
+                                text = if (shouldHideBalance) "$currencySymbol••••" else com.example.data.UiPrefs.formatAmount(animatedExpense.toDouble(), currencySymbol),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = SleekTextPrimary,
                                 fontWeight = FontWeight.SemiBold,
@@ -657,7 +662,7 @@ fun DashboardTab(
                         )
                     }
                     Text(
-                        text = String.format(Locale.getDefault(), "vs last month (%s%,.0f)", currencySymbol, lastMonthTotal),
+                        text = if (shouldHideBalance) "vs last month ($currencySymbol••••)" else "vs last month (${com.example.data.UiPrefs.formatAmount(lastMonthTotal, currencySymbol)})",
                         color = SleekTextSecondary,
                         style = MaterialTheme.typography.bodySmall,
                         fontSize = 12.sp
@@ -725,7 +730,8 @@ fun DashboardTab(
                 monthlyBudget = monthlyBudget,
                 currentMonthExpense = thisMonthTotal,
                 currencySymbol = currencySymbol,
-                onUpdateBudget = { showAdjustBudgetDialog = true }
+                onUpdateBudget = { showAdjustBudgetDialog = true },
+                warningThresholdPercent = budgetWarningThresholdPercent
             )
             Spacer(modifier = Modifier.height(16.dp))
         } else {
@@ -733,7 +739,8 @@ fun DashboardTab(
                 monthlyBudget = monthlyBudget,
                 currentMonthExpense = thisMonthTotal,
                 currencySymbol = currencySymbol,
-                onUpdateBudget = onUpdateBudget
+                onUpdateBudget = onUpdateBudget,
+                warningThresholdPercent = budgetWarningThresholdPercent
             )
             Spacer(modifier = Modifier.height(16.dp))
         }
@@ -768,7 +775,11 @@ fun DashboardTab(
                 currencySymbol = currencySymbol,
                 onQuickDeposit = { goal, amount ->
                     viewModel.quickDepositToGoal(goal, amount)
-                    Toast.makeText(context, "Deposited \$%.0f to \${goal.name}!".format(amount), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        context,
+                        "Deposited ${com.example.data.UiPrefs.formatAmount(amount, currencySymbol)} to ${goal.name}!",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 },
                 onViewAllGoals = { showSavingGoalsScreen = true }
             )
@@ -1233,7 +1244,8 @@ fun MonthlyBudgetSnapshotCard(
     monthlyBudget: Double,
     currentMonthExpense: Double,
     currencySymbol: String = "₹",
-    onUpdateBudget: (Double) -> Unit
+    onUpdateBudget: (Double) -> Unit,
+    warningThresholdPercent: Int = 80
 ) {
     var showEditBudgetDialog by remember { mutableStateOf(false) }
 
@@ -1310,7 +1322,7 @@ fun MonthlyBudgetSnapshotCard(
 
                 val statusColor = when {
                     isExceeded -> ExpenseRed
-                    spentPct >= 80 -> WarningOrange
+                    spentPct >= warningThresholdPercent -> WarningOrange
                     else -> IncomeGreen
                 }
 
@@ -1327,7 +1339,7 @@ fun MonthlyBudgetSnapshotCard(
                             fontSize = 12.sp
                         )
                         Text(
-                            text = String.format(Locale.getDefault(), "%s%,.0f", currencySymbol, currentMonthExpense),
+                            text = com.example.data.UiPrefs.formatAmount(currentMonthExpense, currencySymbol),
                             style = MaterialTheme.typography.titleLarge,
                             color = SleekTextPrimary,
                             fontWeight = FontWeight.SemiBold
@@ -1342,7 +1354,7 @@ fun MonthlyBudgetSnapshotCard(
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = if (isExceeded) "Exceeded by ${String.format(Locale.getDefault(), "%s%,.0f", currencySymbol, Math.abs(remaining))}"
+                                text = if (isExceeded) "Exceeded by ${com.example.data.UiPrefs.formatAmount(Math.abs(remaining), currencySymbol)}"
                                 else String.format(Locale.getDefault(), "%.0f%% used", spentPct),
                                 color = statusColor,
                                 fontSize = 12.sp,
@@ -1351,7 +1363,8 @@ fun MonthlyBudgetSnapshotCard(
                         }
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = if (!isExceeded) String.format(Locale.getDefault(), "%s%,.0f remaining", currencySymbol, remaining) else "Limit: ${String.format(Locale.getDefault(), "%s%,.0f", currencySymbol, monthlyBudget)}",
+                            text = if (!isExceeded) "${com.example.data.UiPrefs.formatAmount(remaining, currencySymbol)} remaining"
+                            else "Limit: ${com.example.data.UiPrefs.formatAmount(monthlyBudget, currencySymbol)}",
                             style = MaterialTheme.typography.bodySmall,
                             color = SleekTextSecondary,
                             fontSize = 12.sp
@@ -1474,7 +1487,7 @@ fun RecentExpenseRow(
     currencySymbol: String = "₹",
     onClick: () -> Unit
 ) {
-    val dateStr = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(expense.date))
+    val dateStr = com.example.data.UiPrefs.formatDate(expense.date)
     val isIncome = expense.type == "INCOME"
     val catColor = if (isIncome) {
         when (expense.category) {
@@ -1538,7 +1551,15 @@ fun RecentExpenseRow(
             }
 
             Text(
-                text = String.format("%s%s%,.2f", if (isIncome) "+" else "-", currencySymbol, expense.amount),
+                text = if (com.example.data.UiPrefs.maskRowAmounts) {
+                    "$currencySymbol ••••"
+                } else {
+                    com.example.data.UiPrefs.formatSignedAmount(
+                        amount = expense.amount,
+                        symbol = currencySymbol,
+                        sign = if (isIncome) "+" else "-"
+                    )
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (isIncome) Color(0xFF10B981) else ExpenseRed,
                 fontWeight = FontWeight.Bold

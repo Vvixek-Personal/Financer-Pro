@@ -746,13 +746,13 @@ class FinanceViewModel(
     val goalProgressStyle: StateFlow<String> = _goalProgressStyle.asStateFlow()
 
     // Transaction Preferences
-    private val _defaultTxType = MutableStateFlow("EXPENSE")
+    private val _defaultTxType = MutableStateFlow(appSettingsManager.state.value.defaultTxType)
     val defaultTxType: StateFlow<String> = _defaultTxType.asStateFlow()
 
-    private val _rememberLastCategory = MutableStateFlow(true)
+    private val _rememberLastCategory = MutableStateFlow(appSettingsManager.state.value.rememberLastCategory)
     val rememberLastCategory: StateFlow<Boolean> = _rememberLastCategory.asStateFlow()
 
-    private val _confirmTxDelete = MutableStateFlow(true)
+    private val _confirmTxDelete = MutableStateFlow(appSettingsManager.state.value.confirmTxDelete)
     val confirmTxDelete: StateFlow<Boolean> = _confirmTxDelete.asStateFlow()
 
     private val _groupByDate = MutableStateFlow(appSettingsManager.state.value.groupByDate)
@@ -774,46 +774,46 @@ class FinanceViewModel(
     val soundFeedbackEnabled: StateFlow<Boolean> = _soundFeedbackEnabled.asStateFlow()
 
     // Security & Privacy Preferences
-    private val _lockOnRestart = MutableStateFlow(true)
+    private val _lockOnRestart = MutableStateFlow(sharedPrefs.getBoolean("lock_on_restart", true))
     val lockOnRestart: StateFlow<Boolean> = _lockOnRestart.asStateFlow()
 
-    private val _autoLockDuration = MutableStateFlow("Immediately")
+    private val _autoLockDuration = MutableStateFlow(appSettingsManager.state.value.autoLockDuration)
     val autoLockDuration: StateFlow<String> = _autoLockDuration.asStateFlow()
 
-    private val _biometricEnabled = MutableStateFlow(false)
+    private val _biometricEnabled = MutableStateFlow(appSettingsManager.state.value.biometricEnabled)
     val biometricEnabled: StateFlow<Boolean> = _biometricEnabled.asStateFlow()
 
-    private val _hideSensitiveAmounts = MutableStateFlow(false)
+    private val _hideSensitiveAmounts = MutableStateFlow(appSettingsManager.state.value.hideSensitiveAmounts)
     val hideSensitiveAmounts: StateFlow<Boolean> = _hideSensitiveAmounts.asStateFlow()
 
-    private val _screenshotProtection = MutableStateFlow(false)
+    private val _screenshotProtection = MutableStateFlow(appSettingsManager.state.value.screenshotProtection)
     val screenshotProtection: StateFlow<Boolean> = _screenshotProtection.asStateFlow()
 
-    private val _fontFamily = MutableStateFlow("Default")
+    private val _fontFamily = MutableStateFlow(appSettingsManager.state.value.fontFamily)
     val fontFamily: StateFlow<String> = _fontFamily.asStateFlow()
 
-    private val _hapticsEnabled = MutableStateFlow(true)
+    private val _hapticsEnabled = MutableStateFlow(appSettingsManager.state.value.hapticsEnabled)
     val hapticsEnabled: StateFlow<Boolean> = _hapticsEnabled.asStateFlow()
 
-    private val _highContrastMode = MutableStateFlow(false)
+    private val _highContrastMode = MutableStateFlow(appSettingsManager.state.value.highContrastMode)
     val highContrastMode: StateFlow<Boolean> = _highContrastMode.asStateFlow()
 
-    private val _cardGlowAnimation = MutableStateFlow(true)
+    private val _cardGlowAnimation = MutableStateFlow(appSettingsManager.state.value.cardGlowAnimation)
     val cardGlowAnimation: StateFlow<Boolean> = _cardGlowAnimation.asStateFlow()
 
-    private val _defaultPaymentMode = MutableStateFlow("UPI")
+    private val _defaultPaymentMode = MutableStateFlow(appSettingsManager.state.value.defaultPaymentMode)
     val defaultPaymentMode: StateFlow<String> = _defaultPaymentMode.asStateFlow()
 
-    private val _highAmountWarningEnabled = MutableStateFlow(true)
+    private val _highAmountWarningEnabled = MutableStateFlow(appSettingsManager.state.value.highAmountWarningEnabled)
     val highAmountWarningEnabled: StateFlow<Boolean> = _highAmountWarningEnabled.asStateFlow()
 
-    private val _highAmountThreshold = MutableStateFlow(5000.0)
+    private val _highAmountThreshold = MutableStateFlow(appSettingsManager.state.value.highAmountThreshold)
     val highAmountThreshold: StateFlow<Double> = _highAmountThreshold.asStateFlow()
 
-    private val _billReminderPreferredTime = MutableStateFlow("09:00 AM")
+    private val _billReminderPreferredTime = MutableStateFlow(appSettingsManager.state.value.billReminderPreferredTime)
     val billReminderPreferredTime: StateFlow<String> = _billReminderPreferredTime.asStateFlow()
 
-    private val _privacyModeEnabled = MutableStateFlow(false)
+    private val _privacyModeEnabled = MutableStateFlow(appSettingsManager.state.value.privacyModeEnabled)
     val privacyModeEnabled: StateFlow<Boolean> = _privacyModeEnabled.asStateFlow()
 
     // Session-only reveal override for Privacy Blur Mode — resets to false
@@ -837,10 +837,10 @@ class FinanceViewModel(
     val lastUsedIncomeCategory: StateFlow<String?> = _lastUsedIncomeCategory.asStateFlow()
 
     // Backup & Restore Preferences
-    private val _autoBackupEnabled = MutableStateFlow(true)
+    private val _autoBackupEnabled = MutableStateFlow(appSettingsManager.state.value.autoBackupEnabled)
     val autoBackupEnabled: StateFlow<Boolean> = _autoBackupEnabled.asStateFlow()
 
-    private val _lastBackupTimestamp = MutableStateFlow("Never")
+    private val _lastBackupTimestamp = MutableStateFlow(appSettingsManager.state.value.lastBackupTimestamp)
     val lastBackupTimestamp: StateFlow<String> = _lastBackupTimestamp.asStateFlow()
 
     private val _toastMessage = MutableStateFlow<String?>(null)
@@ -2005,9 +2005,11 @@ class FinanceViewModel(
         note: String?,
         imagePath: String? = null,
         type: String = "EXPENSE",
-        currencyCode: String? = null
+        currencyCode: String? = null,
+        accountId: Long? = null
     ) {
         val resolvedCurrencyCode = currencyCode ?: _selectedCurrencyCode.value
+        val resolvedAccountId = accountId ?: accounts.value.firstOrNull()?.id ?: 0L
         if (type == "EXPENSE") {
             val available = getAvailableNetBalance()
             if (amount > available) {
@@ -2027,7 +2029,7 @@ class FinanceViewModel(
                     imagePath = imagePath,
                     type = type,
                     currencyCode = resolvedCurrencyCode,
-                    accountId = 1L, // Default to first account for now
+                    accountId = resolvedAccountId,
                     kind = "REGULAR"
                 )
             )
@@ -2046,6 +2048,28 @@ class FinanceViewModel(
             _lastUsedExpenseCategory.value = category
             sharedPrefs.edit().putString("last_used_expense_category", category).apply()
         }
+    }
+
+    fun duplicateExpense(expense: Expense) {
+        if (expense.type == "EXPENSE") {
+            val available = getAvailableNetBalance()
+            if (expense.amount > available) {
+                val symbol = _selectedCurrencySymbol.value
+                _toastMessage.value = "🔒 Cannot duplicate expense: exceeds available balance (%s%,.2f)".format(symbol, available.coerceAtLeast(0.0))
+                return
+            }
+        }
+        addExpense(
+            amount = expense.amount,
+            category = expense.category,
+            date = System.currentTimeMillis(),
+            note = expense.note,
+            imagePath = null,
+            type = expense.type,
+            currencyCode = expense.currencyCode,
+            accountId = expense.accountId.takeIf { it > 0L }
+        )
+        _toastMessage.value = "Logged ${expense.category} again"
     }
 
     fun deleteExpense(expense: Expense) {

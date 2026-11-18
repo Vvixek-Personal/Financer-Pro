@@ -715,7 +715,13 @@ fun FinanceAppScreen(viewModel: FinanceViewModel) {
                             showAddExpenseDialog = true
                         },
                         onEditExpense = { viewingDetailExpense = it },
-                        onDeleteExpense = { viewModel.deleteExpense(it) }
+                        onDeleteExpense = { exp ->
+                            if (confirmTxDelete) {
+                                expensePendingDelete = exp
+                            } else {
+                                viewModel.deleteExpense(exp)
+                            }
+                        }
                     )
                 }
             }
@@ -730,6 +736,9 @@ fun FinanceAppScreen(viewModel: FinanceViewModel) {
                 val isMonthlySafeEnabledForDialog by viewModel.isMonthlySafeEnabled.collectAsStateWithLifecycle()
                 val monthlySafeAmountForDialog by viewModel.monthlySafeAmount.collectAsStateWithLifecycle()
                 val autoSuggestCategory by viewModel.autoSuggestCategory.collectAsStateWithLifecycle()
+                val defaultPaymentMode by viewModel.defaultPaymentMode.collectAsStateWithLifecycle()
+                val highAmountWarningEnabled by viewModel.highAmountWarningEnabled.collectAsStateWithLifecycle()
+                val highAmountThreshold by viewModel.highAmountThreshold.collectAsStateWithLifecycle()
                 AddExpenseDialog(
                     prefilledDate = prefilledDateForAddDialog,
                     categories = allCategories,
@@ -742,6 +751,9 @@ fun FinanceAppScreen(viewModel: FinanceViewModel) {
                     lastUsedExpenseCategory = lastUsedExpenseCategory,
                     lastUsedIncomeCategory = lastUsedIncomeCategory,
                     autoSuggestCategory = autoSuggestCategory,
+                    defaultPaymentMode = defaultPaymentMode,
+                    highAmountWarningEnabled = highAmountWarningEnabled,
+                    highAmountThreshold = highAmountThreshold,
                     gstReserveAmount = if (isGstEnabledForDialog) viewModel.getGstReserveAmount() else 0.0,
                     monthlySafeAmount = if (isMonthlySafeEnabledForDialog) monthlySafeAmountForDialog else 0.0,
                     currencySymbol = currencySymbol,
@@ -768,14 +780,23 @@ fun FinanceAppScreen(viewModel: FinanceViewModel) {
                             note = "$fromName ➔ $toName${if (note.isNotBlank()) " • $note" else ""}"
                         )
                     },
-                    onConfirm = { amount, category, date, note, imagePath, type ->
+                    onConfirm = { amount, category, date, note, imagePath, type, selectedAccId ->
                         if (viewModel.soundFeedbackEnabled.value) {
                             try {
                                 val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager
                                 audioManager?.playSoundEffect(android.media.AudioManager.FX_KEY_CLICK, 0.7f)
                             } catch (_: Exception) {}
                         }
-                        viewModel.addExpense(amount, category, date, note, imagePath, type, selectedCurrencyCode)
+                        viewModel.addExpense(
+                            amount = amount,
+                            category = category,
+                            date = date,
+                            note = note,
+                            imagePath = imagePath,
+                            type = type,
+                            currencyCode = selectedCurrencyCode,
+                            accountId = selectedAccId
+                        )
                         viewModel.refreshUsageData()
                         showAddExpenseDialog = false
                         customTxTypeForAddDialog = null
@@ -830,6 +851,13 @@ fun FinanceAppScreen(viewModel: FinanceViewModel) {
                         viewingDetailExpense = null
                         if (target != null) {
                             editingExpense = target
+                        }
+                    },
+                    onDuplicateClick = {
+                        val target = viewingDetailExpense
+                        viewingDetailExpense = null
+                        if (target != null) {
+                            viewModel.duplicateExpense(target)
                         }
                     },
                     onDeleteClick = {

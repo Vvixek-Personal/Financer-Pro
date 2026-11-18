@@ -1120,7 +1120,8 @@ private fun WaterfallStepRow(
 fun BudgetPerformanceSection(
     budgetPerformance: List<BudgetPerformanceSummary>,
     currencySymbol: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    warningThresholdPercent: Int = 80
 ) {
     Card(
         shape = RoundedCornerShape(24.dp),
@@ -1177,7 +1178,7 @@ fun BudgetPerformanceSection(
             } else {
                 budgetPerformance.forEach { item ->
                     val isExceeded = item.isOverBudget
-                    val progressColor = if (isExceeded) Color(0xFFEF4444) else if (item.percentUsed > 80.0) Color(0xFFF59E0B) else Color(0xFF10B981)
+                    val progressColor = if (isExceeded) Color(0xFFEF4444) else if (item.percentUsed >= warningThresholdPercent.toDouble()) Color(0xFFF59E0B) else Color(0xFF10B981)
 
                     Column(
                         modifier = Modifier
@@ -1200,7 +1201,7 @@ fun BudgetPerformanceSection(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Text(
-                                    text = "$currencySymbol%,.0f / $currencySymbol%,.0f".format(item.actualSpent, item.limit),
+                                    text = "${com.example.data.UiPrefs.formatAmount(item.actualSpent, currencySymbol)} / ${com.example.data.UiPrefs.formatAmount(item.limit, currencySymbol)}",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Medium,
                                     color = SleekTextSecondary
@@ -1243,9 +1244,9 @@ fun BudgetPerformanceSection(
 
                         Text(
                             text = if (isExceeded)
-                                "⚠️ Exceeded by $currencySymbol%,.0f".format(abs(item.variance))
+                                "⚠️ Exceeded by ${com.example.data.UiPrefs.formatAmount(abs(item.variance), currencySymbol)}"
                             else
-                                "Remaining: $currencySymbol%,.0f".format(item.variance),
+                                "Remaining: ${com.example.data.UiPrefs.formatAmount(item.variance, currencySymbol)}",
                             fontSize = 11.sp,
                             fontWeight = if (isExceeded) FontWeight.SemiBold else FontWeight.Normal,
                             color = if (isExceeded) Color(0xFFEF4444) else SleekTextSecondary

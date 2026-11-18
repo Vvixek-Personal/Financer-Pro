@@ -21,6 +21,7 @@ import androidx.compose.foundation.background
 import androidx.compose.ui.res.painterResource
 import com.example.R
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -1644,6 +1645,7 @@ fun BudgetSettingsScreen(
     val warn80 by viewModel.budgetWarning80.collectAsStateWithLifecycle()
     val warn90 by viewModel.budgetWarning90.collectAsStateWithLifecycle()
     val warn100 by viewModel.budgetWarning100.collectAsStateWithLifecycle()
+    val budgetWarningThresholdPercent by viewModel.budgetWarningThresholdPercent.collectAsStateWithLifecycle()
 
     var showEditBudgetDialog by remember { mutableStateOf(false) }
     var editBudgetInput by remember { mutableStateOf("") }
@@ -2356,6 +2358,53 @@ fun BudgetSettingsScreen(
                                 tint = SleekTextSecondary,
                                 modifier = Modifier.size(18.dp)
                             )
+                        }
+                    }
+
+                    HorizontalDivider(color = SleekBorder.copy(alpha = 0.6f), modifier = Modifier.padding(vertical = 8.dp))
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "Gauge & Variance Warning Threshold",
+                            fontWeight = FontWeight.Bold,
+                            color = SleekTextPrimary,
+                            fontSize = 13.sp
+                        )
+                        Text(
+                            text = "Highlight budget gauges and category bars when spending hits $budgetWarningThresholdPercent%",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = SleekTextSecondary,
+                            fontSize = 11.sp
+                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            listOf(60, 70, 75, 80, 85, 90).forEach { pct ->
+                                val isSelected = budgetWarningThresholdPercent == pct
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = { viewModel.updateBudgetWarningThresholdPercent(pct) },
+                                    label = {
+                                        Text(
+                                            text = "$pct%",
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            fontSize = 12.sp
+                                        )
+                                    },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = SleekPrimaryContainer,
+                                        selectedLabelColor = SleekPrimary,
+                                        containerColor = SleekBg,
+                                        labelColor = SleekTextSecondary
+                                    ),
+                                    modifier = Modifier
+                                        .heightIn(min = 48.dp)
+                                        .testTag("budget_threshold_chip_$pct")
+                                )
+                            }
                         }
                     }
                 }
@@ -4795,7 +4844,8 @@ fun ExportDataScreen(
                                     dateRangeStr = dateRangeFilter,
                                     typeFilterStr = typeFilter,
                                     categoryFilterStr = categoryFilter,
-                                    includeDetailedTxns = includeDetailedTxns
+                                    includeDetailedTxns = includeDetailedTxns,
+                                    currencyCode = currencyCode
                                 )
                             }
                         },
@@ -4905,7 +4955,8 @@ fun ExportDataScreen(
                                     expenses = filteredExpenses,
                                     dateRangeStr = dateRangeFilter,
                                     typeFilterStr = typeFilter,
-                                    categoryFilterStr = categoryFilter
+                                    categoryFilterStr = categoryFilter,
+                                    currencyCode = currencyCode
                                 )
                             }
                         },
@@ -4960,7 +5011,8 @@ fun ExportDataScreen(
                                     expenses = filteredExpenses,
                                     dateRangeStr = dateRangeFilter,
                                     typeFilterStr = typeFilter,
-                                    categoryFilterStr = categoryFilter
+                                    categoryFilterStr = categoryFilter,
+                                    currencyCode = currencyCode
                                 )
                             }
                         },

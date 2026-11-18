@@ -29,6 +29,7 @@ object DataExporter {
         includeDetailedTxns: Boolean = true,
         currencyCode: String = "INR"
     ) {
+        val currencySymbol = CurrencyManager.getByCode(currencyCode).symbol
         val pdfDocument = PdfDocument()
         val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create()
         var pageNumber = 1
@@ -117,7 +118,7 @@ object DataExporter {
         canvas.drawRoundRect(30f, y, 30f + cardWidth, y + cardHeight, 6f, 6f, fillIncome)
         canvas.drawRoundRect(30f, y, 30f + cardWidth, y + cardHeight, 6f, 6f, gridPaint)
         canvas.drawText("Total Income", 40f, y + 16f, Paint().apply { color = Color.parseColor("#065F46"); textSize = 8f })
-        canvas.drawText("+₹${String.format(Locale.getDefault(), "%,.2f", totalIncome)}", 40f, y + 32f, Paint().apply {
+        canvas.drawText("+$currencySymbol${String.format(Locale.getDefault(), "%,.2f", totalIncome)}", 40f, y + 32f, Paint().apply {
             color = Color.parseColor("#059669"); textSize = 11f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         })
 
@@ -126,7 +127,7 @@ object DataExporter {
         canvas.drawRoundRect(210f, y, 210f + cardWidth, y + cardHeight, 6f, 6f, fillExpense)
         canvas.drawRoundRect(210f, y, 210f + cardWidth, y + cardHeight, 6f, 6f, gridPaint)
         canvas.drawText("Total Expense", 220f, y + 16f, Paint().apply { color = Color.parseColor("#991B1B"); textSize = 8f })
-        canvas.drawText("-₹${String.format(Locale.getDefault(), "%,.2f", totalExpense)}", 220f, y + 32f, Paint().apply {
+        canvas.drawText("-$currencySymbol${String.format(Locale.getDefault(), "%,.2f", totalExpense)}", 220f, y + 32f, Paint().apply {
             color = Color.parseColor("#DC2626"); textSize = 11f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         })
 
@@ -137,7 +138,7 @@ object DataExporter {
         canvas.drawRoundRect(390f, y, 390f + cardWidth, y + cardHeight, 6f, 6f, fillNet)
         canvas.drawRoundRect(390f, y, 390f + cardWidth, y + cardHeight, 6f, 6f, gridPaint)
         canvas.drawText("Net Cashflow", 400f, y + 16f, Paint().apply { color = Color.parseColor(netColorHex); textSize = 8f })
-        canvas.drawText("₹${String.format(Locale.getDefault(), "%,.2f", netBalance)}", 400f, y + 32f, Paint().apply {
+        canvas.drawText("$currencySymbol${String.format(Locale.getDefault(), "%,.2f", netBalance)}", 400f, y + 32f, Paint().apply {
             color = Color.parseColor(netColorHex); textSize = 11f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         })
 
@@ -149,7 +150,7 @@ object DataExporter {
         canvas.drawRoundRect(30f, y, 30f + cardWidth, y + cardHeight, 6f, 6f, fillPurple)
         canvas.drawRoundRect(30f, y, 30f + cardWidth, y + cardHeight, 6f, 6f, gridPaint)
         canvas.drawText("Total Cash Flown", 40f, y + 16f, Paint().apply { color = Color.parseColor("#6B21A8"); textSize = 8f })
-        canvas.drawText("₹${String.format(Locale.getDefault(), "%,.2f", totalCashFlown)}", 40f, y + 32f, Paint().apply {
+        canvas.drawText("$currencySymbol${String.format(Locale.getDefault(), "%,.2f", totalCashFlown)}", 40f, y + 32f, Paint().apply {
             color = Color.parseColor("#7E22CE"); textSize = 11f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         })
 
@@ -180,7 +181,7 @@ object DataExporter {
         canvas.drawRoundRect(30f, y, 30f + wideCardWidth, y + cardHeight, 6f, 6f, fillTeal)
         canvas.drawRoundRect(30f, y, 30f + wideCardWidth, y + cardHeight, 6f, 6f, gridPaint)
         canvas.drawText("Amount Saved (Savings Goals)", 40f, y + 16f, Paint().apply { color = Color.parseColor("#115E59"); textSize = 8f })
-        canvas.drawText("₹${String.format(Locale.getDefault(), "%,.2f", amountSaved)}", 40f, y + 32f, Paint().apply {
+        canvas.drawText("$currencySymbol${String.format(Locale.getDefault(), "%,.2f", amountSaved)}", 40f, y + 32f, Paint().apply {
             color = Color.parseColor("#0D9488"); textSize = 11f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         })
 
@@ -237,7 +238,7 @@ object DataExporter {
                 canvas.drawText(catName.take(18), 40f, y + 13f, bodyPaint)
                 canvas.drawText(mainType, 180f, y + 13f, bodyPaint)
                 canvas.drawText("${items.size}", 280f, y + 13f, bodyPaint)
-                canvas.drawText("₹${String.format(Locale.getDefault(), "%,.2f", catTotal)}", 360f, y + 13f, bodyPaint)
+                canvas.drawText("$currencySymbol${String.format(Locale.getDefault(), "%,.2f", catTotal)}", 360f, y + 13f, bodyPaint)
                 canvas.drawText("${String.format(Locale.getDefault(), "%.1f", sharePct)}%", 480f, y + 13f, bodyPaint)
 
                 y += 18f
@@ -263,7 +264,7 @@ object DataExporter {
             drawTxTableHeader(canvas, y)
             y += 22f
 
-            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val sdf = com.example.data.UiPrefs.formatter()
 
             expenses.forEachIndexed { index, item ->
                 if (y > 780f) {
@@ -300,7 +301,8 @@ object DataExporter {
                 canvas.drawText((item.note ?: "No note").take(24), 300f, y + 14f, bodyPaint)
 
                 val itemAmt = Money.toDouble(item.amountMinor, item.currencyCode)
-                val amtStr = String.format(Locale.getDefault(), "%s₹%,.2f", if (isIncome) "+" else "-", itemAmt)
+                val itemSym = CurrencyManager.getByCode(item.currencyCode).symbol
+                val amtStr = String.format(Locale.getDefault(), "%s%s%,.2f", if (isIncome) "+" else "-", itemSym, itemAmt)
                 canvas.drawText(amtStr, 475f, y + 14f, if (isIncome) incomePaint else expensePaint)
 
                 y += 20f
@@ -482,6 +484,7 @@ object DataExporter {
         canvas.drawText("Period: $dateRangeStr   •   Type: $typeFilterStr", 50f, 95f, subTitlePaint)
         canvas.drawText("Categories: ${categoryFilterStr.take(50)}", 50f, 118f, subTitlePaint)
 
+        val currencySymbol = CurrencyManager.getByCode(currencyCode).symbol
         // Totals
         val totalIncome = expenses.realIncome(currencyCode)
         val totalExpense = expenses.realExpense(currencyCode)
@@ -497,7 +500,7 @@ object DataExporter {
         canvas.drawRoundRect(50f, 140f, 50f + cardW, 140f + cardH, 12f, 12f, paint)
         canvas.drawRoundRect(50f, 140f, 50f + cardW, 140f + cardH, 12f, 12f, gridPaint)
         canvas.drawText("TOTAL INCOME", 65f, 168f, Paint().apply { color = Color.parseColor("#A7F3D0"); textSize = 11f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) })
-        canvas.drawText("+₹${String.format(Locale.getDefault(), "%,.2f", totalIncome)}", 65f, 198f, Paint().apply {
+        canvas.drawText("+$currencySymbol${String.format(Locale.getDefault(), "%,.2f", totalIncome)}", 65f, 198f, Paint().apply {
             color = Color.parseColor("#34D399"); textSize = 18f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         })
 
@@ -507,7 +510,7 @@ object DataExporter {
         canvas.drawRoundRect(290f, 140f, 290f + cardW, 140f + cardH, 12f, 12f, paint)
         canvas.drawRoundRect(290f, 140f, 290f + cardW, 140f + cardH, 12f, 12f, gridPaint)
         canvas.drawText("TOTAL EXPENSE", 305f, 168f, Paint().apply { color = Color.parseColor("#FECACA"); textSize = 11f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) })
-        canvas.drawText("-₹${String.format(Locale.getDefault(), "%,.2f", totalExpense)}", 305f, 198f, Paint().apply {
+        canvas.drawText("-$currencySymbol${String.format(Locale.getDefault(), "%,.2f", totalExpense)}", 305f, 198f, Paint().apply {
             color = Color.parseColor("#F87171"); textSize = 18f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         })
 
@@ -519,7 +522,7 @@ object DataExporter {
         canvas.drawRoundRect(530f, 140f, 530f + cardW, 140f + cardH, 12f, 12f, paint)
         canvas.drawRoundRect(530f, 140f, 530f + cardW, 140f + cardH, 12f, 12f, gridPaint)
         canvas.drawText("NET BALANCE", 545f, 168f, Paint().apply { color = Color.parseColor("#E2E8F0"); textSize = 11f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) })
-        canvas.drawText("₹${String.format(Locale.getDefault(), "%,.2f", netBalance)}", 545f, 198f, Paint().apply {
+        canvas.drawText("$currencySymbol${String.format(Locale.getDefault(), "%,.2f", netBalance)}", 545f, 198f, Paint().apply {
             color = Color.parseColor(netText); textSize = 18f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         })
 
@@ -546,7 +549,7 @@ object DataExporter {
                 val share = if (totalVolume > 0) (catSum / totalVolume) * 100 else 0.0
 
                 canvas.drawText(entry.key, 70f, distY, Paint().apply { color = Color.WHITE; textSize = 13f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) })
-                canvas.drawText("₹${String.format(Locale.getDefault(), "%,.2f", catSum)} (${String.format(Locale.getDefault(), "%.1f", share)}%)", 500f, distY, Paint().apply { color = Color.parseColor("#38BDF8"); textSize = 13f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) })
+                canvas.drawText("$currencySymbol${String.format(Locale.getDefault(), "%,.2f", catSum)} (${String.format(Locale.getDefault(), "%.1f", share)}%)", 500f, distY, Paint().apply { color = Color.parseColor("#38BDF8"); textSize = 13f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) })
 
                 // Distribution Progress Bar Grid
                 val barW = 605f
@@ -574,7 +577,7 @@ object DataExporter {
 
         y += 30f
 
-        val sdf = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+        val sdf = com.example.data.UiPrefs.formatter()
         expenses.take(12).forEachIndexed { index, item ->
             val isIncome = item.type == "INCOME"
             val rowBg = Paint().apply { color = Color.parseColor(if (index % 2 == 0) "#1E293B" else "#0F172A"); style = Paint.Style.FILL }
@@ -592,7 +595,8 @@ object DataExporter {
             canvas.drawText(if (isIncome) "INCOME" else "EXPENSE", 520f, y + 24f, Paint().apply { color = Color.parseColor(if (isIncome) "#34D399" else "#F8FAFC"); textSize = 11f })
 
             val itemAmt = Money.toDouble(item.amountMinor, item.currencyCode)
-            val amtStr = String.format(Locale.getDefault(), "%s₹%,.2f", if (isIncome) "+" else "-", itemAmt)
+            val itemSym = CurrencyManager.getByCode(item.currencyCode).symbol
+            val amtStr = String.format(Locale.getDefault(), "%s%s%,.2f", if (isIncome) "+" else "-", itemSym, itemAmt)
             canvas.drawText(amtStr, 630f, y + 24f, Paint().apply { color = Color.parseColor(if (isIncome) "#34D399" else "#F8FAFC"); textSize = 12f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) })
 
             y += 38f

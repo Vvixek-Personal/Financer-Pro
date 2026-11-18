@@ -652,6 +652,7 @@ fun CreateCategoryDialog(
 @Composable
 fun AdjustBudgetDialog(
     currentBudget: Double,
+    currencySymbol: String = "₹",
     onDismiss: () -> Unit,
     onConfirm: (Double) -> Unit
 ) {
@@ -676,7 +677,7 @@ fun AdjustBudgetDialog(
                 OutlinedTextField(
                     value = budgetStr,
                     onValueChange = { budgetStr = it },
-                    label = { Text("Budget Cap (₹)", color = SleekTextSecondary) },
+                    label = { Text("Budget Cap ($currencySymbol)", color = SleekTextSecondary) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Number,

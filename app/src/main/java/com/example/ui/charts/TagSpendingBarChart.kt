@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -141,7 +142,9 @@ fun TagSpendingBarChart(
 
     val density = LocalDensity.current
     val gridColor = SleekBorder.copy(alpha = 0.6f)
-    val axisTextColor = SleekTextSecondary
+    val textPrimaryArgb = SleekTextPrimary.toArgb()
+    val textSecondaryArgb = SleekTextSecondary.toArgb()
+    val selectedStrokeColor = if (isDarkModeActive) Color.White else SleekPrimary
 
     Card(
         shape = SleekShapes.xxl,
@@ -208,7 +211,7 @@ fun TagSpendingBarChart(
                     border = BorderStroke(1.dp, SleekPrimary.copy(alpha = 0.2f))
                 ) {
                     Text(
-                        text = "Total: ₹${String.format(Locale.getDefault(), "%,.0f", totalSpending)}",
+                        text = "Total: ${com.example.data.UiPrefs.formatAmount(totalSpending, currencySymbol)}",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = SleekPrimary,
@@ -305,7 +308,7 @@ fun TagSpendingBarChart(
                             val labelText = if (labelValue >= 1000) {
                                 String.format(Locale.getDefault(), "%s%.1fk", currencySymbol, labelValue / 1000)
                             } else {
-                                String.format(Locale.getDefault(), "₹%.0f", labelValue)
+                                String.format(Locale.getDefault(), "%s%.0f", currencySymbol, labelValue)
                             }
 
                             drawContext.canvas.nativeCanvas.drawText(
@@ -313,7 +316,7 @@ fun TagSpendingBarChart(
                                 leftMargin - 16f,
                                 y + 10f,
                                 android.graphics.Paint().apply {
-                                    color = android.graphics.Color.GRAY
+                                    color = textSecondaryArgb
                                     textSize = 26f
                                     textAlign = android.graphics.Paint.Align.RIGHT
                                     isAntiAlias = true
@@ -356,7 +359,7 @@ fun TagSpendingBarChart(
                             // Highlight border if selected
                             if (isSelected) {
                                 drawRoundRect(
-                                    color = Color.White,
+                                    color = selectedStrokeColor,
                                     topLeft = Offset(barLeft - 2f, barTop - 2f),
                                     size = Size(barWidth + 4f, barHeightPx + 4f),
                                     cornerRadius = CornerRadius(14f, 14f),
@@ -365,13 +368,13 @@ fun TagSpendingBarChart(
                             }
 
                             // Value label on top of bar
-                            val valueText = String.format(Locale.getDefault(), "₹%.0f", item.amount)
+                            val valueText = String.format(Locale.getDefault(), "%s%.0f", currencySymbol, item.amount)
                             drawContext.canvas.nativeCanvas.drawText(
                                 valueText,
                                 xCenter,
                                 (barTop - 10f).coerceAtLeast(24f),
                                 android.graphics.Paint().apply {
-                                    color = if (isSelected) android.graphics.Color.WHITE else android.graphics.Color.LTGRAY
+                                    color = if (isSelected) textPrimaryArgb else textSecondaryArgb
                                     textSize = 24f
                                     textAlign = android.graphics.Paint.Align.CENTER
                                     isFakeBoldText = isSelected
@@ -386,7 +389,7 @@ fun TagSpendingBarChart(
                                 xCenter,
                                 canvasHeight - 16f,
                                 android.graphics.Paint().apply {
-                                    color = if (isSelected) android.graphics.Color.WHITE else android.graphics.Color.GRAY
+                                    color = if (isSelected) textPrimaryArgb else textSecondaryArgb
                                     textSize = 26f
                                     textAlign = android.graphics.Paint.Align.CENTER
                                     isFakeBoldText = isSelected
@@ -506,7 +509,7 @@ fun TagSpendingBarChart(
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Column(horizontalAlignment = Alignment.End) {
                                     Text(
-                                        text = "₹${String.format(Locale.getDefault(), "%,.2f", activeInfo.amount)}",
+                                        text = com.example.data.UiPrefs.formatAmount(activeInfo.amount, currencySymbol),
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = color,

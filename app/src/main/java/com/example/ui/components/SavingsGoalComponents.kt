@@ -778,6 +778,7 @@ fun SavingGoalsFullScreen(
             CoinDepositAnimationDialog(
                 amount = amt,
                 goalName = name,
+                currencySymbol = currencySymbol,
                 onDismiss = { activeDepositAnimationInfo = null }
             )
         }
@@ -1006,6 +1007,7 @@ fun SavingGoalCardItem(
 fun CoinDepositAnimationDialog(
     amount: Double,
     goalName: String,
+    currencySymbol: String = "₹",
     onDismiss: () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
@@ -1160,7 +1162,7 @@ fun CoinDepositAnimationDialog(
                             )
                         }
 
-                        // Animated Gold Coin with INR Symbol (₹)
+                        // Animated Gold Coin with Active Currency Symbol
                         Box(
                             modifier = Modifier
                                 .align(Alignment.Center)
@@ -1178,8 +1180,8 @@ fun CoinDepositAnimationDialog(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "₹",
-                                fontSize = 22.sp,
+                                text = currencySymbol,
+                                fontSize = if (currencySymbol.length > 1) 16.sp else 22.sp,
                                 fontWeight = FontWeight.Black,
                                 color = Color(0xFF713F12)
                             )
@@ -1198,7 +1200,7 @@ fun CoinDepositAnimationDialog(
                                 color = Color(0xFF10B981).copy(alpha = 0.15f)
                             ) {
                                 Text(
-                                    text = "+₹%,.2f Saved!".format(amount),
+                                    text = "${com.example.data.UiPrefs.formatAmount(amount, currencySymbol, showPlusSign = true)} Saved!",
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Black,
                                     color = Color(0xFF10B981),

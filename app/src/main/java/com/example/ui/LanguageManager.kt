@@ -135,7 +135,7 @@ object LanguageManager {
             "en" to "Data Export & Reports", "es" to "Exportar Datos e Informes", "hi" to "डेटा निर्यात और रिपोर्ट", "fr" to "Exportation de données & Rapports", "de" to "Datenexport & Berichte", "ja" to "データ出力とレポート"
         ),
         "Export transactions to CSV or PDF" to mapOf(
-            "en" to "Export transactions to CSV or PDF", "es" to "Exportar transacciones a CSV o PDF", "hi" to "लेन-देन को CSV या PDF में निर्यात करें", "fr" to "Exporter las transactions en CSV ou PDF", "de" to "Transaktionen als CSV oder PDF exportieren", "ja" to "取引履歴をCSVまたはPDFで出力"
+            "en" to "Export transactions to CSV or PDF", "es" to "Exportar transacciones a CSV o PDF", "hi" to "लेन-देन को CSV या PDF में निर्यात करें", "fr" to "Exporter les transactions en CSV ou PDF", "de" to "Transaktionen als CSV oder PDF exportieren", "ja" to "取引履歴をCSVまたはPDFで出力"
         ),
         "FAQ and Help" to mapOf(
             "en" to "FAQ and Help", "es" to "Preguntas y Ayuda", "hi" to "प्रश्न और सहायता", "fr" to "FAQ et Aide", "de" to "FAQ & Hilfe", "ja" to "FAQとヘルプ"

@@ -1545,7 +1545,8 @@ fun SmartBudgetHealthGaugeWidget(
     currentMonthExpense: Double,
     currencySymbol: String,
     onUpdateBudget: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    warningThresholdPercent: Int = 80
 ) {
     if (monthlyBudget <= 0) return
 
@@ -1561,14 +1562,14 @@ fun SmartBudgetHealthGaugeWidget(
 
     val gaugeColor = when {
         isExceeded -> ExpenseRed
-        spentPct >= 80 -> WarningOrange
+        spentPct >= warningThresholdPercent -> WarningOrange
         else -> IncomeGreen
     }
 
     val statusText = when {
         isExceeded -> "Budget exceeded"
-        spentPct >= 90 -> "Critical (90%+ spent)"
-        spentPct >= 80 -> "Warning (80%+ spent)"
+        spentPct >= 90 && warningThresholdPercent <= 90 -> "Critical (90%+ spent)"
+        spentPct >= warningThresholdPercent -> "Warning (${warningThresholdPercent}%+ spent)"
         else -> "On track"
     }
 
@@ -1646,13 +1647,13 @@ fun SmartBudgetHealthGaugeWidget(
                         fontSize = 12.sp
                     )
                     Text(
-                        text = String.format("%s%,.2f", currencySymbol, currentMonthExpense),
+                        text = com.example.data.UiPrefs.formatAmount(currentMonthExpense, currencySymbol),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold,
                         color = SleekTextPrimary
                     )
                     Text(
-                        text = String.format("Limit: %s%,.2f (%d%%)", currencySymbol, monthlyBudget, spentPct.toInt()),
+                        text = "Limit: ${com.example.data.UiPrefs.formatAmount(monthlyBudget, currencySymbol)} (${spentPct.toInt()}%)",
                         style = MaterialTheme.typography.bodySmall,
                         color = SleekTextSecondary,
                         fontSize = 12.sp

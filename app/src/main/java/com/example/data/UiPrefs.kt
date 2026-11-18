@@ -203,4 +203,26 @@ object UiPrefs {
 
     /** True when the persisted date format puts the day first (used by manual formatters). */
     fun dayFirst(): Boolean = dateFormat.startsWith("dd")
+
+    /** Formats a monetary value honoring the user's "Show cents" setting. */
+    fun formatAmount(
+        amount: Double,
+        symbol: String,
+        showPlusSign: Boolean = false,
+        negativeSign: Boolean = false
+    ): String {
+        val decimals = if (showCents) 2 else 0
+        val prefix = when {
+            negativeSign -> "-"
+            showPlusSign -> "+"
+            else -> ""
+        }
+        return String.format(Locale.getDefault(), "%s%s%,.${decimals}f", prefix, symbol, kotlin.math.abs(amount))
+    }
+
+    /** Formats a monetary value with an explicit sign prefix ("+", "-", or "") honoring "Show cents". */
+    fun formatSignedAmount(amount: Double, symbol: String, sign: String): String {
+        val decimals = if (showCents) 2 else 0
+        return String.format(Locale.getDefault(), "%s%s%,.${decimals}f", sign, symbol, kotlin.math.abs(amount))
+    }
 }

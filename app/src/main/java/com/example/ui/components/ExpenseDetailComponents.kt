@@ -39,6 +39,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -253,6 +254,7 @@ fun ExpenseDetailDialog(
     viewModel: FinanceViewModel,
     onDismiss: () -> Unit,
     onEditClick: () -> Unit,
+    onDuplicateClick: () -> Unit = {},
     onDeleteClick: () -> Unit
 ) {
     Dialog(
@@ -264,6 +266,7 @@ fun ExpenseDetailDialog(
             viewModel = viewModel,
             onDismiss = onDismiss,
             onEditClick = onEditClick,
+            onDuplicateClick = onDuplicateClick,
             onDeleteClick = onDeleteClick
         )
     }
@@ -275,6 +278,7 @@ fun ExpenseDetailContent(
     viewModel: FinanceViewModel,
     onDismiss: () -> Unit,
     onEditClick: () -> Unit,
+    onDuplicateClick: () -> Unit = {},
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -286,7 +290,6 @@ fun ExpenseDetailContent(
     var currentImagePath by remember(expense.imagePath) { mutableStateOf(expense.imagePath) }
     var activeBitmapForEdit by remember { mutableStateOf<Bitmap?>(null) }
     var showCropper by remember { mutableStateOf(false) }
-    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     var showFullImageViewer by remember { mutableStateOf(false) }
 
     // Media Launchers
@@ -314,8 +317,8 @@ fun ExpenseDetailContent(
     }
 
     val isIncome = expense.type == "INCOME"
-    val formattedDate = remember(expense.date) {
-        SimpleDateFormat("MMM dd, yyyy • hh:mm a", Locale.getDefault()).format(Date(expense.date))
+    val formattedDate = remember(expense.date, com.example.data.UiPrefs.dateFormat) {
+        com.example.data.UiPrefs.formatDateTime(expense.date)
     }
 
     // Color definitions matching the screenshot
@@ -421,18 +424,19 @@ fun ExpenseDetailContent(
                                 }
                             }
 
-                            // Delete Icon Button
+                            // Delete Icon Button (delegates directly to host so confirmTxDelete setting is respected cleanly)
                             Surface(
                                 shape = RoundedCornerShape(14.dp),
                                 color = cardBg,
                                 border = BorderStroke(1.dp, cardBorder),
                                 shadowElevation = 1.dp,
                                 modifier = Modifier
-                                    .size(44.dp)
+                                    .size(48.dp)
                                     .clip(RoundedCornerShape(14.dp))
+                                    .testTag("delete_transaction_button")
                                     .clickable {
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        showDeleteConfirmDialog = true
+                                        onDeleteClick()
                                     }
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
@@ -538,13 +542,17 @@ fun ExpenseDetailContent(
                             HorizontalDivider(color = cardBorder, thickness = 1.dp)
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            // Large Amount Text (+₹6.00 / -₹XX.XX)
+                            // Large Amount Text (+₹6.00 / -₹XX.XX honoring Show Cents)
                             val amountSign = if (isIncome) "+" else "-"
                             val amountColor = if (isIncome) incomeGreen else expenseRed
-                            val formattedAmount = String.format(Locale.getDefault(), "%,.2f", expense.amount)
+                            val signedFormattedAmount = com.example.data.UiPrefs.formatSignedAmount(
+                                amount = expense.amount,
+                                symbol = currencySymbol,
+                                sign = amountSign
+                            )
 
                             Text(
-                                text = "$amountSign$currencySymbol$formattedAmount",
+                                text = signedFormattedAmount,
                                 fontSize = 38.sp,
                                 fontWeight = FontWeight.Black,
                                 color = amountColor,
@@ -566,32 +574,67 @@ fun ExpenseDetailContent(
 
                             Spacer(modifier = Modifier.height(20.dp))
 
-                            // "Edit Transaction Details" Button inside Card
-                            Button(
-                                onClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    onEditClick()
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = primaryBlue),
-                                shape = RoundedCornerShape(14.dp),
-                                contentPadding = PaddingValues(horizontal = 16.dp)
+                            // "Edit Transaction Details" + "Log Again" Buttons inside Card
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                Icon(
-                                    imageVector = AppIcons.Edit,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(17.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Edit Transaction Details",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp
-                                )
+                                Button(
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        onEditClick()
+                                    },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(48.dp)
+                                        .testTag("edit_transaction_button"),
+                                    colors = ButtonDefaults.buttonColors(containerColor = primaryBlue),
+                                    shape = RoundedCornerShape(14.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = AppIcons.Edit,
+                                        contentDescription = null,
+                                        tint = onAccentColor,
+                                        modifier = Modifier.size(17.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Edit Details",
+                                        color = onAccentColor,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+
+                                OutlinedButton(
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        onDuplicateClick()
+                                    },
+                                    modifier = Modifier
+                                        .height(48.dp)
+                                        .testTag("duplicate_transaction_button"),
+                                    shape = RoundedCornerShape(14.dp),
+                                    border = BorderStroke(1.dp, SleekBorder),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = SleekTextPrimary),
+                                    contentPadding = PaddingValues(horizontal = 14.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = AppIcons.ContentCopy,
+                                        contentDescription = "Log Again",
+                                        tint = SleekPrimary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Log Again",
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 13.sp
+                                    )
+                                }
                             }
                         }
                     }
@@ -798,13 +841,13 @@ fun ExpenseDetailContent(
                                                 Icon(
                                                     imageVector = AppIcons.PhotoCamera,
                                                     contentDescription = null,
-                                                    tint = Color.White,
+                                                    tint = onAccentColor,
                                                     modifier = Modifier.size(18.dp)
                                                 )
                                                 Spacer(modifier = Modifier.width(8.dp))
                                                 Text(
                                                     text = "Camera",
-                                                    color = Color.White,
+                                                    color = onAccentColor,
                                                     fontWeight = FontWeight.Bold,
                                                     fontSize = 14.sp
                                                 )
@@ -872,64 +915,19 @@ fun ExpenseDetailContent(
                         Icon(
                             imageVector = AppIcons.Edit,
                             contentDescription = null,
-                            tint = Color.White,
+                            tint = onAccentColor,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Edit Transaction Details",
-                            color = Color.White,
+                            color = onAccentColor,
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
                         )
                     }
                 }
             }
-
-        // ==========================================
-        // 🗑️ DELETE CONFIRMATION DIALOG
-        // ==========================================
-        if (showDeleteConfirmDialog) {
-            AlertDialog(
-                onDismissRequest = { showDeleteConfirmDialog = false },
-                title = {
-                    Text(
-                        text = "Delete Transaction?",
-                        fontWeight = FontWeight.Bold,
-                        color = SleekTextPrimary
-                    )
-                },
-                text = {
-                    Text(
-                        text = "Are you sure you want to delete this $currencySymbol${String.format(Locale.getDefault(), "%,.2f", expense.amount)} ${expense.category} record? This action cannot be undone.",
-                        color = SleekTextSecondary
-                    )
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            showDeleteConfirmDialog = false
-                            onDeleteClick()
-                            Toast.makeText(context, "Transaction deleted", Toast.LENGTH_SHORT).show()
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = expenseRed),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Text("Delete", color = Color.White, fontWeight = FontWeight.Bold)
-                    }
-                },
-                dismissButton = {
-                    TextButton(
-                        onClick = { showDeleteConfirmDialog = false }
-                    ) {
-                        Text("Cancel", color = SleekTextSecondary)
-                    }
-                },
-                containerColor = cardBg,
-                shape = RoundedCornerShape(20.dp)
-            )
-        }
 
         // ==========================================
         // 🔍 FULL IMAGE VIEWER DIALOG

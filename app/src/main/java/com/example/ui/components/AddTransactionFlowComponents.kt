@@ -16,6 +16,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -76,6 +77,9 @@ fun AddExpenseDialog(
     lastUsedExpenseCategory: String? = null,
     lastUsedIncomeCategory: String? = null,
     autoSuggestCategory: Boolean = true,
+    defaultPaymentMode: String = "UPI",
+    highAmountWarningEnabled: Boolean = false,
+    highAmountThreshold: Double = 5000.0,
     gstReserveAmount: Double = 0.0,
     monthlySafeAmount: Double = 0.0,
     currencySymbol: String = "₹",
@@ -86,7 +90,7 @@ fun AddExpenseDialog(
     onEditCategory: (String, String) -> Unit = { _, _ -> },
     onDismiss: () -> Unit,
     onConfirmTransfer: ((fromAccountId: Long, toAccountId: Long, amount: Double, note: String, date: Long) -> Unit)? = null,
-    onConfirm: (amount: Double, category: String, date: Long, note: String, imagePath: String?, type: String) -> Unit
+    onConfirm: (amount: Double, category: String, date: Long, note: String, imagePath: String?, type: String, accountId: Long) -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
     var step by rememberSaveable { mutableIntStateOf(1) } // 1: Main Add Screen, 2: Add Description Screen
@@ -104,6 +108,10 @@ fun AddExpenseDialog(
         }
         mutableStateOf(initialCategory)
     }
+    var selectedAccountId by rememberSaveable(accounts) { mutableStateOf(accounts.firstOrNull()?.id ?: 0L) }
+    var selectedPaymentMode by rememberSaveable(defaultPaymentMode) {
+        mutableStateOf(defaultPaymentMode.ifBlank { "UPI" })
+    }
     var fromAccountId by rememberSaveable(accounts) { mutableStateOf(accounts.firstOrNull()?.id ?: 1L) }
     var toAccountId by rememberSaveable(accounts) {
         val second = accounts.getOrNull(1)?.id
@@ -113,6 +121,7 @@ fun AddExpenseDialog(
 
     var isAmountEditing by remember { mutableStateOf(false) }
     var showCreateCategoryDialog by remember { mutableStateOf(false) }
+    var showHighAmountConfirmDialog by remember { mutableStateOf(false) }
     var newCatTypeForDialog by remember { mutableStateOf(type) }
 
     // Image/receipt selection states
@@ -162,6 +171,7 @@ fun AddExpenseDialog(
 
     val enteredAmount = amountStr.toDoubleOrNull() ?: 0.0
     val isExceedingIncome = type == "EXPENSE" && (enteredAmount > availableBalance || totalExpenses + enteredAmount > totalIncome)
+    val isHighAmountWarning = highAmountWarningEnabled && type == "EXPENSE" && enteredAmount > 0 && enteredAmount >= highAmountThreshold
 
     // Automatically set default category when switching type
     LaunchedEffect(type) {
@@ -464,6 +474,33 @@ fun AddExpenseDialog(
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
                         )
+                    } else if (isHighAmountWarning) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = WarningOrange.copy(alpha = 0.14f),
+                            border = BorderStroke(1.dp, WarningOrange.copy(alpha = 0.4f)),
+                            modifier = Modifier.fillMaxWidth().testTag("high_amount_warning_banner")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = AppIcons.Warning,
+                                    contentDescription = null,
+                                    tint = WarningOrange,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = "High amount alert: exceeds your ${com.example.data.UiPrefs.formatAmount(highAmountThreshold, currencySymbol)} threshold",
+                                    color = WarningOrange,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -543,6 +580,112 @@ fun AddExpenseDialog(
                                     contentDescription = "Select category",
                                     tint = SleekTextSecondary
                                 )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Wallet / Account & Payment Mode Picker
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (accounts.isNotEmpty()) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Wallet:",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = SleekTextSecondary
+                                    )
+                                    accounts.forEach { acc ->
+                                        val isAccSelected = selectedAccountId == acc.id
+                                        FilterChip(
+                                            selected = isAccSelected,
+                                            onClick = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                selectedAccountId = acc.id
+                                            },
+                                            label = {
+                                                Text(
+                                                    text = acc.name,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = if (isAccSelected) FontWeight.Bold else FontWeight.Medium
+                                                )
+                                            },
+                                            colors = FilterChipDefaults.filterChipColors(
+                                                selectedContainerColor = SleekPrimaryContainer,
+                                                selectedLabelColor = SleekPrimary,
+                                                containerColor = SleekBg,
+                                                labelColor = SleekTextSecondary
+                                            ),
+                                            border = FilterChipDefaults.filterChipBorder(
+                                                enabled = true,
+                                                selected = isAccSelected,
+                                                borderColor = SleekBorder,
+                                                selectedBorderColor = SleekPrimary
+                                            ),
+                                            modifier = Modifier.testTag("add_tx_wallet_${acc.id}")
+                                        )
+                                    }
+                                }
+                            }
+
+                            val paymentModes = listOf("UPI", "CASH", "CARD", "NETBANK")
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Mode:",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = SleekTextSecondary
+                                )
+                                paymentModes.forEach { mode ->
+                                    val isModeSelected = selectedPaymentMode.equals(mode, ignoreCase = true)
+                                    FilterChip(
+                                        selected = isModeSelected,
+                                        onClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            selectedPaymentMode = mode
+                                        },
+                                        label = {
+                                            Text(
+                                                text = when (mode) {
+                                                    "NETBANK" -> "NetBank"
+                                                    "CASH" -> "Cash"
+                                                    "CARD" -> "Card"
+                                                    else -> "UPI"
+                                                },
+                                                fontSize = 11.sp,
+                                                fontWeight = if (isModeSelected) FontWeight.Bold else FontWeight.Medium
+                                            )
+                                        },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = activeSoftBg,
+                                            selectedLabelColor = activeColor,
+                                            containerColor = SleekBg,
+                                            labelColor = SleekTextSecondary
+                                        ),
+                                        border = FilterChipDefaults.filterChipBorder(
+                                            enabled = true,
+                                            selected = isModeSelected,
+                                            borderColor = SleekBorder,
+                                            selectedBorderColor = activeColor
+                                        ),
+                                        modifier = Modifier.testTag("add_tx_mode_${mode.lowercase()}")
+                                    )
+                                }
                             }
                         }
                     }
@@ -847,30 +990,46 @@ fun AddExpenseDialog(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // Final Save Button
-                    val finalNote = if (note.trim().isBlank()) {
-                        if (type == "TRANSFER") "Transfer from $fromAccName to $toAccName" else category
-                    } else note.trim()
+                    val rawNote = note.trim()
+                    val modeTag = if (type != "TRANSFER" && selectedPaymentMode.isNotBlank()) "[$selectedPaymentMode]" else ""
+                    val finalNote = if (rawNote.isBlank()) {
+                        if (type == "TRANSFER") "Transfer from $fromAccName to $toAccName" else "$category $modeTag".trim()
+                    } else if (modeTag.isNotEmpty() && !rawNote.contains(selectedPaymentMode, ignoreCase = true)) {
+                        "$rawNote $modeTag"
+                    } else {
+                        rawNote
+                    }
+                    val targetAccId = if (selectedAccountId > 0L) selectedAccountId else (accounts.firstOrNull()?.id ?: 0L)
+
+                    fun commitTransaction() {
+                        if (type == "TRANSFER") {
+                            onConfirmTransfer?.invoke(
+                                fromAccountId,
+                                toAccountId,
+                                enteredAmount,
+                                finalNote,
+                                prefilledDate ?: System.currentTimeMillis()
+                            )
+                        } else {
+                            onConfirm(
+                                enteredAmount,
+                                category,
+                                prefilledDate ?: System.currentTimeMillis(),
+                                finalNote,
+                                attachedImagePath,
+                                type,
+                                targetAccId
+                            )
+                        }
+                    }
 
                     Button(
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            if (type == "TRANSFER") {
-                                onConfirmTransfer?.invoke(
-                                    fromAccountId,
-                                    toAccountId,
-                                    enteredAmount,
-                                    finalNote,
-                                    prefilledDate ?: System.currentTimeMillis()
-                                )
+                            if (isHighAmountWarning) {
+                                showHighAmountConfirmDialog = true
                             } else {
-                                onConfirm(
-                                    enteredAmount,
-                                    category,
-                                    prefilledDate ?: System.currentTimeMillis(),
-                                    finalNote,
-                                    attachedImagePath,
-                                    type
-                                )
+                                commitTransaction()
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = activeColor),
@@ -889,6 +1048,41 @@ fun AddExpenseDialog(
                             color = Color.White,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    if (showHighAmountConfirmDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showHighAmountConfirmDialog = false },
+                            title = {
+                                Text("Confirm High Amount", fontWeight = FontWeight.Bold, color = SleekTextPrimary)
+                            },
+                            text = {
+                                Text(
+                                    text = "This ${category} expense of ${com.example.data.UiPrefs.formatAmount(enteredAmount, currencySymbol)} exceeds your high-amount warning limit (${com.example.data.UiPrefs.formatAmount(highAmountThreshold, currencySymbol)}). Save anyway?",
+                                    color = SleekTextSecondary
+                                )
+                            },
+                            confirmButton = {
+                                Button(
+                                    onClick = {
+                                        showHighAmountConfirmDialog = false
+                                        commitTransaction()
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = WarningOrange),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.testTag("confirm_high_amount_save_btn")
+                                ) {
+                                    Text("Save Anyway", color = Color.White, fontWeight = FontWeight.Bold)
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showHighAmountConfirmDialog = false }) {
+                                    Text("Review", color = SleekTextSecondary)
+                                }
+                            },
+                            containerColor = SleekSurface,
+                            shape = RoundedCornerShape(20.dp)
                         )
                     }
                 }
